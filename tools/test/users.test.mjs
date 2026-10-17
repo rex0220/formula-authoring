@@ -32,6 +32,7 @@ test("summary はコードや名前を出さない", () => {
   const s = summarizeUsers(DEFAULT_USERS, { kind: "default" }, "authoring");
   assert.match(s, /既定のテストデータ（架空）/);
   assert.match(s, /10 人、組織 4、グループ 2/);
-  assert.match(s, /--user authoring: 居る/);
+  assert.match(s, /--user で指定したユーザー: 居る/);
+  assert.ok(!/authoring/.test(s), "コードを出さない");
   assert.ok(!/demo_user01|架空 社長/.test(s));
 });

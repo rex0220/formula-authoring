@@ -15,7 +15,7 @@
 - 認証情報（`.env`）をファイルやチャットに書かない。`policy/` と `.env` を AI が編集しない。kintone の接続のファイルと、そこが名前を書いた環境変数は利用者のもの。**AI は読まない・書かない・表示しない**
 - **設定ファイルそのものを Read / Get-Content / head / node で表示しない**（ダウンロードは 1 行の JSON なので先頭の数行でも全体が出る）。中身は `summary`（`--field <code>` で 1 項目の計算式の全文）で見る
 - 設定画面からダウンロードしたファイルと pull したファイルは書き換えない（直すときは写しを直す）
-- `records/` と `users/`（実データ）はレコードの値・個人情報を含む。コミットしない（`.gitignore` 済み）。作業が終わったら消してよい。`users/*.json` は Read で開かない（`users --summary` で見る）
+- `records/` と `users/`（実データ）はレコードの値・個人情報を含む。コミットしない（`.gitignore` 済み）。作業が終わったら消してよい。`records/` と `users/` のファイルは Read で開かない（`record --summary` / `users --summary` で見る。拒否してある）
 - 一覧 ID（`pluginListInfo.views`）、権限のユーザー / 組織 / グループのコードは**推測しない**。利用者に聞く
 - 副作用のある関数（FSET / FSET_TADD / BUTTON / DIALOG / CLIPBORD_WRITE）を使う式は、利用者にその旨を伝える。tools は policy の承認が無ければ評価しない（AI は policy を書かない）。EV_SET は設定に入れない
 - イベントで結果が変わる式（EV_INFO）を書くときは「どのイベントでどの値になるか」を表にして利用者に示す。UINFO 系の `calc` の結果は既定のテストデータ（架空）によるものと伝える

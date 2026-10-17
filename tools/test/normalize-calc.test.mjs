@@ -54,7 +54,7 @@ test("normalize: 知らないキー、無い項目、無い関数、副作用、
   s.appId = 1;
   const res = await run(s);
   const errs = rules(res, "error");
-  for (const r of ["schema.unknown-key", "rank.range", "envelope.version"]) assert.ok(errs.includes(r), `${r}: ${res.summary}`);
+  for (const r of ["schema.unknown-key", "rank.range", "envelope.version", "envelope.app"]) assert.ok(errs.includes(r), `${r}: ${res.summary}`);
   assert.ok(!errs.includes("field.missing"), "生 JSON の段階で止まる（行の検査は次）");
   const s2 = sourceOnly();
   s2.pluginInfos.push({ fieldcode: "無い項目", state: true, formulaSet: "1", edit: false, hide: false, rank: "" });
@@ -102,4 +102,63 @@ test("calc: テスト用アプリの設定を 1 レコードに当てる（No �
   assert.equal(event.action.value, "承認");
   assert.throws(() => validateEvent("app.record.edit", undefined), /種別が違う/);
   assert.throws(() => calcSettings({ normalized: res, engine, fields: FIELDS_FILE(), appId: 2305, records: [{ id: "1", record }], user: "居ない人", usersInfo: defaultUsersInfo(), usersOrigin: { kind: "default" } }), /居ない/);
+});
+
+test("normalize: 入れ子の未知のキー、rank の範囲、計算式ツール無効、文脈の要求（LOOKUP_GETID / APP_URL / LOGIN）", { skip }, async () => {
+  const s = sourceOnly();
+  s.pluginMiscInfo.typo = true;
+  s.pluginInfos[0].rank = 10001;
+  s.toolEnable = false;
+  const res = await run(s);
+  const errs = rules(res, "error");
+  assert.ok(errs.includes("schema.unknown-key") && res.findings.items.some((f) => /pluginMiscInfo\.typo/.test(f.message)), res.summary);
+  assert.ok(errs.includes("rank.range"));
+  const s2 = sourceOnly();
+  s2.toolEnable = false;
+  s2.pluginInfos[0].formulaSet = 'LOOKUP_GETID(金額合計) & APP_URL("/k/1/") & LOGIN_CODE()';
+  const res2 = await run(s2);
+  assert.equal(res2.findings.count("error"), 0, res2.summary);
+  assert.ok(rules(res2, "warning").includes("tool.disabled"));
+  assert.deepEqual(res2.contextNeeds.lookups, [{ fieldcode: "金額合計", arg: "金額合計" }]);
+  assert.deepEqual(res2.contextNeeds.appUrl, ["金額合計"]);
+  assert.deepEqual(res2.contextNeeds.login, ["金額合計"]);
+});
+
+test("calc: 文脈が足りなければ名指しで止まる。sink が呼ばれたら結果を採らない。--app の取り違え", { skip }, async () => {
+  const engine = await loadEngine();
+  const record = { $id: { type: "RECORD_NUMBER", value: "1" }, 商品セット: { type: "CHECK_BOX", value: [] }, 金額合計: { type: "NUMBER", value: "" }, テーブル: { type: "SUBTABLE", value: [] } };
+  const base = { engine, fields: FIELDS_FILE(), appId: 2305, records: [{ id: "1", record }], usersInfo: defaultUsersInfo(), usersOrigin: { kind: "default" } };
+  const s = sourceOnly();
+  s.pluginInfos[0].formulaSet = 'LOOKUP_GETID(金額合計)';
+  const res = await run(s);
+  assert.equal(res.findings.count("error"), 0, res.summary);
+  assert.throws(() => calcSettings({ ...base, normalized: res }), /ルックアップ項目でない/);
+  const s2 = sourceOnly();
+  s2.pluginInfos[0].formulaSet = 'APP_URL("/k/1/")';
+  const res2 = await run(s2);
+  engine.setContext({ baseUrl: "https://example.cybozu.com" });
+  assert.throws(() => calcSettings({ ...base, normalized: res2 }), /接続先の URL が無い/);
+  engine.setContext({ baseUrl: "https://real.cybozu.com" });
+  assert.equal(calcSettings({ ...base, normalized: res2 }).records[0].errors.length, 0);
+  engine.setContext({ baseUrl: "https://example.cybozu.com" });
+  // sink: policy で CLIPBORD_WRITE を許すと評価され、実行時の sink が記録される → failed
+  const s3 = sourceOnly();
+  s3.pluginInfos[0].formulaSet = 'CLIPBORD_WRITE("x")';
+  const res3 = await run(s3, { policy: parsePolicy('{"allowFunctions":["CLIPBORD_WRITE"]}', "policy") });
+  assert.equal(res3.findings.count("error"), 0, res3.summary);
+  const r3 = calcSettings({ ...base, normalized: res3 });
+  assert.equal(r3.records[0].failed, true);
+  assert.ok(r3.records[0].errors.some((e) => e.fieldcode === "(sink)"));
+  // --app の取り違え
+  assert.throws(() => calcSettings({ ...base, normalized: res3, appId: 9999 }), /--app 9999 が設定の appId 2305 と違う/);
+  assert.throws(() => calcSettings({ ...base, normalized: res3, records: [{ id: "1", record, fileAppId: 7 }] }), /アプリ 7 のもの/);
+});
+
+test("engine: blockDq の間は dq が例外", { skip }, async () => {
+  const engine = await loadEngine();
+  const kf = engine.checker({}, {});
+  engine.blockDq(true);
+  assert.throws(() => kf.dq("1+1"), /遮断/);
+  engine.blockDq(false);
+  assert.equal(kf.dq("1+1"), 2);
 });

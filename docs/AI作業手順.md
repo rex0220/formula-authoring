@@ -31,9 +31,9 @@
 1. **アプリ番号** — 要件に番号があればそれを使う。名前だけなら kintone MCP の `kintone-get-apps` に `name` と `limit` を付けて探す。**候補が複数あれば推測せず利用者に聞く**
 2. **項目** — `fields --app N` → `fields --app N --summary`。計算式には**ラベルでなくフィールドコード**を書く。要件のラベルをどのコードに対応させたかを利用者に示す。似たラベルは**推測しない**。○ の無い型（CALC、ルックアップのコピー先など）には計算式を置けない
 3. **レコード** — `records --app N` で数件の形を見て、代表の 1 件（テーブルが複数行、空の項目がある）を `record --app N --id R` で取る。設定を書いた後は `record --app N --id R --fields-from settings/<ファイル>.json --force` で使う項目だけに絞ってよい
-4. **設定 JSON** — 雛形を写して**封筒**で `settings/APP<アプリ番号>-<アプリ名>.json` に書く（1 アプリ 1 ファイル）。`pluginID` は `"rex0220 formula plugin"`、`PluginVersion` は zip の版（`version` が出す）。`pluginInfos` に計算式を置く項目だけ書く（他は normalize が補う）。ランクは「参照する項目より後」になるように付ける（同じランクはレイアウトの順）
+4. **設定 JSON** — 雛形を写して**封筒**で `settings/APP<アプリ番号>-<アプリ名>.json` に書く（1 アプリ 1 ファイル）。`pluginID` は `"rex0220 formula plugin"`、`PluginVersion` は zip の版（`version` が出す）。`pluginInfos` に計算式を置く項目だけ書く（他は normalize が補う）。**ランクは計算の順で、大きい順に計算する**（未設定は 0、同じならレイアウトの順）。参照される項目を先に計算させるには、参照する項目より小さいランクを付ける（例: テーブルの行の値 3 → 行の金額 2 → 合計 1）
 5. **normalize** — `normalize settings/<ファイル>.json`（`fields/N.json` は封筒の appId から決まる）。エラーを 0 にする（下の表）。**警告は消さずに利用者に伝える**。`--out settings/<ファイル>.json --force` で既定値を補った形に書き戻してよい
-6. **calc** — `calc settings/<ファイル>.json --app N --id R`。項目ごとの前後を見て、要件どおりか確かめる。結果は模擬（レコードは更新しない）。ユーザー情報を使う式は既定のテストデータ（架空）の値、イベントで分岐する式は `--event` の文脈（既定は既存レコードを変更と同じ `allUpdate`）で計算される
+6. **calc** — `calc settings/<ファイル>.json --app N --id R`。項目ごとの前後を見て、要件どおりか確かめる。評価は Worker で動き、60 秒で止まる（重い式なら `--timeout 300`）。文脈が足りない（APP_URL に接続先が無い、LOOKUP_GETID の項目がルックアップでない、ログインユーザーが決まらない）ときは名指しで止まるので、利用者に聞くか `--user` を付ける。結果は模擬（レコードは更新しない）。ユーザー情報を使う式は既定のテストデータ（架空）の値、イベントで分岐する式は `--event` の文脈（既定は既存レコードを変更と同じ `allUpdate`）で計算される
 7. **反映方法を伝える（4 段）** — アプリの設定 → プラグイン → 計算式プラグインの設定 → **設定をアップロード** → 取り込み方を選ぶ（設定がまだ無いアプリは「全置換」、既存の設定に項目を足すなら「項目の置換」で対象の項目をチェック）→ **保存する**（「運用環境に反映」をチェックするとアプリの更新まで行う）→ 以後に追加・編集するレコードは新しい設定で計算 → **既存のレコードは変わらない**ので、必要なら設定画面の「既存レコードを変更」か一覧の「一括計算」を利用者が実行する（★ の項目があるときは勧める）
 
 ## 既存の設定を変える
@@ -51,10 +51,10 @@
 | エラー | 意味と直し方 |
 | --- | --- |
 | `schema.json` / `schema.rows` / `schema.unknown-key` | JSON として読めない、`pluginInfos` の形が違う、知らないキー（設定画面は黙って捨てるので書き間違いを見逃さないためにエラー）。設定ファイル仕様で確かめる |
-| `envelope.plugin` / `envelope.version` / `envelope.app` | 封筒の誤り。`pluginID` は `"rex0220 formula plugin"`。`PluginVersion` が zip より新しい。`appId` が正の整数でない |
+| `envelope.plugin` / `envelope.version` / `envelope.app` | 封筒の誤り。`pluginID` は `"rex0220 formula plugin"`。`PluginVersion` が zip より新しい。`appId` が正の整数でない、または fields のアプリと違う |
 | `field.missing` | 今のアプリに無い項目（ラベルで書いた、綴りの違い、別アプリの項目、削除された項目） |
 | `field.type` / `field.flag` | その型には計算式を置けない / HEADER・SPACER・GROUP に編集、HEADER・SPACER に非表示 |
-| `rank.range` | ランクが整数か `""` でない |
+| `rank.range` | ランクが整数（-10000〜10000）か `""` でない |
 | `formula.syntax` / `formula.unknown-function` / `formula.ref` | 評価できない（エンジンの文言を読む）/ 無い関数（関数一覧で名前を確かめる）/ 今のアプリに無い項目を参照 |
 | `formula.circular` | 自己参照か 2 項目の相互参照（各種設定 `circular_refer` が OFF のとき） |
 | `formula.side-effect` | 副作用のある関数（FSET / FSET_TADD / BUTTON / DIALOG / CLIPBORD_WRITE）。tools は評価しない。要るなら利用者に policy の `allowFunctions` を頼む（AI は書かない） |
@@ -65,14 +65,13 @@
 
 | 警告（消さずに利用者に伝える） | 意味 |
 | --- | --- |
-| `misc.changed` / `authority.limited` / `plugin.disabled` | 各種設定が既定と違う（利用者が決めること）/ 権限が全員でない / プラグイン無効 |
+| `misc.changed` / `authority.limited` / `plugin.disabled` / `tool.disabled` | 各種設定が既定と違う（利用者が決めること）/ 権限が全員でない / プラグイン無効 / 計算式ツール無効 |
 | `field.lookup` / `field.subtable` / `field.disabled` | ルックアップ項目に計算式（値を上書きする）/ テーブル自身の計算式は行数の制御 / 計算式があるが無効 |
 | `formula.context` | kintone の文脈が要る関数（LOGIN_* / LOOKUP_GETID / APP_URL …）。calc はダミー層の値 |
 | `formula.volatile` | RAND / NOW / TODAY / UUID など再計算のたびに値が変わる。既存レコードを変更で毎回変わる。固定するなら `NVL(項目, UUID())` |
 | `formula.aggregate` | テーブル内の項目でテーブルの集計関数（行ごとに全体を集計する。小計の行などで意図したものか） |
 | `event.fcode` | `EV_INFO("fcode")` は値変更イベントでしか入らない |
 | `userinfo.unknown` | 使うテストデータに無いユーザー・組織・グループのコードらしき文字列（実データで確かめるなら利用者に `users --pull` を頼む） |
-| `envelope.app` | appId が fields のアプリと違う |
 
 `[情報]`（Ver.100 の設定、捨てるキー、内部番号は設定画面が補う、保存値の大きさ、イベントで結果が変わる項目、ユーザー情報を使う項目、項目でない識別子、3 項目以上の循環）は要るときだけ伝える。
 
@@ -82,7 +81,7 @@
 - 計算式には**フィールドコード**を書く（ラベルではない）。テーブルの子の項目はテーブルの中の式ではそのまま、テーブルの外の式では集計関数（SUM(テーブルの子) など）で参照する
 - `//` から行末まではコメント。**文字列の中の `//` も行末までコメントになる**（`"https://…"` を書かない）。改行は実行時に無視される（見やすさのために入れてよい）
 - 文字列は `"…"`。`\n` は改行にならない（`\` を解釈しない）
-- 計算の順は**ランク**（小さい順。同じなら上から）。参照する項目より後のランクにする。設定画面は自己参照と 2 項目の相互参照を止める（`circular_refer` が OFF）
+- 計算の順は**ランク**（-10000〜10000。**大きい順**。未設定は 0。同じなら上から）。参照される項目のランクを大きく、参照する項目のランクを小さくする。設定画面は自己参照と 2 項目の相互参照を止める（`circular_refer` が OFF）。計算は 3 段（テーブルの外 → テーブルの行 → テーブルの外をもう一度）なので、順が逆でも 2 段目で追いつくことがあるが、頼らない
 - テーブル自身に計算式を置くと**行数の制御**（行数 | 初期データ）になる。テーブルの子に置くと行ごとに計算する
 - 副作用のある関数は BUTTON / DIALOG の中で使う。tools は policy の承認が無ければ評価しない
 - イベントで結果が変わる式（`EV_INFO("type")` など）は、どのイベントでどの値になるかを表にして利用者に示す。「既存レコードを変更」は `allUpdate`、一覧の「一括計算」は `batch` のイベントで動く（画面の入力時と同じにならない）
@@ -101,7 +100,7 @@
 
 - 封筒で出力する。`settings/` は固定名で上書きし、履歴は git で追う
 - **kintone への書き込みは行わない。** tools は GET だけ、`calc` は模擬
-- `records/` と `users/`（実データ）はコミットしない。作業が終わったら消してよい
+- `records/` と `users/`（実データ）はコミットしない。作業が終わったら消してよい。どちらも Read で開かない（`record --summary` / `users --summary`。`.claude/settings.json` で拒否してある）
 - 認証情報（`.env`）をファイルやチャットに書かない。`policy/` と `.env` を AI が編集しない
 - tools は `.env` の `FORMULA_PLUGIN_ZIP`（計算式プラグインの zip。Ver.101 以降）から計算式エンジンと authoring API を読む。「zip の場所が分からない」「版 … には対応していない」「計算式プラグインの zip ではない」と出たら、利用者に zip の場所と版（アプリに入れたものと同じ。配布元から入手したもの）を確かめてもらう
 - tools が読むファイルは作業フォルダーの中、書く先は `fields/` `records/` `settings/` `temp/` `users/` の下だけ

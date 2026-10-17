@@ -11,7 +11,7 @@ import { contextTargetsOf } from "./fields.ts";
 import { Findings } from "../normalize/findings.ts";
 import { ENVELOPE_KEYS, OUTER_KEYS, ROW_SCREEN_KEYS, ROW_SOURCE_KEYS, isGroupRow, isHeaderRow, isLookupRow, isSpacerRow, materialsOf, typeOf, type FieldRow, type FormulaSaved, type FormulaSource, type Lang } from "../normalize/model.ts";
 import { DEFAULT_POLICY, type Policy } from "../normalize/policy.ts";
-import { scanFormula, type ScanResult } from "../scan.ts";
+import { scanFormula, staticArgsOf, type ScanResult } from "../scan.ts";
 import type { UsersInfoTable } from "../users/index.ts";
 
 export interface NormalizeInput {
@@ -28,6 +28,17 @@ export interface NormalizeInput {
   now?: () => Date;
 }
 
+/** calc が文脈を要る式（走査から）。無ければ名指しで止める（計画 5 章。Codex #6） */
+export interface ContextNeeds {
+  /** APP_URL を使う項目（接続先の URL が要る） */
+  appUrl: string[];
+  /** LOGIN_* / WHICH / UINFO 系を使う項目（ログインユーザーが要る） */
+  login: string[];
+  /** LOOKUP_GETID(項目) の項目 → 使っている項目 */
+  lookups: Array<{ fieldcode: string; arg: string }>;
+  related: Array<{ fieldcode: string; arg: string }>;
+}
+
 export interface NormalizeResult {
   findings: Findings;
   /** 既定値を補った封筒（エラーがあれば無い） */
@@ -42,16 +53,70 @@ export interface NormalizeResult {
   scans: Map<string, ScanResult>;
   /** --check: 入力（元の値）と出力の差 */
   checkDiffs?: string[];
+  contextNeeds: ContextNeeds;
+  /** 封筒の appId */
+  appId?: number;
   size?: { bytes: number; keys: number };
   summary: string;
 }
 
 const isPlain = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
-/** 文字列リテラルの中の、ユーザー・組織・グループのコードらしきもの（UINFO 系の引数。"a,b" はカンマ区切り） */
-function codesInStrings(scan: ScanResult): string[] {
+/** UINFO 系の関数の引数にある文字列の中の、ユーザー・組織・グループのコードらしきもの（"a,b" はカンマ区切り。option の名前や # のカスタマイズ項目は除く） */
+const UINFO_OPTIONS = new Set(["id", "code", "ctime", "mtime", "valid", "name", "surName", "givenName", "surNameReading", "givenNameReading", "localName", "localNameLocale", "timezone", "locale", "description", "phone", "mobilePhone", "extensionNumber", "email", "callto", "url", "employeeNumber", "birthDate", "joinDate", "groups", "orgs", "primaryOrganization", "sortOrder", "setData", "parentCode", "users", "children"]);
+function codesInStrings(scan: ScanResult, userInfoFns: readonly string[]): string[] {
   const out: string[] = [];
-  for (const s of scan.strings) for (const c of s.split(",")) { const t = c.trim(); if (t && !t.startsWith("#") && /^[^\s"]{1,128}$/.test(t)) out.push(t); }
+  for (const { text, call } of scan.stringArgs) {
+    if (!userInfoFns.includes(call)) continue;
+    for (const c of text.split(",")) {
+      const t = c.trim();
+      if (t && !t.startsWith("#") && !UINFO_OPTIONS.has(t) && /^[^\s"]{1,128}$/.test(t)) out.push(t);
+    }
+  }
+  return out;
+}
+
+/** 生の JSON の未知のキーを CONFIG_SCHEMA で再帰的に探す（normalizeSource は未知のキーを黙って捨てるので、その前に。Codex #3）。map のキーは任意 */
+function unknownKeys(raw: unknown, schema: Record<string, unknown> | undefined, pathStr: string, out: string[]): void {
+  if (!schema || !raw || typeof raw !== "object") return;
+  const t = schema.type as string;
+  if (t === "object" && isPlain(raw)) {
+    const props = (schema.props ?? {}) as Record<string, Record<string, unknown>>;
+    for (const [k, v] of Object.entries(raw)) {
+      if (!(k in props)) out.push(`${pathStr}.${k}`);
+      else unknownKeys(v, props[k], `${pathStr}.${k}`, out);
+    }
+  } else if (t === "map" && isPlain(raw)) {
+    for (const [k, v] of Object.entries(raw)) unknownKeys(v, schema.values as Record<string, unknown>, `${pathStr}.${k}`, out);
+  } else if (t === "array" && Array.isArray(raw)) {
+    raw.forEach((v, i) => unknownKeys(v, schema.items as Record<string, unknown>, `${pathStr}[${i}]`, out));
+  }
+}
+
+/** 有向グラフの強連結成分（Tarjan）。大きさ 2 以上の成分 = 循環 */
+export function stronglyConnected(graph: Map<string, string[]>): string[][] {
+  let index = 0;
+  const idx = new Map<string, number>();
+  const low = new Map<string, number>();
+  const onStack = new Set<string>();
+  const stack: string[] = [];
+  const out: string[][] = [];
+  const visit = (v: string): void => {
+    idx.set(v, index); low.set(v, index); index++;
+    stack.push(v); onStack.add(v);
+    for (const w of graph.get(v) ?? []) {
+      if (!graph.has(w)) continue;
+      if (!idx.has(w)) { visit(w); low.set(v, Math.min(low.get(v)!, low.get(w)!)); }
+      else if (onStack.has(w)) low.set(v, Math.min(low.get(v)!, idx.get(w)!));
+    }
+    if (low.get(v) === idx.get(v)) {
+      const comp: string[] = [];
+      let w: string;
+      do { w = stack.pop()!; onStack.delete(w); comp.push(w); } while (w !== v);
+      if (comp.length >= 2) out.push(comp.reverse());
+    }
+  };
+  for (const v of graph.keys()) if (!idx.has(v)) visit(v);
   return out;
 }
 
@@ -63,7 +128,8 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   const findings = new Findings();
   const scans = new Map<string, ScanResult>();
   const file = input.settingsFile;
-  const done = (extra: Partial<NormalizeResult> = {}): NormalizeResult => ({ findings, scans, summary: findings.format(), ...extra });
+  const contextNeeds: ContextNeeds = { appUrl: [], login: [], lookups: [], related: [] };
+  const done = (extra: Partial<NormalizeResult> = {}): NormalizeResult => ({ findings, scans, contextNeeds, summary: findings.format(), ...extra });
 
   // 1. 生の JSON（封筒、未知のキー）
   let raw: unknown;
@@ -84,7 +150,7 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   else if (Number(ver) < Number(engine.source.pluginVersion)) findings.info("envelope.version", file, `Ver.${ver} の設定（zip は Ver.${engine.source.pluginVersion}。取り込める。書き出すと Ver.${engine.source.pluginVersion} になる）`);
   const appId = raw.appId;
   if (typeof appId !== "number" || !Number.isInteger(appId) || appId <= 0) findings.error("envelope.app", file, `appId が正の整数でない: ${JSON.stringify(appId)}`);
-  else if (appId !== fields.appId) findings.warning("envelope.app", file, `appId ${appId} が fields のアプリ ${fields.appId} と違う（別のアプリの設定を当てている）`);
+  else if (appId !== fields.appId) findings.error("envelope.app", file, `appId ${appId} が fields のアプリ ${fields.appId} と違う（別のアプリの設定を当てている。Codex #7）`);
   const known = new Set<string>([...ENVELOPE_KEYS, ...api.SOURCE_KEYS, ...api.DERIVED_KEYS, ...OUTER_KEYS]);
   const dropped: string[] = [];
   for (const k of Object.keys(raw)) {
@@ -92,6 +158,11 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
     else if ((api.DERIVED_KEYS as readonly string[]).includes(k) || (OUTER_KEYS as readonly string[]).includes(k)) dropped.push(k);
   }
   if (dropped.length) findings.info("schema.derived", file, `派生値・外枠のキーは捨てて保存時に作り直す: ${dropped.join(", ")}`);
+  // 入れ子の未知のキー（pluginBtnInfo / pluginListInfo / authority / pluginMiscInfo / pluginInfos の行）
+  const nested: string[] = [];
+  const schemaProps = ((api.CONFIG_SCHEMA as unknown as { props?: Record<string, Record<string, unknown>> }).props ?? {});
+  for (const k of api.SOURCE_KEYS as readonly string[]) if (k in raw) unknownKeys(raw[k], schemaProps[k], `$.${k}`, nested);
+  for (const pth of nested) if (!/^\$\.pluginInfos\[\d+\]\./.test(pth)) findings.error("schema.unknown-key", file, `知らないキー ${pth}（設定画面は黙って捨てる）`);
   const infos = raw.pluginInfos;
   if (infos !== undefined && !Array.isArray(infos)) findings.error("schema.rows", file, "pluginInfos は配列");
   const rowKnown = new Set<string>([...ROW_SOURCE_KEYS, ...ROW_SCREEN_KEYS]);
@@ -109,7 +180,11 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
     else seen.add(r.fieldcode);
     if (r.formulaSet !== undefined && typeof r.formulaSet !== "string") findings.error("schema.rows", where, "formulaSet は文字列");
     for (const k of ["state", "edit", "hide"]) if (r[k] !== undefined && typeof r[k] !== "boolean") findings.error("schema.rows", where, `${k} は true / false`);
-    if (r.rank !== undefined && r.rank !== "" && !(typeof r.rank === "number" && Number.isInteger(r.rank)) && !(typeof r.rank === "string" && /^-?\d+$/.test(r.rank))) findings.error("rank.range", where, `rank は整数か ""（${JSON.stringify(r.rank)}）`);
+    if (r.rank !== undefined && r.rank !== "") {
+      const n = typeof r.rank === "number" ? r.rank : typeof r.rank === "string" && /^-?\d+$/.test(r.rank.trim()) ? Number(r.rank) : NaN;
+      if (!Number.isInteger(n)) findings.error("rank.range", where, `rank は整数か ""（${JSON.stringify(r.rank)}）`);
+      else if (n > 10000 || n < -10000) findings.error("rank.range", where, `rank は -10000〜10000（${n}。設定画面と同じ規則）`);
+    }
   });
   if (screenKeys) findings.info("schema.screen-keys", file, "画面の行のキー（id / type / usedFields など）は捨てる");
   if (findings.hasErrors) return done();
@@ -138,6 +213,7 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   if (miscDiff.length) (policy.allowMiscChanges ? findings.info : findings.warning).call(findings, "misc.changed", file, `各種設定が既定と違う: ${miscDiff.join(", ")}${policy.allowMiscChanges ? "（policy で承認済み）" : "（利用者が決めること。policy の allowMiscChanges で承認）"}`);
   if ((source.authority as { everyone?: boolean }).everyone === false) findings.warning("authority.limited", file, "権限設定が「全員」でない（計算が動くユーザーが限られる）");
   if (source.pluginEnable === false) findings.warning("plugin.disabled", file, "プラグイン無効（保存しても計算しない）");
+  if (source.toolEnable === false) findings.warning("tool.disabled", file, "計算式ツール無効（詳細画面の計算式ツールが出ない）");
 
   // 3. 走査（dq の前）
   const tags = api.FUNCTION_TAGS as Record<string, readonly string[]>;
@@ -145,6 +221,8 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   const types = engine.functionTypes();
   const blocked = new Set<string>();
   const dqBefore = engine.dqCount();
+  engine.blockDq(true);
+  try {
   for (const r of rows) {
     if (!r.state || !r.formulaSet || !r.formulaSet.trim()) continue;
     const where = `${file} ${r.fieldcode}`;
@@ -175,7 +253,7 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
       if (misc.userInfo === false) findings.error("userinfo.off", where, `各種設定「ユーザー情報」が OFF なのに ${uinfo.join(", ")} を使う`);
       else {
         const table = input.usersInfo;
-        const unknown = table ? codesInStrings(scan).filter((c) => !(c in table.userCodes) && !(c in table.orgCodes) && !(c in table.groupCodes) && !["code", "name", "id", "email", "orgs", "groups"].includes(c) && !Object.keys(table.userCodes[Object.keys(table.userCodes)[0]] ?? {}).includes(c)) : [];
+        const unknown = table ? codesInStrings(scan, tags.userInfo).filter((c) => !(c in table.userCodes) && !(c in table.orgCodes) && !(c in table.groupCodes)) : [];
         findings.info("userinfo.used", where, `ユーザー情報を使う（${uinfo.join(", ")}）。calc は${input.usersLabel ?? "既定のテストデータ（架空）"}で計算する`);
         if (unknown.length) findings.warning("userinfo.unknown", where, `${input.usersLabel ?? "既定のテストデータ"}に無いコードらしき文字列: ${unknown.slice(0, 5).join(", ")}（実データで確かめるなら users --pull）`);
       }
@@ -185,16 +263,25 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
       if (agg.length) findings.warning("formula.aggregate", where, `テーブル内の項目でテーブルの集計関数 ${agg.join(", ")}（行ごとに全体を集計する。意図したものか）`);
     }
     for (const id of scan.identifiers) if (!(id in pp) && !byCode.has(id)) findings.info("formula.identifier", where, `項目でない識別子 ${id}（LET などの変数か、関数の引数の名前なら問題ない）`);
+    // calc の文脈に要るもの（Codex #6）
+    if (used.includes("APP_URL")) contextNeeds.appUrl.push(r.fieldcode);
+    if (used.some((f) => /^LOGIN_|^WHICH$/.test(f) || tags.userInfo.includes(f))) contextNeeds.login.push(r.fieldcode);
+    for (const a of staticArgsOf(stripped, "LOOKUP_GETID")) contextNeeds.lookups.push({ fieldcode: r.fieldcode, arg: a });
+    for (const a of staticArgsOf(stripped, "RELATED_GETID")) contextNeeds.related.push({ fieldcode: r.fieldcode, arg: a });
+  }
+  } finally {
+    engine.blockDq(false);
   }
   if (engine.dqCount() !== dqBefore) throw new Error("normalize: 走査の前に dq が呼ばれた（tools の誤り）");
   if (findings.hasErrors) return done();
 
   // 4. 検証（ここで初めて dq）と派生値
-  const loaded = { pp, crec, lang } as unknown as Parameters<typeof api.checkFormula>[0];
   const circular = !!misc.circular_refer;
   for (const r of rows) {
     if (!r.state) continue;
     if (blocked.has(r.fieldcode)) continue;
+    // 検証用レコードは式ごとに写す（policy で許した FSET が書き換えても、次の式に影響しない。Codex #11）
+    const loaded = { pp, crec: structuredClone(crec), lang } as unknown as Parameters<typeof api.checkFormula>[0];
     const res = quiet(() => api.checkFormula(loaded, r as never, circular));
     if (!res.ok) {
       const msg = res.msg ?? "";
@@ -216,11 +303,11 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
     return done();
   }
   const saved = d.saved as unknown as FormulaSaved;
-  // 3 項目以上の閉路（設定画面は自己参照と 2 項目だけ）→ 情報
+  // 3 項目以上の循環（設定画面は自己参照と 2 項目だけを止める）→ 情報。強連結成分なので大きさに上限は無い（Codex #16）
   const graph = new Map<string, string[]>();
   for (const f of saved.pluginFields) graph.set(f.fieldcode, Object.keys(f.usedFields ?? {}).filter((k) => saved.pluginFields.some((x) => x.fieldcode === k)));
-  const cycles = findCycles(graph).filter((c) => c.length >= 3);
-  for (const c of cycles) findings.info("formula.cycle", file, `${c.length} 項目の循環参照（設定画面は止めない。計算の順はランク）: ${c.join(" → ")}`);
+  for (const c of stronglyConnected(graph).filter((x) => x.length >= 3)) findings.info("formula.cycle", file, `${c.length} 項目の循環参照（設定画面は止めない。計算の順はランクの大きい順）: ${c.join(" → ")}`);
+  for (const k of ["pluginUOG", "pluginRecNo", "pluginModifier", "pluginStatus", "pluginHide", "pluginLookup"]) if ((saved as Record<string, unknown>)[k] === true) findings.info("derived.flag", file, `${k}: true（${{ pluginUOG: "ユーザー情報を読む", pluginRecNo: "レコード番号を参照", pluginModifier: "更新者を参照", pluginStatus: "ステータスを参照", pluginHide: "非表示の項目がある", pluginLookup: "ルックアップ項目に計算式" }[k]}）`);
   try {
     api.validate(saved as never, api.CONFIG_SCHEMA, api.CONFIG_LIMITS);
   } catch (e) {
@@ -232,8 +319,15 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   try {
     const stored = await api.writeConfig(saved as never, "compressed");
     const bytes = Object.values(stored as Record<string, string>).reduce((n, v) => n + Buffer.byteLength(String(v), "utf8"), 0);
+    // 内部番号（fieldno / tableno / tablepos）は設定画面が保存時に足す。pluginInfos と pluginFields の両方に入るので、1 項目あたり安全側に 80 バイト × 2 を上乗せして見積もる（Codex #8）
+    const margin = needNumbers.length * 160;
+    const max = (api.DEFAULT_LIMITS as { maxTotalBytes: number }).maxTotalBytes;
     size = { bytes, keys: Object.keys(stored as object).length };
-    findings.info("size.bytes", file, `保存値 ${bytes.toLocaleString()} バイト（${size.keys} キー。内部番号の分が少し増える。上限 ${(api.DEFAULT_LIMITS as { maxTotalBytes: number }).maxTotalBytes.toLocaleString()}）`);
+    if (bytes + margin > max) {
+      findings.error("size.limit", file, `保存値 ${bytes.toLocaleString()} バイト + 内部番号の見積もり ${margin.toLocaleString()} が上限 ${max.toLocaleString()} を超える（圧縮前の見積もり。設定画面の保存で止まる）`);
+      return done();
+    }
+    findings.info("size.bytes", file, `保存値 ${bytes.toLocaleString()} バイト（${size.keys} キー。内部番号の見積もり +${margin.toLocaleString()}。上限 ${max.toLocaleString()}）`);
   } catch (e) {
     findings.error("size.limit", file, `保存値が大きすぎる: ${e instanceof Error ? e.message : String(e)}`);
     return done();
@@ -248,7 +342,7 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
     const inBody = api.toExportBody({ ...api.normalizeSource(raw, lang, views.length ? (views as never) : undefined) } as unknown as Record<string, unknown>, lang) as unknown as Record<string, unknown>;
     jsonDiff(inBody, body, "$", checkDiffs);
   }
-  return done({ output, saved, source: sourceRows, rows, pp: pp as Record<string, unknown>, size, checkDiffs });
+  return done({ output, saved, source: sourceRows, rows, pp: pp as Record<string, unknown>, size, checkDiffs, appId: appId as number });
 }
 
 /** 有向グラフの閉路（小さいグラフ向けの素朴な探索。同じ閉路は 1 回） */

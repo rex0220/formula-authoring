@@ -46,6 +46,8 @@
       "Read(.env)",
       "Write(.env)",
       "Edit(.env)",
+      "Read(records/**)",
+      "Read(kintone/**/records/**)",
       "Read(users/**)",
       "Write(users/**)",
       "Edit(users/**)"

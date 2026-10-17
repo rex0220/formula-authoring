@@ -4,7 +4,7 @@
  * **レコードは更新しない。** 画面のイベントの処理（値変更の順、非同期計算、テーブルの行数制御の途中）の完全な再現ではない（オーサリングツール_実装計画.md 7 章）。
  * 文脈（ログインユーザー / アプリ番号 / mobile / ルックアップ先 / ユーザー情報 / イベント）はダミー層から与え、表の先頭に出す。
  */
-import type { CalcEvent, Engine } from "../engine.ts";
+import { DEFAULT_CONTEXT_BASE_URL, type CalcEvent, type Engine } from "../engine.ts";
 import { InputError, quiet } from "../input.ts";
 import type { FieldsFile } from "./fields.ts";
 import { contextTargetsOf } from "./fields.ts";
@@ -22,7 +22,8 @@ export interface CalcInput {
   engine: Engine;
   fields: FieldsFile;
   appId: number;
-  records: Array<{ id: string; record: KintoneRecord }>;
+  /** records/ のファイルの appId / id（取り違えの検査。Codex #7） */
+  records: Array<{ id: string; record: KintoneRecord; fileAppId?: number; fileId?: number; fileBaseUrl?: string }>;
   evType?: string;
   event?: CalcEvent;
   mobile?: boolean;
@@ -46,6 +47,8 @@ export interface CalcRecordResult {
   changed: number;
   errors: Array<{ fieldcode: string; phases: string[]; message: string }>;
   sinks: string[];
+  /** 実行時の sink が呼ばれた = 走査の漏れ。結果を採らない（Codex #9） */
+  failed: boolean;
 }
 
 export interface CalcResult {
@@ -84,6 +87,12 @@ export function calcSettings(input: CalcInput): CalcResult {
   const pp = normalized.pp;
   if (!saved || !pp) throw new InputError("normalize でエラーがあるので calc できない");
   if (input.records.length > RECORDS_MAX) throw new InputError(`calc は 1 回 ${RECORDS_MAX} 件まで`);
+  if (normalized.appId !== undefined && normalized.appId !== input.appId) throw new InputError(`--app ${input.appId} が設定の appId ${normalized.appId} と違う`);
+  if (fields.appId !== input.appId) throw new InputError(`--app ${input.appId} が fields のアプリ ${fields.appId} と違う`);
+  for (const r of input.records) {
+    if (r.fileAppId !== undefined && r.fileAppId !== input.appId) throw new InputError(`レコード ${r.id} のファイルはアプリ ${r.fileAppId} のもの（--app ${input.appId}）`);
+    if (r.fileId !== undefined && String(r.fileId) !== r.id) throw new InputError(`レコード ${r.id} のファイルの id が ${r.fileId}`);
+  }
   const { evType, event } = validateEvent(input.evType, input.event);
   const tags = api.FUNCTION_TAGS as Record<string, readonly string[]>;
   // 文脈
@@ -98,6 +107,13 @@ export function calcSettings(input: CalcInput): CalcResult {
     ? { id: String(found.id), code: String(found.code), name: String(found.name ?? ""), email: String(found.email ?? ""), timezone: String(found.timezone ?? "Asia/Tokyo"), language: String(found.locale ?? "ja"), isGuest: false }
     : null;
   engine.setContext({ appId: input.appId, mobile: !!input.mobile, loginUser, lookupTargets: targets.lookupTargets, relatedTargets: targets.relatedTargets, usersInfo: table, usersOrigin: table ? input.usersOrigin : { kind: "none" } });
+  // 文脈が足りなければ名指しで止める（黙って既定にしない。計画 5 章、Codex #6）
+  const needs = normalized.contextNeeds;
+  const ctx = engine.context();
+  if (needs.appUrl.length && ctx.baseUrl === DEFAULT_CONTEXT_BASE_URL) throw new InputError(`APP_URL を使う項目（${needs.appUrl.join(", ")}）があるが、接続先の URL が無い（.env の KINTONE_BASE_URL）`);
+  if (needs.login.length && !loginUser) throw new InputError(`ログインユーザーを使う項目（${needs.login.join(", ")}）があるが、ユーザーが決まらない（--user <code>。既定の authoring が ${input.usersOrigin.kind === "file" ? input.usersOrigin.file : "テストデータ"} に居ない）`);
+  for (const l of needs.lookups) if (!(l.arg in targets.lookupTargets)) throw new InputError(`${l.fieldcode} の LOOKUP_GETID(${l.arg}): ${l.arg} はルックアップ項目でないか、参照先のアプリを参照する権限が無い（fields を取り直す）`);
+  for (const l of needs.related) if (!(l.arg in targets.relatedTargets)) throw new InputError(`${l.fieldcode} の RELATED_GETID(${l.arg}): ${l.arg} は関連レコード一覧でないか、参照先のアプリを参照する権限が無い`);
   const usersLabel = !table ? (userInfoOn ? "なし" : "各種設定「ユーザー情報」OFF") : input.usersOrigin.kind === "file" ? input.usersOrigin.file : "既定のテストデータ（架空）";
   const contextLine = `文脈: アプリ ${input.appId}、ログインユーザー ${loginUser ? loginUser.code : "指定なし（番兵）"}、mobile ${input.mobile ? "true" : "false"}、イベント ${evType}${event ? `（${event.action.value} / ${event.status.value} → ${event.nextStatus.value}）` : ""}、ユーザー情報 ${usersLabel}、ルックアップ先 ${Object.keys(targets.lookupTargets).length}、関連レコード一覧の先 ${Object.keys(targets.relatedTargets).length}`;
   const notice = `更新していません（模擬）。EV_INFO の文脈を与えた 3 段（項目 → テーブルの行 → 2 段目）の計算で、${evType === "allUpdate" ? "設定画面の「既存レコードを変更」の文脈" : evType === "batch" ? "一覧の「一括計算」の文脈" : "画面のイベントの処理の完全な再現ではありません"}。`;
@@ -132,7 +148,10 @@ export function calcSettings(input: CalcInput): CalcResult {
       cur.phases.push(e.rowIndex !== undefined ? `${e.phase}[${e.rowIndex}]` : e.phase);
       byField.set(key, cur);
     }
-    results.push({ id, lines, changed: lines.filter((l) => l.changed).length, errors: [...byField.values()], sinks: engine.sinkCalls().map((s) => `${s.sink} ${s.detail}`.trim()) });
+    const sinks = engine.sinkCalls().map((s) => `${s.sink} ${s.detail}`.trim());
+    const errors = [...byField.values()];
+    for (const sk of sinks) errors.push({ fieldcode: "(sink)", phases: ["runtime"], message: `実行時の sink が呼ばれた: ${sk}（走査で止められなかった副作用。この結果は採らない）` });
+    results.push({ id, lines, changed: lines.filter((l) => l.changed).length, errors, sinks, failed: sinks.length > 0 });
   }
   engine.clearSinkCalls();
   const text: string[] = [notice, contextLine];
@@ -155,7 +174,7 @@ export function calcSettings(input: CalcInput): CalcResult {
       text.push(`  ${l.changed ? "★" : "　"} ${l.fieldcode}: ${short(l.before)} → ${short(l.after)}${marks}`);
     }
     for (const e of res.errors) text.push(`  ！ ${e.fieldcode}（${e.phases.join(", ")}）: ${e.message}`);
-    for (const s of res.sinks) text.push(`  ！ 実行時の sink が呼ばれた: ${s}（tools は拒否した）`);
+    if (res.failed) text.push("  ！ このレコードの結果は採らない（実行時の sink）");
   }
   let summary = "";
   if (results.length > 1) {

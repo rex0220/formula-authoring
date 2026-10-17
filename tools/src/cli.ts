@@ -7,7 +7,7 @@
  * 接続のファイル（複数の profile）と kintone/ のフォルダー（take / edit / files）は工程 1 の後半。
  * 終了コード: 0 成功、1 検査のエラー・認証・kintone・zip・入力の誤り、2 使い方の誤り（パスの制限を含む）。
  */
-import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createContext, type WorkContext } from "./context.ts";
@@ -29,11 +29,9 @@ import { summarizeSettings } from "./commands/summary.ts";
 import { diffSettings } from "./commands/diff.ts";
 import { UsersPullError, pullUsers, usersFileNameOf } from "./commands/users.ts";
 import { readFieldsFile, readTextLimited } from "./input.ts";
-import { normalizeSettings, type NormalizeResult } from "./commands/normalize.ts";
-import { calcSettings } from "./commands/calc.ts";
 import { PolicyError, loadPolicy } from "./normalize/policy.ts";
-import { buildUsersInfo, type UsersInfoTable } from "./users/index.ts";
-import type { FieldsFile } from "./commands/fields.ts";
+import { DEFAULT_TIMEOUT_SEC, EvalError, EvalTimeoutError, MAX_TIMEOUT_SEC, runEval } from "./worker/run.ts";
+import type { EvalJob } from "./worker/eval-job.ts";
 
 const USAGE = `使い方: npx @rex0220/formula-authoring-tools <command> [options]
   version                                   tools の版と、zip から読んだ計算式プラグインの版・API の版・エンジンの SHA-256
@@ -53,11 +51,11 @@ const USAGE = `使い方: npx @rex0220/formula-authoring-tools <command> [option
                                             ユーザー情報のテストデータの要約（既定は tools 同梱の架空の 10 人）
   users --pull [--out users/<host>.json] [--force] [--max N]
                                             ユーザー・組織・グループと所属を User API から users/ に（個人情報。パスワード認証だけ）
-  normalize <settings.json> [--fields fields/N.json] [--users <f>] [--out <f>] [--force] [--check]
+  normalize <settings.json> [--fields fields/N.json] [--users <f>] [--out <f>] [--force] [--check] [--timeout 秒]
                                             設定画面と同じ手順で検査し、既定値を補った設定を書き出す（--check は入力との差）
   calc <settings.json> --app N (--id R | --records R1,R2,…) [--fields fields/N.json] [--users <f>] [--user <code>]
-       [--event <種別>] [--action A --status S --next-status T] [--mobile]
-                                            取得済みのレコード（records/）に設定を当てた模擬（更新しない）
+       [--event <種別>] [--action A --status S --next-status T] [--mobile] [--timeout 秒]
+                                            取得済みのレコード（records/）に設定を当てた模擬（更新しない）。評価は Worker で動かし、既定 60 秒で止める
   help
 
 読むのは作業フォルダー（起動したフォルダー）の中のファイルだけ。書くのは fields/ records/ settings/ temp/ users/ の下だけ。
@@ -95,15 +93,17 @@ function intFlag(flags: Flags, k: string, required: boolean): number | undefined
 let W: WorkContext;
 const shown = (file: string): string => path.relative(W.root, file).replace(/\\/g, "/") || file;
 
-/** 書き出し（書ける場所の中だけ。あれば --force が要る） */
-function writeOut(file: string, text: string, roots: readonly string[], force: boolean): string {
+/** 書き出し（書ける場所の中だけ。あれば --force が要る）。レコードの値・個人情報を含むもの（records/ users/）は本人だけが読める 0o600（Codex #12） */
+function writeOut(file: string, text: string, roots: readonly string[], force: boolean, mode?: number): string {
   const abs = resolveWrite(file, roots, W.root);
   if (existsSync(abs) && !force) throw new InputError(`${shown(abs)} は既にある（上書きするなら --force）`);
   mkdirSync(path.dirname(abs), { recursive: true });
-  writeFileSync(abs, text);
+  writeFileSync(abs, text, mode !== undefined ? { mode } : undefined);
+  if (mode !== undefined) chmodSync(abs, mode);
   return abs;
 }
-const writeJson = (file: string, data: unknown, roots: readonly string[], force: boolean): string => writeOut(file, JSON.stringify(data, null, 2) + "\n", roots, force);
+const writeJson = (file: string, data: unknown, roots: readonly string[], force: boolean, mode?: number): string => writeOut(file, JSON.stringify(data, null, 2) + "\n", roots, force, mode);
+const PRIVATE = 0o600;
 
 function existingFile(rel: string, howToFetch: string): string {
   const abs = resolveRead(rel, W.root);
@@ -204,7 +204,7 @@ async function cmdRecord(flags: Flags): Promise<number> {
   }
   const { client, authLabel, guestSpaceId } = clientOf(flags);
   const file = await fetchRecord(client, { app, id, guestSpaceId, keep });
-  const out = writeJson(str(flags, "out") ?? rel, file, WRITE_ROOTS.records, has(flags, "force"));
+  const out = writeJson(str(flags, "out") ?? rel, file, WRITE_ROOTS.records, has(flags, "force"), PRIVATE);
   console.log(`${summarizeRecord(file)}${file.keptFields ? `（--fields-from で ${file.keptFields.length} 項目に絞った）` : ""}\n${authLabel}で ${client.baseUrl} から取得 → ${shown(out)}（レコードの値を含む。コミットしない）`);
   return 0;
 }
@@ -258,18 +258,14 @@ function cmdDiff(positional: string[]): number {
   return 0;
 }
 
-interface Prepared {
-  res: NormalizeResult;
-  fields: FieldsFile;
-  usersInfo: UsersInfoTable;
-  usersOrigin: UsersOrigin;
-  engine: Engine;
-  raw: Record<string, unknown>;
-  settingsAbs: string;
+function timeoutOf(flags: Flags): number {
+  const v = intFlag(flags, "timeout", false);
+  if (v !== undefined && v > MAX_TIMEOUT_SEC) throw new UsageError(`--timeout は ${MAX_TIMEOUT_SEC} 秒まで`);
+  return v ?? DEFAULT_TIMEOUT_SEC;
 }
 
-/** normalize / calc の共通: 設定ファイル、fields、ユーザー情報、policy、engine を揃えて検査する */
-async function prepare(positional: string[], flags: Flags, usage: string): Promise<Prepared> {
+/** normalize / calc の共通: 設定ファイル、fields、ユーザー情報、policy、zip の場所を揃えて Worker に渡す仕事を作る（評価は Worker で） */
+function jobOf(positional: string[], flags: Flags, usage: string, kind: "normalize" | "calc"): { job: EvalJob; raw: Record<string, unknown> } {
   const file = positional[1];
   if (!file) throw new UsageError(usage);
   const settingsAbs = existingFile(file, "pull か、設定ファイルを置く");
@@ -279,26 +275,36 @@ async function prepare(positional: string[], flags: Flags, usage: string): Promi
   if (!fieldsRel) throw new UsageError("--fields fields/N.json（設定の appId が無いときは必須）");
   const fields = readFieldsFile(existingFile(fieldsRel, `fields --app ${appFromEnv ?? "N"}`));
   const { src, origin } = usersSourceOf(str(flags, "users"));
-  const usersInfo = buildUsersInfo(src);
-  const engine = await engineOf();
   const policy = loadPolicy(W.root);
-  const res = await normalizeSettings({
-    settingsText: readTextLimited(settingsAbs), settingsFile: shown(settingsAbs), fields, engine, policy, check: has(flags, "check"),
-    lang: (str(flags, "lang") as "ja" | "en" | "zh" | undefined), usersInfo, usersLabel: origin.kind === "file" ? origin.file : "既定のテストデータ（架空）"
-  });
-  return { res, fields, usersInfo, usersOrigin: origin, engine, raw, settingsAbs };
+  let baseUrl: string | undefined;
+  try {
+    baseUrl = baseUrlFromEnv({ cwd: W.root, env: W.env });
+  } catch (e) {
+    if (!(e instanceof AuthError)) throw e;
+    baseUrl = undefined;
+  }
+  const job: EvalJob = {
+    kind, pluginZip: pluginZipPath({ cwd: W.root, env: W.env }), devPluginDir: W.env.FORMULA_ALLOW_DEV_PLUGIN === "1" ? formulaProdDir(W.env) : undefined, baseUrl,
+    settingsText: readTextLimited(settingsAbs), settingsFile: shown(settingsAbs), fields, usersSource: src, usersOrigin: origin, policy, check: has(flags, "check"),
+    lang: str(flags, "lang") as "ja" | "en" | "zh" | undefined
+  };
+  return { job, raw };
 }
 
+const inline = (): boolean => W.env.FORMULA_NO_WORKER === "1";
+
 async function cmdNormalize(positional: string[], flags: Flags): Promise<number> {
-  const p = await prepare(positional, flags, "normalize <settings.json> [--fields fields/N.json]");
-  console.log(p.res.summary);
-  if (p.res.checkDiffs) {
-    console.log(p.res.checkDiffs.length ? `--check: 入力と出力の差 ${p.res.checkDiffs.length}\n  ${p.res.checkDiffs.join("\n  ")}` : "--check: 入力と出力の差 0");
+  const { job } = jobOf(positional, flags, "normalize <settings.json> [--fields fields/N.json]", "normalize");
+  const outcome = await runEval(job, { timeoutSec: timeoutOf(flags), inline: inline() });
+  for (const w of outcome.engineWarnings) console.log(`注意: ${w}`);
+  console.log(outcome.normalize.summary);
+  if (outcome.normalize.checkDiffs) {
+    console.log(outcome.normalize.checkDiffs.length ? `--check: 入力と出力の差 ${outcome.normalize.checkDiffs.length}\n  ${outcome.normalize.checkDiffs.join("\n  ")}` : "--check: 入力と出力の差 0");
   }
-  if (p.res.findings.hasErrors || !p.res.output) return 1;
+  if (outcome.normalize.hasErrors || !outcome.normalize.output) return 1;
   const out = str(flags, "out");
   if (out) {
-    const abs = writeJson(out, p.res.output, WRITE_ROOTS.settings, has(flags, "force"));
+    const abs = writeJson(out, outcome.normalize.output, WRITE_ROOTS.settings, has(flags, "force"));
     console.log(`→ ${shown(abs)}（既定値を補った設定。設定画面で取り込み → 保存 → 運用環境に反映。既存のレコードは「既存レコードを変更」か「一括計算」で）`);
   }
   return 0;
@@ -309,27 +315,28 @@ async function cmdCalc(positional: string[], flags: Flags): Promise<number> {
   const ids = str(flags, "records") ? (str(flags, "records") as string).split(",").map((x) => x.trim()).filter(Boolean) : str(flags, "id") ? [str(flags, "id") as string] : [];
   if (!ids.length) throw new UsageError("calc <settings.json> --app N --id R（または --records R1,R2,…）");
   for (const id of ids) if (!/^[1-9]\d{0,9}$/.test(id)) throw new UsageError(`レコード番号が正の整数でない: ${id}`);
-  const p = await prepare(positional, flags, "calc <settings.json> --app N --id R");
-  if (p.res.findings.hasErrors) {
-    console.log(p.res.summary);
+  const { job } = jobOf(positional, flags, "calc <settings.json> --app N --id R", "calc");
+  const records = ids.map((id) => {
+    const rel = path.join("records", `${app}-${id}.json`);
+    const data = readJsonLimited(existingFile(rel, `record --app ${app} --id ${id}`)) as { record?: Record<string, { type: string; value: unknown }>; appId?: number; id?: number };
+    if (!data.record || typeof data.record !== "object") throw new InputError(`${rel} は record コマンドの出力ではない`);
+    return { id, record: data.record, fileAppId: typeof data.appId === "number" ? data.appId : undefined, fileId: typeof data.id === "number" ? data.id : undefined };
+  });
+  job.calc = {
+    appId: app, records, evType: str(flags, "event"),
+    event: has(flags, "action") || has(flags, "status") || has(flags, "next-status") ? { action: { value: str(flags, "action") ?? "" }, status: { value: str(flags, "status") ?? "" }, nextStatus: { value: str(flags, "next-status") ?? "" } } : undefined,
+    mobile: has(flags, "mobile"), user: str(flags, "user")
+  };
+  const outcome = await runEval(job, { timeoutSec: timeoutOf(flags), inline: inline() });
+  for (const w of outcome.engineWarnings) console.log(`注意: ${w}`);
+  if (outcome.normalize.hasErrors || !outcome.calc) {
+    console.log(outcome.normalize.summary);
     console.log("normalize のエラーがあるので calc しない");
     return 1;
   }
-  const records = ids.map((id) => {
-    const rel = path.join("records", `${app}-${id}.json`);
-    const data = readJsonLimited(existingFile(rel, `record --app ${app} --id ${id}`)) as { record?: Record<string, { type: string; value: unknown }> };
-    if (!data.record || typeof data.record !== "object") throw new InputError(`${rel} は record コマンドの出力ではない`);
-    return { id, record: data.record };
-  });
-  const r = calcSettings({
-    normalized: p.res, engine: p.engine, fields: p.fields, appId: app, records,
-    evType: str(flags, "event"), event: has(flags, "action") || has(flags, "status") || has(flags, "next-status") ? { action: { value: str(flags, "action") ?? "" }, status: { value: str(flags, "status") ?? "" }, nextStatus: { value: str(flags, "next-status") ?? "" } } : undefined,
-    mobile: has(flags, "mobile"), user: str(flags, "user"), usersInfo: p.usersInfo, usersOrigin: p.usersOrigin
-  });
-  const warnings = p.res.findings.count("warning");
-  if (warnings) console.log(`normalize の警告 ${warnings}（normalize で確かめる）`);
-  console.log(r.text);
-  return r.records.some((x) => x.errors.length) ? 1 : 0;
+  if (outcome.normalize.warnings) console.log(`normalize の警告 ${outcome.normalize.warnings}（normalize で確かめる）`);
+  console.log(outcome.calc.text);
+  return outcome.calc.failed ? 1 : 0;
 }
 
 async function cmdUsers(flags: Flags): Promise<number> {
@@ -342,7 +349,7 @@ async function cmdUsers(flags: Flags): Promise<number> {
     const { client, authLabel } = clientOf(flags);
     const max = intFlag(flags, "max", false);
     const r = await pullUsers(client, { maxCalls: max, log: (l) => console.log(l) });
-    const out = writeJson(str(flags, "out") ?? path.join("users", usersFileNameOf(client.baseUrl)), r.source, WRITE_ROOTS.users, has(flags, "force"));
+    const out = writeJson(str(flags, "out") ?? path.join("users", usersFileNameOf(client.baseUrl)), r.source, WRITE_ROOTS.users, has(flags, "force"), PRIVATE);
     console.log(`${summarizeUsers(r.source, { kind: "file", file: shown(out) })}\n${authLabel}で ${client.baseUrl} から取得（${r.calls} 回）→ ${shown(out)}（個人情報を含む。コミットしない。終わったら消す）`);
     return 0;
   }
@@ -377,9 +384,17 @@ export async function main(argv: string[]): Promise<number> {
       console.error(`${e.message}\n${USAGE}`);
       return 2;
     }
-    if (e instanceof PluginZipError || e instanceof AuthError || e instanceof UsersDataError || e instanceof InputError || e instanceof RestError || e instanceof NotAllowedError || e instanceof KintoneUrlError || e instanceof QueryError || e instanceof UsersPullError || e instanceof PolicyError) {
+    if (e instanceof PluginZipError || e instanceof AuthError || e instanceof UsersDataError || e instanceof InputError || e instanceof RestError || e instanceof NotAllowedError || e instanceof KintoneUrlError || e instanceof QueryError || e instanceof UsersPullError || e instanceof PolicyError || e instanceof EvalTimeoutError) {
       console.error(e.message);
       return 1;
+    }
+    if (e instanceof EvalError) {
+      // Worker の中の誤り（zip、入力、ユーザー情報 …）は文言だけ出して 1。tools の誤り（それ以外の名前）はそのまま
+      if (["PluginZipError", "InputError", "UsersDataError", "PolicyError", "AuthError"].includes(e.innerName)) {
+        console.error(e.message);
+        return 1;
+      }
+      throw new Error(`${e.innerName}: ${e.message}`);
     }
     throw e;
   }

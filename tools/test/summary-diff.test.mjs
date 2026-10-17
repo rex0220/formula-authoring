@@ -9,7 +9,7 @@ test("summary: 封筒の見出し、件数、ランク順の一覧（80 字で�
   const s = summarizeSettings(env, "settings/a.json");
   assert.match(s, /^settings\/a\.json: 計算式プラグイン Ver\.100、アプリ 2305 テーブル内集計/);
   assert.match(s, /項目 \d+、計算式あり \d+（有効 \d+、無効 \d+）/);
-  assert.match(s, /計算式（ランク順/);
+  assert.match(s, /計算式（計算の順 = ランクの大きい順/);
   assert.ok(!/pluginFields|pluginPP/.test(s), "派生値は出さない");
   const one = summarizeSettings(env, "settings/a.json", { field: "金額合計" });
   assert.match(one, /金額合計: 有効/);

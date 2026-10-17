@@ -92,7 +92,7 @@ export function defaultUsersInfo(): UsersInfoTable {
 export function summarizeUsers(src: UsersSource, origin: UsersOrigin, user?: string): string {
   const where = origin.kind === "default" ? "既定のテストデータ（架空）" : origin.file;
   const lines = [`ユーザー情報: ${where}`, `ユーザー ${src.users.length} 人、組織 ${src.organizations.length}、グループ ${src.groups.length}`];
-  if (user) lines.push(`--user ${user}: ${src.users.some((x) => x.code === user) ? "居る" : "居ない"}`);
+  if (user) lines.push(`--user で指定したユーザー: ${src.users.some((x) => x.code === user) ? "居る" : "居ない"}`);
   return lines.join("\n");
 }
 

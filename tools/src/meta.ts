@@ -15,6 +15,8 @@ declare const __FORMULA_TOOLS_META__: string | undefined;
 
 /** 計算式プラグインの kintone のプラグイン ID（PUBKEY の SHA-256 から。plugin-zip.ts の pluginIdOf。5 変種とも同じ鍵。工程 0 の spike で確認） */
 export const FORMULA_PLUGIN_ID = "dhgihghfgfmibkdldkeibboabfnmdpke";
+/** 設定の封筒の pluginID（authoring API の pluginId。kit の export-import の識別子） */
+export const FORMULA_CONFIG_PLUGIN_ID = "rex0220 formula plugin";
 /** tools が扱う計算式プラグインの版の下限（manifest.json の version。authoring API を同梱したのが Ver.101） */
 export const MIN_PLUGIN_VERSION = 101;
 /** tools が対応する authoring API の版（formula の src/authoring/api.ts の AUTHORING_API_VERSION） */
@@ -30,7 +32,7 @@ export const REQUIRED_API: Record<string, "function" | "object" | "string" | "nu
   apiVersion: "number", pluginVersion: "string", pluginId: "string",
   CONFIG_SCHEMA: "object", CONFIG_LIMITS: "object", TARGET_TYPES: "object", MISC_KEYS: "object", MISC_DEFAULTS: "object", SOURCE_KEYS: "object", DERIVED_KEYS: "object",
   defaultSource: "function", normalizeSource: "function", toSource: "function", toExportBody: "function", sourceInfosOf: "function",
-  isTargetType: "function", createCheckRecord: "function", buildLayoutRows: "function", applySaved: "function", rankOf: "function",
+  isTargetType: "function", createCheckRecord: "function", buildLayoutRows: "function", applySaved: "function", finalizeSaved: "function", rankOf: "function", defaultBtnInfo: "function",
   stripFormula: "function", checkFormula: "function", deriveSemantic: "function", formulaFunctionNames: "function", createChecker: "function", createRunner: "function",
   FUNCTION_TAGS: "object", functionTagsOf: "function",
   calcRecord: "function", convertRecord: "function", fieldsToFetch: "function", BULK_MAX_TABLE_ROWS: "number",

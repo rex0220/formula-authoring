@@ -53,6 +53,30 @@ if (smoke.status !== 0 || !/使い方: npx @rex0220\/formula-authoring-tools/.te
 const size = readFileSync(path.join(root, "dist", "cli.mjs")).length;
 console.log(`wrote dist/cli.mjs (${size.toLocaleString()} bytes; tools ${meta.toolsVersion}, commit ${meta.commit}; ${inputs.length} inputs, 計算式プラグイン / kit のコードは含まない, help が起動する)`);
 
+// 評価の Worker の入口（dist/eval-worker.mjs。cli.mjs の隣。normalize / calc の評価を Worker で動かして時間上限で止める）
+const wk = await build({
+  entryPoints: [path.join(root, "src", "worker", "eval-worker.ts")],
+  outfile: path.join(root, "dist", "eval-worker.mjs"),
+  bundle: true,
+  format: "esm",
+  platform: "node",
+  target: "node20",
+  charset: "utf8",
+  legalComments: "none",
+  external: ["happy-dom"],
+  define: { __FORMULA_TOOLS_META__: JSON.stringify(JSON.stringify(meta)) },
+  alias: { formula: FORMULA_ROOT, "plugin-config-kit": kitRoot(), rexgrid: rexgridRoot() },
+  absWorkingDir: root,
+  metafile: true,
+  logLevel: "warning"
+});
+const wkLeaked = Object.keys(wk.metafile.inputs).filter((p) => /formula[\\/](src|lib|prod)[\\/]|plugin-config-kit[\\/]src|rexgrid[\\/]src/.test(p));
+if (wkLeaked.length) {
+  console.error(`Worker の入口に計算式プラグイン / kit / rexgrid のコードが入っている:\n  ${wkLeaked.join("\n  ")}`);
+  process.exit(1);
+}
+console.log(`wrote dist/eval-worker.mjs (${readFileSync(path.join(root, "dist", "eval-worker.mjs")).length.toLocaleString()} bytes)`);
+
 // 共通の中核の入口（@rex0220/formula-authoring-tools/core。後の formula MCP が使う）:
 // dist/core.mjs（ESM。happy-dom は依存のまま外に置く。vendor/ の moment はパッケージの vendor/ を読む）と dist/types/（型。tsc の宣言だけ）
 const coreBanner = `/*! @rex0220/formula-authoring-tools/core ${meta.toolsVersion} (c) rex0220. MIT License. 計算式エンジンと計算式プラグインのコードは利用者の計算式プラグインプラグインの zip から読む（このファイルには含まれない）。commit ${meta.commit}. */`;

@@ -14,7 +14,7 @@ import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import path from "node:path";
 import vm from "node:vm";
 import type { formulaAuthoring } from "formula/src/authoring/api.ts";
-import { FORMULA_PLUGIN_ID, MIN_PLUGIN_VERSION, SUPPORTED_API_VERSIONS, isSupportedPluginVersion, requiredApiFor, toolsMeta } from "./meta.ts";
+import { FORMULA_CONFIG_PLUGIN_ID, FORMULA_PLUGIN_ID, MIN_PLUGIN_VERSION, SUPPORTED_API_VERSIONS, isSupportedPluginVersion, requiredApiFor, toolsMeta } from "./meta.ts";
 import { MOMENT_FILE } from "./paths.ts";
 import {
   API_ENTRY, BIGNUMBER_ENTRY, DECIMAL_ENTRY, ENGINE_ENTRY, MANIFEST_ENTRY, MOMENT_TZ_ENTRY, PluginZipError, type PluginSources, type PluginZipErrorInfo, readPluginZip, sha256Hex
@@ -102,6 +102,8 @@ export interface Engine {
   functionDocs(): Record<string, { type: string[]; ja: string; en: string; zh: string }>;
   /** dq が呼ばれた回数（走査の前に評価していないことの確認） */
   dqCount(): number;
+  /** true の間は dq を呼ぶと例外（normalize の走査の間。評価していないことを保証する） */
+  blockDq(on: boolean): void;
   /** 実行時の sink（clipboard、kintone.api）が呼ばれた記録。評価の前に空にして、後で見る */
   sinkCalls(): SinkCall[];
   clearSinkCalls(): void;
@@ -308,12 +310,18 @@ async function startEngine(src: PluginSources & { kind: "zip" | "dev"; api: stri
   if (String(api.pluginVersion) !== src.pluginVersion) throw new PluginZipError(`authoring API のプラグインの版 ${String(api.pluginVersion)} が zip の manifest の版 ${src.pluginVersion} と違う（組み替えられた zip）`, "api-mismatch", withApi);
   const bad = Object.entries(requiredApiFor(api.apiVersion)).filter(([k, t]) => typeof (api as unknown as Record<string, unknown>)[k] !== t).map(([k]) => k);
   if (bad.length) throw new PluginZipError(`計算式プラグインの authoring API に tools が使うものが無い、または型が違う: ${bad.join(", ")}（tools とプラグインの版を合わせる）`, "api-incomplete", withApi);
+  if (api.pluginId !== FORMULA_CONFIG_PLUGIN_ID) throw new PluginZipError(`authoring API の pluginId が計算式プラグインのものでない: ${String(api.pluginId)}（${FORMULA_CONFIG_PLUGIN_ID} が要る）`, "api-incomplete", withApi);
 
   // dq の呼び出し回数（走査の前に評価していないことの確認）。prototype のメソッドを 1 回だけ包む
   let dqCalls = 0;
+  let dqBlocked = false;
   const proto = Ctor.prototype as { dq: (expr: string) => unknown };
   const origDq = proto.dq;
-  proto.dq = function (this: FormulaInstance, expr: string) { dqCalls++; return origDq.call(this, expr); };
+  proto.dq = function (this: FormulaInstance, expr: string) {
+    if (dqBlocked) throw new Error("tools: 走査の間に計算式を評価しようとした（dq が遮断されている）");
+    dqCalls++;
+    return origDq.call(this, expr);
+  };
 
   loaded = {
     window: g,
@@ -348,6 +356,7 @@ async function startEngine(src: PluginSources & { kind: "zip" | "dev"; api: stri
       return out;
     },
     dqCount: () => dqCalls,
+    blockDq: (on) => { dqBlocked = on; },
     sinkCalls: () => [...sinks],
     clearSinkCalls: () => { sinks.length = 0; }
   };

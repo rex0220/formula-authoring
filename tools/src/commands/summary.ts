@@ -54,7 +54,8 @@ const oneLine = (s: string, max = 80): string => {
   return [...t].length > max ? [...t].slice(0, max).join("") + "…" : t;
 };
 
-const rankNum = (r: number | string): number => (r === "" ? Number.MAX_SAFE_INTEGER : Number(r));
+/** 計算の順（formula の deriveSemantic と同じ: ランクの大きい順、"" は 0、同じならレイアウトの順） */
+const rankNum = (r: number | string): number => (r === "" ? 0 : Number(r) || 0);
 
 /** 要約の本文 */
 export function summarizeSettings(envelope: Record<string, unknown>, file: string, opt: { field?: string; defaults?: { misc?: Record<string, unknown> } } = {}): string {
@@ -86,8 +87,8 @@ export function summarizeSettings(envelope: Record<string, unknown>, file: strin
   if (list.all_enabled === false && list.views && Object.keys(list.views).length) lines.push(`一覧別設定: 一覧 ${Object.keys(list.views).join(", ")} だけ`);
   const auth = (body.authority ?? {}) as { everyone?: boolean; users?: Record<string, unknown>; organizations?: Record<string, unknown>; groups?: Record<string, unknown> };
   if (auth.everyone === false) lines.push(`権限設定: 全員ではない（ユーザー ${Object.keys(auth.users ?? {}).length}、組織 ${Object.keys(auth.organizations ?? {}).length}、グループ ${Object.keys(auth.groups ?? {}).length}）`);
-  lines.push("計算式（ランク順。ランクなしは最後。計算式は 80 字で切る。全文は --field <code>）:");
-  const sorted = [...withFormula].sort((a, b) => rankNum(a.rank) - rankNum(b.rank) || a.fieldcode.localeCompare(b.fieldcode, "ja"));
+  lines.push("計算式（計算の順 = ランクの大きい順。ランクなしは 0。同じならレイアウトの順。計算式は 80 字で切る。全文は --field <code>）:");
+  const sorted = withFormula.map((r, i) => ({ r, i })).sort((a, b) => rankNum(b.r.rank) - rankNum(a.r.rank) || a.i - b.i).map((x) => x.r);
   for (const r of sorted) {
     lines.push(`  ${r.state ? "○" : "×"} ${r.rank === "" ? "  -" : String(r.rank).padStart(3)}  ${r.fieldcode}${r.edit ? " [編集可]" : ""}${r.hide ? " [非表示]" : ""}  ${oneLine(r.formulaSet)}`);
   }

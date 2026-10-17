@@ -30,3 +30,7 @@ export { DEFAULT_EVENT, EVENT_RE, RECORDS_MAX, calcSettings, validateEvent, type
 export { DEFAULT_POLICY, POLICY_FILE, PolicyError, loadPolicy, parsePolicy, type Policy } from "./normalize/policy.ts";
 export { Findings, type Finding, type Level } from "./normalize/findings.ts";
 export { materialsOf, viewsOf, type FormulaSaved, type FormulaSource, type Lang } from "./normalize/model.ts";
+export { DEFAULT_TIMEOUT_SEC, EvalError, EvalTimeoutError, MAX_TIMEOUT_SEC, runEval, type RunOptions } from "./worker/run.ts";
+export { runEvalJob } from "./worker/eval-run.ts";
+export type { EvalJob, EvalMessage, EvalOutcome } from "./worker/eval-job.ts";
+export { stronglyConnected, type ContextNeeds } from "./commands/normalize.ts";

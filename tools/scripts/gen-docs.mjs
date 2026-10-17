@@ -105,7 +105,7 @@ export function generateDocs(engine, { DEFAULT_USERS, schemaRevisionOf }) {
   spec.push("| `formulaSet` | 計算式（`//` から行末まではコメント。改行は実行時に無視。文字列の中の `//` もコメントになる） |");
   spec.push("| `edit` | 画面で編集できる（既定 false。計算式が入れた値を利用者が直せる） |");
   spec.push("| `hide` | 画面で非表示（既定 false） |");
-  spec.push("| `rank` | 計算の順（整数。小さい順。`\"\"` なら最後。同じ項目を参照する式より後にする） |");
+  spec.push("| `rank` | 計算の順（整数 -10000〜10000。**大きい順**に計算。`\"\"` は 0。同じならレイアウトの順。参照される項目を先に計算させるには、参照する項目より**小さい**ランクを付ける） |");
   spec.push("");
   spec.push(`計算式を設定できる型: ${api.TARGET_TYPES.join(", ")}`);
   spec.push("");
@@ -140,6 +140,7 @@ export function generateDocs(engine, { DEFAULT_USERS, schemaRevisionOf }) {
   fl.push("");
   fl.push(`計算式プラグイン Ver.${ver} の計算式エンジンが持つ ${Object.keys(docs).length} 個の関数。設定画面の「?」と計算式ツールと同じ説明（日本語）。\`tools/scripts/gen-docs.mjs\` が作る。手で直さない。`);
   fl.push("関数名で検索して読む（全部は読まない）。印: " + Object.entries(tagLabel).map(([k, v]) => `**${v}**（${k}）`).join("、") + "。副作用のある関数は tools が評価しない（policy で承認）。EV_SET は設定に入れない。");
+  fl.push("使用例はエンジンの説明文に同梱のもの（`->` の結果は計算式プラグインの開発時に実際に評価して確かめている。項目や日時に依る例は環境で変わる）。");
   fl.push("");
   fl.push("| 関数 | 引数 | 説明 | 分類 | 印 |");
   fl.push("| --- | --- | --- | --- | --- |");
