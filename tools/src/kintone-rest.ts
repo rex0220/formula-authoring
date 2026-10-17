@@ -3,7 +3,7 @@
  *   - GET しか送らない（メソッドはここで固定。他のメソッドを送る口が無い）
  *   - 送れるパスは ALLOWED_APIS に固定し、それ以外は送信前に止める（ゲストスペースの /k/guest/<id>/v1/… も同じ一覧）
  *   - 送信先は kintone のドメイン（kintone-url.ts）だけ。URL は new URL(path, base) で組み、送信直前に origin が検証済みの origin と同じか確かめる
- *   - 認証は API トークン（X-Cybozu-API-Token）か、ログインユーザー（X-Cybozu-Authorization）
+ *   - 認証は API トークン（X-Cybozu-API-Token）か、ログインユーザー（X-Cybozu-Authorization）。User API だけ cybozu.com 共通管理の API トークン（Authorization: Bearer）も可
  *   - エラーの文言は HTTP の状態と kintone のコードと固定のヒントだけ（サーバーの message は出さない。認証情報とレコードの中身を混ぜない）
  */
 import type { KintoneAuth } from "./env.ts";
@@ -35,9 +35,10 @@ export const RECEIVE_LIMITS: Record<(typeof ALLOWED_APIS)[number], number> = {
 
 /**
  * User API（cybozu.com 共通。/v1/ の後ろ。users --pull が使う。GET だけ）。kintone アプリの API トークンでは呼べない
- * （cybozu.com 共通の API トークン（Bearer）かパスワード認証。2 要素認証のユーザーはパスワード認証が使えない）
+ * （cybozu.com 共通管理の API トークン（Authorization: Bearer）かパスワード認証。2 要素認証のユーザーはパスワード認証が使えない）。
+ * user/organizations と user/groups は --only-referenced（参照しているユーザーの所属だけを取る）が使う
  */
-export const ALLOWED_USER_APIS = ["users", "organizations", "groups", "organization/users", "group/users"] as const;
+export const ALLOWED_USER_APIS = ["users", "organizations", "groups", "organization/users", "group/users", "user/organizations", "user/groups"] as const;
 export type AllowedUserApi = (typeof ALLOWED_USER_APIS)[number];
 export const USER_API_RECEIVE_LIMIT = 8 * 1024 * 1024;
 export type AllowedApi = (typeof ALLOWED_APIS)[number];
@@ -107,12 +108,24 @@ export async function readCapped(res: FetchResponseLike, limit: number, apiPath:
   return Buffer.concat(chunks.map((c) => Buffer.from(c))).toString("utf8");
 }
 
+/** クエリの値。配列は codes[0]=a&codes[1]=b の形（User API の ids / codes） */
+export type QueryValue = string | number | boolean | readonly string[] | undefined;
+
 export interface RestClient {
   readonly baseUrl: string;
   /** 許可した API を GET で呼ぶ。api は "app" / "app/form/fields" など。guestSpaceId を渡すとゲストスペースの URL */
-  get<T>(api: AllowedApi, params: Record<string, string | number | boolean | undefined>, guestSpaceId?: number): Promise<T>;
-  /** User API（/v1/users など。users --pull）。パスワード認証だけ（kintone アプリの API トークンでは 401/403。cybozu.com 共通の API トークンは未対応） */
-  getUser<T>(api: AllowedUserApi, params: Record<string, string | number | boolean | undefined>): Promise<T>;
+  get<T>(api: AllowedApi, params: Record<string, QueryValue>, guestSpaceId?: number): Promise<T>;
+  /** User API（/v1/users など。users --pull）。cybozu.com 共通の API トークン（Bearer）かパスワード認証（kintone アプリの API トークンでは呼べない） */
+  getUser<T>(api: AllowedUserApi, params: Record<string, QueryValue>): Promise<T>;
+}
+
+/** クエリを付ける（配列は codes[0]=…&codes[1]=… の形。undefined は付けない） */
+export function setQuery(url: URL, params: Record<string, QueryValue>): void {
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined) continue;
+    if (Array.isArray(v)) v.forEach((x, i) => url.searchParams.set(`${k}[${i}]`, String(x)));
+    else url.searchParams.set(k, String(v));
+  }
 }
 
 export function apiPathOf(api: string, guestSpaceId?: number): string {
@@ -122,10 +135,19 @@ export function apiPathOf(api: string, guestSpaceId?: number): string {
   return `${prefix}${api}.json`;
 }
 
+/** kintone REST API の認証ヘッダー（アプリの API トークンかログインユーザー。cybozu.com 共通の API トークンは kintone には使わない） */
 export function authHeaders(auth: KintoneAuth): Record<string, string> {
   if (auth.token) return { "X-Cybozu-API-Token": auth.token };
   if (auth.username && auth.password) return { "X-Cybozu-Authorization": Buffer.from(`${auth.username}:${auth.password}`, "utf8").toString("base64") };
+  if (auth.bearer) throw new NotAllowedError("cybozu.com 共通の API トークンは User API（users --pull）だけに使う。kintone の API には KINTONE_API_TOKEN か KINTONE_USERNAME / KINTONE_PASSWORD（接続のファイルなら tokenMap か username / password）");
   throw new NotAllowedError("認証情報が無い");
+}
+
+/** User API の認証ヘッダー（cybozu.com 共通の API トークンは Authorization: Bearer、ログインユーザーは X-Cybozu-Authorization。アプリの API トークンは不可） */
+export function userApiAuthHeaders(auth: KintoneAuth): Record<string, string> {
+  if (auth.bearer) return { Authorization: `Bearer ${auth.bearer}` };
+  if (auth.username && auth.password) return { "X-Cybozu-Authorization": Buffer.from(`${auth.username}:${auth.password}`, "utf8").toString("base64") };
+  throw new NotAllowedError("User API（ユーザー・組織・グループ）は kintone アプリの API トークンでは呼べない。FORMULA_USER_API_TOKEN（cybozu.com 共通管理の API トークン）か、KINTONE_USERNAME と KINTONE_PASSWORD（2 要素認証のないアカウント。接続のファイルなら userApiToken か username / password）で");
 }
 
 export function createRestClient(auth: KintoneAuth, fetchImpl: FetchLike = fetch as unknown as FetchLike): RestClient {
@@ -135,13 +157,14 @@ export function createRestClient(auth: KintoneAuth, fetchImpl: FetchLike = fetch
   } catch (e) {
     throw new NotAllowedError(`接続先が kintone ではないので送らない: ${e instanceof KintoneUrlError ? e.message : String(e)}`);
   }
-  const headers = { ...authHeaders(auth), Accept: "application/json" };
+  // 認証ヘッダーは呼ぶときに作る（cybozu.com 共通の API トークンだけの接続は User API にしか使えない。kintone の API を呼ぼうとしたときに止める）
   return {
     baseUrl,
-    async get<T>(api: AllowedApi, params: Record<string, string | number | boolean | undefined>, guestSpaceId?: number): Promise<T> {
+    async get<T>(api: AllowedApi, params: Record<string, QueryValue>, guestSpaceId?: number): Promise<T> {
+      const headers = { ...authHeaders(auth), Accept: "application/json" };
       const apiPath = apiPathOf(api, guestSpaceId);
       const url = new URL(apiPath, baseUrl);
-      for (const [k, v] of Object.entries(params)) if (v !== undefined) url.searchParams.set(k, String(v));
+      setQuery(url, params);
       if (url.origin !== baseUrl || url.username || url.password) throw new NotAllowedError(`送信先が kintone の接続先と違うので送らない: ${url.origin}`);
       const res = await fetchImpl(url.href, { method: "GET", headers });
       const text = await readCapped(res, RECEIVE_LIMITS[api], apiPath);
@@ -162,19 +185,19 @@ export function createRestClient(auth: KintoneAuth, fetchImpl: FetchLike = fetch
         throw new RestError(`kintone ${apiPath} の応答が JSON でない${text ? "" : "（本文が空）"}`, res.status, "ResponseError", apiPath);
       }
     },
-    async getUser<T>(api: AllowedUserApi, params: Record<string, string | number | boolean | undefined>): Promise<T> {
+    async getUser<T>(api: AllowedUserApi, params: Record<string, QueryValue>): Promise<T> {
       if (!(ALLOWED_USER_APIS as readonly string[]).includes(api)) throw new NotAllowedError(`この User API は authoring tools では呼ばない: ${api}（許可: ${ALLOWED_USER_APIS.join(", ")}）`);
-      if (auth.token) throw new NotAllowedError("User API（ユーザー・組織・グループ）は kintone アプリの API トークンでは呼べない。KINTONE_USERNAME と KINTONE_PASSWORD（2 要素認証のないアカウント）で");
+      const headers = { ...userApiAuthHeaders(auth), Accept: "application/json" };
       const apiPath = `/v1/${api}.json`;
       const url = new URL(apiPath, baseUrl);
-      for (const [k, v] of Object.entries(params)) if (v !== undefined) url.searchParams.set(k, String(v));
+      setQuery(url, params);
       if (url.origin !== baseUrl || url.username || url.password) throw new NotAllowedError(`送信先が kintone の接続先と違うので送らない: ${url.origin}`);
       const res = await fetchImpl(url.href, { method: "GET", headers });
       const text = await readCapped(res, USER_API_RECEIVE_LIMIT, apiPath);
       if (!res.ok) {
         let code: string | undefined;
         try { code = typeof (JSON.parse(text) as { code?: string }).code === "string" ? (JSON.parse(text) as { code: string }).code.slice(0, 40) : undefined; } catch { /* JSON でない */ }
-        const hint = res.status === 401 ? "（ログインユーザーの認証情報を確かめる。API トークンでは呼べない）" : res.status === 403 ? "（アクセス権が無い）" : "";
+        const hint = res.status === 401 ? "（認証情報を確かめる。cybozu.com 共通の API トークンかログインユーザー。アプリの API トークンでは呼べない）" : res.status === 403 ? "（アクセス権が無い）" : res.status === 400 ? "（パラメーターの誤り。--only-referenced なら、式が参照しているコードが存在しないかもしれない）" : "";
         throw new RestError(`cybozu.com ${apiPath} が HTTP ${res.status}${code ? ` ${code}` : ""}${hint}`, res.status, code, apiPath);
       }
       try {

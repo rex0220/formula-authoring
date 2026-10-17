@@ -1,5 +1,5 @@
 /**
- * 試験の共通（tools 2.0.0）: kintone の接続のファイル（作業フォルダーの外）と、profile の形の作業フォルダー。
+ * 試験の共通（print-craft-authoring tools 2.0.0 の写し）: kintone の接続のファイル（作業フォルダーの外）と、profile の形の作業フォルダー。
  * 接続のファイルは base/connections.json、作業フォルダーは base/ws（実際のパス。macOS の /var → /private/var をそろえる）
  */
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -9,16 +9,16 @@ import { realResolve } from "../src/safe-path.ts";
 import { ensureAppFolder, modeOf } from "../src/workspace.ts";
 import { pickProfile } from "../src/connections.ts";
 
-/** 開発（dev-x）と本番（x）の 2 つの profile。トークンは直接書いた試験の値 */
+/** 開発（dev-x）と本番（x）の 2 つの profile。トークンは直接書いた試験の値。2305 はテスト用アプリ（fixture の export.json） */
 export const CONN = {
   defaultProfile: "dev",
   profiles: {
-    dev: { baseUrl: "https://dev-x.cybozu.com", tokenMap: { APP101: "dev-token-101", APP3740: "dev-token-3740" } },
-    prod: { baseUrl: "https://x.cybozu.com", tokenMap: { APP3740: "prod-token-3740" } }
+    dev: { baseUrl: "https://dev-x.cybozu.com", tokenMap: { APP101: "dev-token-101", APP2305: "dev-token-2305" } },
+    prod: { baseUrl: "https://x.cybozu.com", tokenMap: { APP2305: "prod-token-2305" } }
   }
 };
 
-export function makeConnWorkspace(conn = CONN, prefix = "pcraft-conn-ws-") {
+export function makeConnWorkspace(conn = CONN, prefix = "formula-conn-ws-") {
   const base = realResolve(".", mkdtempSync(path.join(os.tmpdir(), prefix)));
   const root = path.join(base, "ws");
   mkdirSync(root);

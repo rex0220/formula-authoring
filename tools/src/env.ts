@@ -3,8 +3,9 @@
  *   KINTONE_BASE_URL   例 https://example.cybozu.com（必須。*.cybozu.com / *.kintone.com / *.cybozu.cn だけ。kintone-url.ts）
  *   KINTONE_API_TOKEN  API トークン（閲覧権限だけのものを第一候補にする。カンマ区切りで複数可）
  *   KINTONE_USERNAME / KINTONE_PASSWORD   ログインユーザー（トークンが無いとき）
- *   FORMULA_PLUGIN_ZIP  印刷屋プラグインの zip（計算式エンジンと authoring API をここから読む。プラグイン ID が印刷屋のものでなければ読まない。engine.ts）
- *   （FORMULA_ALLOW_UNKNOWN_PLUGIN は 1.1.0 で廃止。既知の中身の照合をやめたため）
+ *   FORMULA_PLUGIN_ZIP  計算式プラグインの zip（計算式エンジンと authoring API をここから読む。プラグイン ID が計算式プラグインのものでなければ読まない。engine.ts）
+ *   FORMULA_KINTONE_CONFIG  kintone の接続のファイル（複数の profile。connections.ts。工程 1 の後半）
+ *   FORMULA_USER_API_TOKEN  cybozu.com 共通管理の API トークン（users --pull の User API に Bearer で使う。1 接続の形のとき。無ければ KINTONE_USERNAME / KINTONE_PASSWORD）
  * dashboard の authoring テンプレートの KSQL_* も読む（KINTONE_* が無いとき）。OS の環境変数が優先され、.env は足りない分を埋める。値はログや例外の文言に出さない。
  * .env の場所はリポジトリのルート（cwd）に固定。CLI から別の場所を指定できない（1-10 レビュー BLOCKER 5。AI が書けるファイルを .env として読ませない）。
  * 注意: kintone 公式 MCP はトークンとユーザーの両方があるとユーザーを使う。tools はトークンを使う。どちらか 1 つだけ書くのがよい。
@@ -15,9 +16,12 @@ import { KintoneUrlError, normalizeKintoneBaseUrl } from "./kintone-url.ts";
 
 export interface KintoneAuth {
   baseUrl: string;
+  /** kintone アプリの API トークン（X-Cybozu-API-Token。kintone REST API だけ） */
   token?: string;
   username?: string;
   password?: string;
+  /** cybozu.com 共通管理の API トークン（Authorization: Bearer。User API だけ。kintone REST API には使わない） */
+  bearer?: string;
 }
 
 const NAMES = {
@@ -26,7 +30,8 @@ const NAMES = {
   username: ["KINTONE_USERNAME", "KSQL_USERNAME"],
   password: ["KINTONE_PASSWORD", "KSQL_PASSWORD"],
   pluginZip: ["FORMULA_PLUGIN_ZIP"],
-  kintoneConfig: ["FORMULA_KINTONE_CONFIG"]
+  kintoneConfig: ["FORMULA_KINTONE_CONFIG"],
+  userApiToken: ["FORMULA_USER_API_TOKEN"]
 } as const;
 
 /** 前後の空白と、対になった外側の " / ' を外す（.env の値と、OS の環境変数の場所・URL。Windows の「パスのコピー」で付く引用符。引用符の中の空白は値のうち） */
@@ -122,7 +127,23 @@ export function loadAuth(opt: LoadAuthOptions): KintoneAuth {
 }
 
 /**
- * 印刷屋の zip の場所（OS の環境変数か .env の FORMULA_PLUGIN_ZIP。無ければ undefined = 開発中の print-craft を探す）。
+ * User API（users --pull）の認証（1 接続の形）: FORMULA_USER_API_TOKEN（cybozu.com 共通管理の API トークン。Bearer）があればそれ、
+ * 無ければ KINTONE_USERNAME と KINTONE_PASSWORD（2 要素認証のないアカウント）。kintone アプリの API トークン（KINTONE_API_TOKEN）では User API を呼べない
+ */
+export function loadUserApiAuth(opt: LoadAuthOptions): KintoneAuth {
+  const pick = picker(opt);
+  const baseUrl = baseUrlFromEnv(opt);
+  if (!baseUrl) throw new AuthError(`KINTONE_BASE_URL が無い（OS の環境変数か .env: ${envFileOf(opt)}）`);
+  const bearer = pick(NAMES.userApiToken);
+  if (bearer) return { baseUrl, bearer };
+  const username = pick(NAMES.username);
+  const password = pick(NAMES.password);
+  if (username && password) return { baseUrl, username, password };
+  throw new AuthError("User API（users --pull）は FORMULA_USER_API_TOKEN（cybozu.com 共通管理の API トークン）か、KINTONE_USERNAME と KINTONE_PASSWORD（2 要素認証のないアカウント）で呼ぶ。kintone アプリの API トークン（KINTONE_API_TOKEN）では呼べない");
+}
+
+/**
+ * 計算式プラグインの zip の場所（OS の環境変数か .env の FORMULA_PLUGIN_ZIP。無ければ undefined = 開発中の formula を探す）。
  * .env に書いた相対パスは .env のフォルダーから解決する（今までどおり）。OS の環境変数（print-craft MCP では設定項目）の値は
  * 絶対パスだけを受け付ける（相対パスの起点が起動の場所に左右されるため。Desktop の起動の場所は / や C:\Windows\System32。段階 0-2 の段 2）
  */
@@ -158,5 +179,5 @@ export function kintoneConfigPath(opt: LoadAuthOptions): string | undefined {
 
 /** 認証の種類だけを文言にする（値もユーザー名も出さない） */
 export function describeAuth(auth: KintoneAuth): string {
-  return auth.token ? "API トークン" : "ログインユーザー";
+  return auth.token ? "API トークン" : auth.bearer ? "cybozu.com 共通の API トークン" : "ログインユーザー";
 }

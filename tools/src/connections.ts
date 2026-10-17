@@ -1,6 +1,7 @@
 /**
  * kintone の接続のファイル（kSQL の ksql.config.json と同じ形。print-craft-authoring-mcp の実装案 15 章。2026-10-10 Takashi）。
- *   - 読むキーは defaultProfile と profiles.<名前> の baseUrl / guestSpaceId / auth / username / password / passwordEnv / tokenMap だけ。
+ *   - 読むキーは defaultProfile と profiles.<名前> の baseUrl / guestSpaceId / auth / username / password / passwordEnv / tokenMap と、
+ *     計算式の tools だけが足した userApiToken（cybozu.com 共通管理の API トークン。users --pull の User API に Bearer で使う。env:<環境変数> か値。kSQL は無視する）。
  *     ほかのキー（kSQL の query・output・dml・logicalApps など）と知らないキーは読まずに通す（kSQL も知らないキーを無視する）
  *   - kSQL の環境変数の上書き（KSQL_BASE_URL、KSQL_TOKEN、KSQL_PROFILE など）は読まない。読む環境変数は、ファイルが名前を書いた env: と passwordEnv だけ（15.2）
  *   - 置き場所は作業フォルダーの外（誤操作の防止。Claude Code の AI はファイルも環境変数も読める = 受け入れた危険。15.3）。
@@ -57,6 +58,7 @@ export type ConnectionErrorCode =
   | "no-token"
   | "env-missing"
   | "no-userpass"
+  | "no-user-api-auth"
   | "guest-mismatch"
   | "app-marker-missing"
   | "app-marker-invalid"
@@ -91,6 +93,8 @@ export interface ProfileDef extends ProfileIdentity {
   tokenReady: Record<number, boolean>;
   /** ログイン名とパスワードがそろっているか（userpass のとき） */
   userpassReady: boolean;
+  /** User API の cybozu.com 共通の API トークンがあるか（userApiToken。env: なら変数があるか。値は持たない） */
+  userApiTokenReady: boolean;
 }
 
 export interface ConnectionSet {
@@ -123,6 +127,8 @@ interface ProfileSecrets {
   password?: string;
   /** アプリの番号 → 値（env:<NAME> か、トークンそのもの） */
   tokens: Map<number, string>;
+  /** User API の cybozu.com 共通の API トークン（env:<NAME> か、トークンそのもの） */
+  userApiToken?: string;
 }
 
 /** 秘密の値は ConnectionSet の外に持つ（JSON にしたとき・表示したときに出ないように） */
@@ -167,6 +173,11 @@ function readProfile(name: string, raw: unknown, env: Env): { def: ProfileDef; s
   const mode = raw.auth ?? "auto";
   if (mode !== "token" && mode !== "userpass" && mode !== "auto") return { reason: "auth は token / userpass / auto のどれか" };
   if (raw.passwordEnv !== undefined && (typeof raw.passwordEnv !== "string" || !ENV_NAME_RE.test(raw.passwordEnv))) return { reason: "passwordEnv は環境変数の名前（英字か _ で始まる英数字と _）" };
+  if (raw.userApiToken !== undefined) {
+    if (typeof raw.userApiToken !== "string" || !raw.userApiToken.trim()) return { reason: "userApiToken が文字列でない、または空" };
+    if (raw.userApiToken.startsWith("env:") && !ENV_NAME_RE.test(raw.userApiToken.slice(4))) return { reason: "userApiToken の env: の後ろが環境変数の名前でない" };
+  }
+  const userApiToken = typeof raw.userApiToken === "string" ? raw.userApiToken : undefined;
   const username = nonblank(raw.username);
   const password = (typeof raw.passwordEnv === "string" ? nonblank(env[raw.passwordEnv]) : undefined) ?? nonblank(raw.password);
   const tokens = new Map<number, string>();
@@ -187,12 +198,14 @@ function readProfile(name: string, raw: unknown, env: Env): { def: ProfileDef; s
   const tokenReady: Record<number, boolean> = {};
   for (const [appId, value] of tokens) tokenReady[appId] = value.startsWith("env:") ? !!nonblank(env[value.slice(4)]) : true;
   const host = new URL(baseUrl).hostname;
+  const userApiTokenReady = userApiToken === undefined ? false : userApiToken.startsWith("env:") ? !!nonblank(env[userApiToken.slice(4)]) : true;
   return {
-    def: { profile: name, baseUrl, host, guestSpaceId, auth, tokenApps, tokenReady, userpassReady: !!(username && password) },
+    def: { profile: name, baseUrl, host, guestSpaceId, auth, tokenApps, tokenReady, userpassReady: !!(username && password), userApiTokenReady },
     secrets: {
       ...(username ? { username } : {}),
       ...(password ? { password } : {}),
-      tokens
+      tokens,
+      ...(userApiToken !== undefined ? { userApiToken } : {})
     }
   };
 }
@@ -264,6 +277,7 @@ function hasInlineSecrets(rawProfiles: Record<string, unknown>): boolean {
     const p = rawProfiles[key];
     if (!isPlainObject(p)) continue;
     if (nonblank(p.password)) return true;
+    if (typeof p.userApiToken === "string" && p.userApiToken.trim() !== "" && !p.userApiToken.startsWith("env:")) return true;
     if (isPlainObject(p.tokenMap) && Object.values(p.tokenMap).some((v) => typeof v === "string" && v.trim() !== "" && !v.startsWith("env:"))) return true;
   }
   return false;
@@ -428,6 +442,24 @@ export function authFor(set: ConnectionSet, profile: ProfileDef, appId: number):
     return { baseUrl: profile.baseUrl, token };
   }
   return { baseUrl: profile.baseUrl, token: value };
+}
+
+/**
+ * User API（users --pull）の認証（計算式の tools の拡張）: profile の userApiToken（cybozu.com 共通管理の API トークン。Bearer）があればそれ、
+ * 無ければログイン名とパスワード（2 要素認証のないアカウント）。アプリの API トークン（tokenMap）では User API を呼べないので使わない
+ */
+export function userApiAuthFor(set: ConnectionSet, profile: ProfileDef): KintoneAuth {
+  const held = SECRETS.get(set);
+  const secrets = held?.byProfile.get(profile.profile);
+  if (!held || !secrets) throw new ConnectionError(`profile「${profile.profile}」の接続が読み込まれていない`, "profile-invalid");
+  const raw = secrets.userApiToken;
+  if (raw !== undefined) {
+    const bearer = raw.startsWith("env:") ? nonblank(held.env[raw.slice(4)]) : raw;
+    if (!bearer) throw new ConnectionError(`profile「${profile.profile}」の userApiToken の環境変数が無い（設定した後、起動し直す）`, "env-missing");
+    return { baseUrl: profile.baseUrl, bearer };
+  }
+  if (secrets.username && secrets.password) return { baseUrl: profile.baseUrl, username: secrets.username, password: secrets.password };
+  throw new ConnectionError(`profile「${profile.profile}」に User API（users --pull）の認証が無い。userApiToken（cybozu.com 共通管理の API トークン。env:<環境変数> か値）か、username と password（passwordEnv）を書く。アプリの API トークン（tokenMap）では呼べない`, "no-user-api-auth");
 }
 
 export function identityOf(def: ProfileDef): ProfileIdentity {

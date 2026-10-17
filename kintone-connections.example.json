@@ -3,11 +3,13 @@
   "profiles": {
     "dev": {
       "baseUrl": "https://dev-example.cybozu.com",
-      "tokenMap": { "APP101": "env:PCRAFT_TOKEN_APP101" }
+      "tokenMap": { "APP101": "env:FORMULA_TOKEN_APP101" },
+      "userApiToken": "env:FORMULA_USER_API_TOKEN_DEV"
     },
     "prod": {
       "baseUrl": "https://example.cybozu.com",
-      "tokenMap": { "APP3740": "env:PCRAFT_TOKEN_APP3740" }
+      "username": "integration-user",
+      "passwordEnv": "FORMULA_PASSWORD_PROD"
     }
   }
 }

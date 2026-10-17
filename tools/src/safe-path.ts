@@ -4,19 +4,18 @@
  * 作業フォルダーの外へ書いたり、.env を読んだりできないようにする。
  *   - path.resolve → 存在する最も深い親の realpath（junction / symlink を解く）→ cwd の realpath の中か
  *   - Windows は大文字小文字を区別せずに比べる。UNC や別ドライブは外れる
- *   - 書き込み先は roots（fields/ records/ settings/ out/ temp/）のどれかの下。Windows の予約名（CON、NUL、COM1 …）は使わない
+ *   - 書き込み先は roots（fields/ records/ settings/ users/ temp/ kintone/）のどれかの下。Windows の予約名（CON、NUL、COM1 …）は使わない
  */
 import { lstatSync, realpathSync } from "node:fs";
 import path from "node:path";
 
 export class PathError extends Error {}
 
-/** 書き込みを許す場所（cwd からの相対）。kintone/ は environments.json があるときのアプリのフォルダー（workspace.ts） */
+/** 書き込みを許す場所（cwd からの相対）。kintone/ は接続のファイルがあるときのアプリのフォルダー（workspace.ts） */
 export const WRITE_ROOTS = {
   fields: ["fields", "kintone"],
   records: ["records", "kintone"],
   settings: ["settings", "temp", "kintone"],
-  out: ["out", "kintone"],
   /** users --pull の出力（個人情報。.gitignore）と --users のテストデータ */
   users: ["users", "kintone"],
   kintone: ["kintone"]
@@ -95,7 +94,7 @@ export function resolveWrite(target: string, roots: readonly string[], cwd: stri
   return real;
 }
 
-/** 書き込み先のフォルダー（preview の --out-dir）: cwd の中の roots のどれか、またはその下 */
+/** 書き込み先のフォルダー: cwd の中の roots のどれか、またはその下 */
 export function resolveWriteDir(target: string, roots: readonly string[], cwd: string): string {
   if (!target || typeof target !== "string") throw new PathError("フォルダーのパスが要る");
   const real = realResolve(target, cwd);
@@ -105,7 +104,7 @@ export function resolveWriteDir(target: string, roots: readonly string[], cwd: s
   return real;
 }
 
-/** ファイル名に使えない文字と Windows の予約名を避ける（preview の out/<ボタン名>.html） */
+/** ファイル名に使えない文字と Windows の予約名を避ける（アプリのフォルダーの名前、pull のファイル名） */
 export function safeFileName(name: string, fallback: string): string {
   let s = name.replace(/[\\/:*?"<>|\u0000-\u001f\u007f]/g, "_").replace(/[. ]+$/g, "").trim();
   if (!s || WINDOWS_RESERVED.test(s)) s = fallback;

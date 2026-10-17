@@ -24,6 +24,22 @@
 | `npx @rex0220/formula-authoring-tools diff <before>.json <after>.json` | 項目単位の差（★ = 既存レコードの値に影響する項目） |
 | `npx @rex0220/formula-authoring-tools users --summary [--users users/<f>.json]` | ユーザー情報のテストデータの要約（人数だけ。コードや名前は出さない） |
 
+## 接続のファイル（FORMULA_KINTONE_CONFIG があるとき。複数のドメイン・アプリ）
+
+`.env` の `FORMULA_KINTONE_CONFIG`（利用者が書く。AI は書かない）に、kintone の接続のファイル（kSQL の `ksql.config.json` と同じ形。作業フォルダーの外）がある。このときは次のとおり（無ければこの節は使わない。`.env` の 1 接続の形）。`version` が「kintone の接続: 接続のファイル …」と出せばこの形。
+
+- 接続のファイルと、そこが名前を書いた環境変数（`env:` の参照先）は利用者のもの（秘密の値を含む）。**AI は読まない・書かない・表示しない**
+- コマンドは `--profile <名前>`（省略は接続のファイルの `defaultProfile`、無ければ `dev`）と `--app <番号>`。保存先は `kintone/<profile>/<番号>-<アプリ名>/` に決まる（`--out` と `--guest` は使わない。ゲストスペースは profile で決まる）
+- アプリのフォルダー: `fields.json`、`records/<番号>.json`、設定のダウンロード / pull（`rex0220-formula-app<番号>-<日時>.json`。名前はそのまま。一番新しいものが今の設定）、直したもの（`…-edit.json`）、新しい設定（その他の `*.json`。`normalize --out` の書き出し先）、印（`.formula-app.json`。tools が作る。消さない・書かない）
+- フォルダーは `fields --app <番号>`、`pull`、`take` が作る（印の無いフォルダーは tools が使わない）
+- 利用者が `inbox/` に置いたダウンロードは `take` でアプリのフォルダーへ移す。中身は `files --app <番号>` と `summary <ファイル>` で見る
+- **ダウンロード / pull のファイルは書き換えない**。直すときは `edit --app <番号>` で `-edit.json` に写し、それを直す（`normalize --out` もこちらに）。差分は `diff <ダウンロード> <-edit.json>`
+- アプリのフォルダーの中のファイルなら、`normalize` / `calc` の `--fields` は要らない（同じフォルダーの `fields.json`）。`calc` は `--id 3` で `records/3.json`
+- 新しい設定は、アプリのフォルダーに `APP<番号>-<アプリ名>.json` のような名前で書く（`settings/` でなく。封筒の `appId` はそのフォルダーのアプリ）
+- `users --pull` は profile の `userApiToken` か ログイン名とパスワード。出力は `users/<ホスト名>.json`（profile に依らずホスト名ごと）
+- 本番のアプリも同じに扱う（読み取りだけにする守りは無い）。本番へは、利用者が開発で確かめた同じファイルを本番の設定画面でアップロードする（「項目の置換」で変えた項目だけ。アプリが違うという注意は出るが取り込める。項目が合わなければ保存のときに止まる）。**一覧 ID はアプリごとに違う**ので、一覧別設定は本番の設定画面で選び直すよう、反映方法を伝えるときに添える
+- tools が「environments.json は tools 2.0.0 から使わない」で止まったら、利用者に接続のファイルへの移行を頼む（AI は書かない）
+
 ## 新しい設定を作る
 
 要件は `requirements/` のファイル、またはチャットで受け取る。
@@ -71,7 +87,7 @@
 | `formula.volatile` | RAND / NOW / TODAY / UUID など再計算のたびに値が変わる。既存レコードを変更で毎回変わる。固定するなら `NVL(項目, UUID())` |
 | `formula.aggregate` | テーブル内の項目でテーブルの集計関数（行ごとに全体を集計する。小計の行などで意図したものか） |
 | `event.fcode` | `EV_INFO("fcode")` は値変更イベントでしか入らない |
-| `userinfo.unknown` | 使うテストデータに無いユーザー・組織・グループのコードらしき文字列（実データで確かめるなら利用者に `users --pull` を頼む） |
+| `userinfo.unknown` | 使うテストデータに無いユーザー・組織・グループのコードらしき文字列（実データで確かめるなら利用者に `users --pull --only-referenced settings/<ファイル>.json` を頼む。式が文字列で参照するコードとその所属だけを取る。引数なしの `UINFO()` などがあれば全部取る） |
 
 `[情報]`（Ver.100 の設定、捨てるキー、内部番号は設定画面が補う、保存値の大きさ、イベントで結果が変わる項目、ユーザー情報を使う項目、項目でない識別子、3 項目以上の循環）は要るときだけ伝える。
 
@@ -103,4 +119,4 @@
 - `records/` と `users/`（実データ）はコミットしない。作業が終わったら消してよい。どちらも Read で開かない（`record --summary` / `users --summary`。`.claude/settings.json` で拒否してある）
 - 認証情報（`.env`）をファイルやチャットに書かない。`policy/` と `.env` を AI が編集しない
 - tools は `.env` の `FORMULA_PLUGIN_ZIP`（計算式プラグインの zip。Ver.101 以降）から計算式エンジンと authoring API を読む。「zip の場所が分からない」「版 … には対応していない」「計算式プラグインの zip ではない」と出たら、利用者に zip の場所と版（アプリに入れたものと同じ。配布元から入手したもの）を確かめてもらう
-- tools が読むファイルは作業フォルダーの中、書く先は `fields/` `records/` `settings/` `temp/` `users/` の下だけ
+- tools が読むファイルは作業フォルダーの中、書く先は `fields/` `records/` `settings/` `temp/` `users/` `kintone/` の下だけ（`kintone/` は接続のファイルがあるときだけ。上の「接続のファイル」の節）

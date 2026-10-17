@@ -1,14 +1,14 @@
 /**
- * 作業フォルダーの形とアプリのフォルダー（tools 2.0.0。print-craft-authoring-mcp の実装案 15 章。2026-10-10 Takashi）。
+ * 作業フォルダーの形とアプリのフォルダー（print-craft-authoring tools 2.0.0 の写し。print-craft-authoring-mcp の実装案 15 章。計算式プラグイン用は 2026-10-17 工程 1 の後半）。
  *   - 形は 2 つ（15.4）: 接続のファイル（kSQL の ksql.config.json と同じ形。connections.ts）があれば **profile の形**、無ければ **1 接続の形**
- *     （.env の KINTONE_*、settings/ fields/ records/ out/。kintone/ の下はいつも変えない）。接続のファイルが無く environments.json（1.x の形）が
+ *     （.env の KINTONE_*、settings/ fields/ records/ users/。kintone/ の下はいつも変えない）。接続のファイルが無く environments.json（1.x の形）が
  *     あれば止まる（legacy-config-present。1 接続の形に黙って戻らない）。environments.json は読まない
  *   - profile の形のアプリのフォルダー: kintone/<profile>/<アプリ番号>-<アプリ名>/（番号の後ろは目印。番号で探すので、アプリ名が変わっても動く）
- *       fields.json、records/<レコード番号>.json、out/
- *       rex0220-print-craft-app<番号>-<YYYYMMDD>-<HHmmss>.json … 設定画面のダウンロード（名前はそのまま）と pull。一番新しいものが今の設定
+ *       fields.json、records/<レコード番号>.json
+ *       rex0220-formula-app<番号>-<YYYYMMDD>-<HHmmss>.json … 設定画面のダウンロード（名前はそのまま）と pull。一番新しいものが今の設定
  *       …-edit.json … ダウンロード / pull を AI が直したもの（edit で写す。ダウンロードのファイルは書き換えない）
- *       その他の *.json … AI が新しく作る帳票（1 ファイル 1 帳票）
- *       .pcraft-app.json … アプリのフォルダーの印（どの接続のアプリか。フォルダーを作るときだけ置く。15.5）
+ *       その他の *.json … AI が新しく作る設定（normalize --out の書き出し先）
+ *       .formula-app.json … アプリのフォルダーの印（どの接続のアプリか。フォルダーを作るときだけ置く。15.5）
  *   - 1 つの profile は 1 つのスペース（ゲストスペースは profile の guestSpaceId）
  * inbox/ … ダウンロードを置く場所（take がアプリのフォルダーへ名前のまま移す）
  */
@@ -24,18 +24,18 @@ export const INBOX = "inbox";
 /** 1.x の作業フォルダーの環境の定義（2.0.0 から読まない。あれば移行を求めて止まる） */
 export const LEGACY_WORKSPACE_FILE = "environments.json";
 /** アプリのフォルダーの印（15.5） */
-export const APP_MARKER = ".pcraft-app.json";
-/** 設定画面のダウンロードのファイル名の接頭辞（kit の exportFileName。print-craft の exportPrefix） */
-export const SNAPSHOT_PREFIX = "rex0220-print-craft";
-export const SNAPSHOT_RE = /^rex0220-print-craft-app(\d+)-(\d{8})-(\d{6})\.json$/;
-export const EDIT_RE = /^rex0220-print-craft-app(\d+)-(\d{8})-(\d{6})-edit\.json$/;
+export const APP_MARKER = ".formula-app.json";
+/** 設定画面のダウンロードのファイル名の接頭辞（kit の exportFileName。計算式プラグインの src/config/main.ts の exportPrefix） */
+export const SNAPSHOT_PREFIX = "rex0220-formula";
+export const SNAPSHOT_RE = /^rex0220-formula-app(\d+)-(\d{8})-(\d{6})\.json$/;
+export const EDIT_RE = /^rex0220-formula-app(\d+)-(\d{8})-(\d{6})-edit\.json$/;
 
 const MARKER_MAX_BYTES = 4 * 1024;
 
 export class WorkspaceError extends Error {}
 
 /**
- * 動く形（15.4、15.11。r3 MAJOR 7）: single（1 接続の形。CLI だけ）、profiles（接続のファイルがある）、not-configured（print-craft MCP で接続のファイルが無い）、
+ * 動く形（15.4、15.11。r3 MAJOR 7）: single（1 接続の形。CLI だけ）、profiles（接続のファイルがある）、not-configured（MCP で接続のファイルが無い）、
  * legacy-blocked（接続のファイルが無く environments.json がある）。どの形でも settings/ などのローカルの操作は動く。kintone/** を読む・書くのは profiles だけ
  */
 export type WorkspaceMode =
@@ -57,7 +57,7 @@ export interface ModeOptions {
   workspaceRoots: readonly string[];
   /** env: と passwordEnv を引く環境変数 */
   env: Env;
-  /** 接続のファイルが無いときの形: CLI は single（.env の 1 接続）、print-craft MCP は not-configured */
+  /** 接続のファイルが無いときの形: CLI は single（.env の 1 接続）、MCP は not-configured */
   surface: "cli" | "mcp";
 }
 
@@ -74,14 +74,14 @@ export function hasLegacyConfig(cwd: string): boolean {
 /** 移行で止まっているときの誤り（kintone を使う操作と kintone/** の操作が投げる） */
 export function legacyBlockedError(): ConnectionError {
   return new ConnectionError(
-    `${LEGACY_WORKSPACE_FILE} は tools 2.0.0 から使わない。kintone の接続のファイル（ksql.config.json と同じ形）を書いて設定し（CLI は FORMULA_KINTONE_CONFIG、print-craft MCP は設定の「kintone の接続のファイル」）、${LEGACY_WORKSPACE_FILE} を消す（バージョンアップ手順）`,
+    `${LEGACY_WORKSPACE_FILE} は tools 2.0.0 から使わない。kintone の接続のファイル（ksql.config.json と同じ形）を書いて設定し（CLI は FORMULA_KINTONE_CONFIG）、${LEGACY_WORKSPACE_FILE} を消す（バージョンアップ手順）`,
     "legacy-config-present"
   );
 }
 
 /**
  * 動く形を決める（15.4 の表）。接続のファイルが設定されていれば読む（空・読めない・形が違うのは誤り。1 接続の形に戻らない）。
- * 設定されていなければ、environments.json があれば legacy-blocked、無ければ CLI は single、print-craft MCP は not-configured
+ * 設定されていなければ、environments.json があれば legacy-blocked、無ければ CLI は single、MCP は not-configured
  */
 export function modeOf(cwd: string, opt: ModeOptions): WorkspaceMode {
   if (opt.configFile !== undefined) {
@@ -208,7 +208,7 @@ export function assertAppMark(dir: string, def: ProfileDef, appId: number): void
   const shownDir = `kintone/${def.profile}/${path.basename(dir)}`;
   const r = readAppMark(dir);
   if (r.state === "missing") {
-    throw new ConnectionError(`${shownDir} に印（${APP_MARKER}）が無い。print-craft が作ったフォルダーでないので使わない（名前を変えて退け、fields か pull で作り直す。中のファイルは後で移す）`, "app-marker-missing");
+    throw new ConnectionError(`${shownDir} に印（${APP_MARKER}）が無い。tools が作ったフォルダーでないので使わない（名前を変えて退け、fields か pull で作り直す。中のファイルは後で移す）`, "app-marker-missing");
   }
   if (r.state === "invalid") throw new ConnectionError(`${shownDir} の印（${APP_MARKER}）が壊れている。名前を変えて退け、fields か pull で作り直す`, "app-marker-invalid");
   const m = r.mark;
@@ -279,10 +279,9 @@ export interface AppFolderList {
   snapshots: string[];
   /** 直したもの（新しい順） */
   edits: string[];
-  /** AI が作った帳票など、その他の json（. で始まる印などは出さない） */
-  reports: string[];
+  /** AI が作った設定など、その他の json（. で始まる印などは出さない） */
+  others: string[];
   records: string[];
-  outs: number;
 }
 
 const stampOf = (name: string): string => {
@@ -291,9 +290,9 @@ const stampOf = (name: string): string => {
 };
 const newestFirst = (a: string, b: string): number => stampOf(b).localeCompare(stampOf(a)) || b.localeCompare(a);
 
-/** アプリのフォルダーの一覧。cwd を渡すと、フォルダーと records / out の実体が作業フォルダーの中か確かめてから一覧する */
+/** アプリのフォルダーの一覧。cwd を渡すと、フォルダーと records の実体が作業フォルダーの中か確かめてから一覧する */
 export function listAppFolder(dir: string, cwd?: string): AppFolderList {
-  if (cwd !== undefined) for (const d of [dir, path.join(dir, "records"), path.join(dir, "out")]) if (existsSync(d)) assertInsideWorkspace(cwd, d);
+  if (cwd !== undefined) for (const d of [dir, path.join(dir, "records")]) if (existsSync(d)) assertInsideWorkspace(cwd, d);
   const files = existsSync(dir) ? readdirSync(dir, { withFileTypes: true }) : [];
   const names = files.filter((d) => d.isFile() && d.name.endsWith(".json") && !d.name.startsWith(".")).map((d) => d.name);
   const sub = (name: string, filter: (n: string) => boolean): string[] => {
@@ -305,13 +304,12 @@ export function listAppFolder(dir: string, cwd?: string): AppFolderList {
     hasFields: names.includes("fields.json"),
     snapshots: names.filter((n) => SNAPSHOT_RE.test(n)).sort(newestFirst),
     edits: names.filter((n) => EDIT_RE.test(n)).sort(newestFirst),
-    reports: names.filter((n) => n !== "fields.json" && !SNAPSHOT_RE.test(n) && !EDIT_RE.test(n)).sort(),
-    records: sub("records", (n) => n.endsWith(".json")),
-    outs: sub("out", (n) => n.endsWith(".html")).length
+    others: names.filter((n) => n !== "fields.json" && !SNAPSHOT_RE.test(n) && !EDIT_RE.test(n)).sort(),
+    records: sub("records", (n) => n.endsWith(".json"))
   };
 }
 
-/** profile のフォルダーの中のアプリのフォルダーと印の状態（診断と pcraft_files の一覧。中身は返さない。15.5） */
+/** profile のフォルダーの中のアプリのフォルダーと印の状態（診断と files の一覧。中身は返さない。15.5） */
 export function appFoldersOf(cwd: string, def: ProfileDef): Array<{ name: string; appId: number | null; mark: "ok" | "missing" | "invalid" | "conflict" }> {
   const dir = profileDirOf(cwd, def.profile);
   if (!existsSync(dir)) return [];

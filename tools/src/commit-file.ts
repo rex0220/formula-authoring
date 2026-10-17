@@ -2,14 +2,14 @@
  * ファイルの確定とロック（段階 0-2。save.ts の保存、pull と take のダウンロード / pull のファイル。Codex 再レビュー BLOCKER 2、MAJOR 3、4）。
  *   - 新しいファイル（writeNewFile）: 同じフォルダーの一時ファイル（wx）→ 確かめ直し（recheck）→ ハードリンクで確定（同じ名前があれば失敗 = 確かめた後に
  *     作られたファイルも上書きしない。ハードリンクが使えないファイルシステムでは COPYFILE_EXCL のコピー）→ 一時ファイルを消す
- *   - ロック（acquireLock）: 確定先の隣の .<名前>.pcraft-lock に所有者の印（乱数）を書く（wx。symlink があれば失敗する）。
+ *   - ロック（acquireLock）: 確定先の隣の .<名前>.formula-lock に所有者の印（乱数）を書く（wx。symlink があれば失敗する）。
  *     普通のファイルでなければ取らない。60 秒より古いものは、固有の名前に付け替えて（原子的に自分のものにして）から古いかを確かめて消す。
  *     付け替えの間に新しいロックに替わっていたら戻す（戻す先に別のロックがあれば戻さない。それ以外で戻せなければ、付け替えたファイルを残して止める）。
  *     外すときと確定の直前は、自分の印のロックかを確かめる（長く止まった後に、他の保存が取り直したロックを消さない・上書きしない）
  *   - 後始末（cleanupAll）: 一時ファイルとロックの片付けは、1 つずつ別に試す（1 つの失敗で残りを飛ばさない）。
  *     確定の後の片付けの失敗は、確定の失敗にしない（呼ぶ側が警告として返す）
  *   - Windows の EPERM / EBUSY（ウイルス対策ソフトなどが一時的に開いている）は、消す・付け替える・戻すときに短く待って 3 回まで（withRetry）
- * 同じ中核を使う書き込みどうしだけがロックに従う協調のロック（AI の直接の Write はプラグインのフックで止める）。確定は数ミリ秒なので、
+ * 同じ中核を使う書き込みどうしだけがロックに従う協調のロック（AI の直接の Write は .claude/settings.json の拒否で止める）。確定は数ミリ秒なので、
  * 「確かめてから確定・外すまで」の短い間に、60 秒より長く止まった別の保存がロックを取り直す競合は扱わない（Codex 再々レビュー MINOR 2。確定の直前の owned() で気づく範囲だけ）
  */
 import { randomBytes } from "node:crypto";
@@ -117,7 +117,7 @@ export interface Lock {
 }
 
 export function lockPathFor(target: string): string {
-  return path.join(path.dirname(target), `.${path.basename(target)}.pcraft-lock`);
+  return path.join(path.dirname(target), `.${path.basename(target)}.formula-lock`);
 }
 
 function lstatOrNull(p: string): Stats | null {

@@ -1,16 +1,16 @@
 /**
- * kintone/ の下を変える前の許可（tools 2.0.0。print-craft-authoring-mcp の実装案 15.5〜15.7。2026-10-10 Takashi「本番の保護はやめる」）。
+ * kintone/ の下を変える前の許可（print-craft-authoring tools 2.0.0 の写し。print-craft-authoring-mcp の実装案 15.5〜15.7。計算式プラグイン用に preview / out/ は無い）。
  *   - kintone/ の下を変えるのは profile の形（接続のファイルがある）のときだけ。1 接続の形・移行で止まっている形では、いつも断る
  *   - フォルダーの profile が接続のファイルにあること（無ければ denied）、印が今の接続のこのアプリのもの（印が無い・壊れている・別の接続は conflict）、
  *     呼び出しの途中で接続が変わっていないこと（確定の直前に接続のファイルを読み直す。connection-changed）。呼ぶ側は、判定を早めに 1 回（通信や normalize の前）、
  *     実際に書く直前にもう 1 回行う（Codex レビュー BLOCKER 2）
  *   - 操作 × 対象のパス（Codex レビュー MAJOR 3）: 操作ごとに、アプリのフォルダーの中で書いてよい場所を決める
- *       settings（normalize の書き戻し、保存、ボタンの差し替え、edit）… -edit.json と新しい帳票（その他の *.json）
- *       snapshot（pull、take）… 新しい名前のダウンロード / pull（rex0220-print-craft-app<番号>-<日時>.json。既にあれば不可）
- *       fields … fields.json、record … records/ の下の *.json、preview … out/ の下
+ *       settings（normalize --out、edit）… -edit.json と新しい設定（その他の *.json）
+ *       snapshot（pull、take）… 新しい名前のダウンロード / pull（rex0220-formula-app<番号>-<日時>.json。既にあれば不可）
+ *       fields … fields.json、record … records/ の下の *.json
  *   - フォルダーを作れるのは fields と snapshot（pull / take）だけ。ほかの操作はフォルダーが要る（先に fields か pull）
- *   - . で始まるファイル（アプリのフォルダーの印 .pcraft-app.json）は、どの操作でも書けない（印は workspace.ts の ensureAppFolder だけが置く）
- * kintone/ の外（settings/ fields/ records/ out/ temp/）は形に依らない（書ける場所は操作ごとに safe-path.ts の WRITE_ROOTS が決める）。
+ *   - . で始まるファイル（アプリのフォルダーの印 .formula-app.json）は、どの操作でも書けない（印は workspace.ts の ensureAppFolder だけが置く）
+ * kintone/ の外（settings/ fields/ records/ users/ temp/）は形に依らない（書ける場所は操作ごとに safe-path.ts の WRITE_ROOTS が決める）。
  */
 import { existsSync } from "node:fs";
 import path from "node:path";
@@ -21,25 +21,23 @@ import { EDIT_RE, KINTONE_ROOT, SNAPSHOT_RE, appFolderOfFile, assertAppMark, leg
 
 export { PermissionError };
 
-export type ChangeOp = "settings" | "snapshot" | "fields" | "record" | "preview";
+export type ChangeOp = "settings" | "snapshot" | "fields" | "record";
 
-/** アプリのフォルダーの中の場所（docs/permission-table.md の P4〜P9） */
-export type TargetClass = "snapshot" | "edit" | "report" | "fields" | "record" | "out" | "other";
+/** アプリのフォルダーの中の場所（print-craft の docs/permission-table.md の P4〜P9 から out/ を除いたもの） */
+export type TargetClass = "snapshot" | "edit" | "newsettings" | "fields" | "record" | "other";
 
 const ALLOWED_CLASSES: Record<ChangeOp, readonly TargetClass[]> = {
-  settings: ["edit", "report"],
+  settings: ["edit", "newsettings"],
   snapshot: ["snapshot"],
   fields: ["fields"],
-  record: ["record"],
-  preview: ["out"]
+  record: ["record"]
 };
 
 const OP_LABEL: Record<ChangeOp, string> = {
-  settings: "設定（-edit.json と新しい帳票）",
+  settings: "設定（-edit.json と新しい設定）",
   snapshot: "新しい名前のダウンロード / pull",
   fields: "fields.json",
-  record: "records/ の下",
-  preview: "out/ の下"
+  record: "records/ の下"
 };
 
 /** フォルダーを新しく作ってよい操作（15.5） */
@@ -50,12 +48,11 @@ export function classOfAppPath(relInFolder: string): TargetClass {
   const rel = relInFolder.replace(/\\/g, "/");
   if (rel.split("/").some((seg) => seg.startsWith("."))) return "other";
   if (rel.startsWith("records/")) return rel.toLowerCase().endsWith(".json") && rel.split("/").length === 2 ? "record" : "other";
-  if (rel.startsWith("out/")) return "out";
   if (rel.includes("/")) return "other";
   if (rel === "fields.json") return "fields";
   if (SNAPSHOT_RE.test(rel)) return "snapshot";
   if (EDIT_RE.test(rel)) return "edit";
-  if (rel.toLowerCase().endsWith(".json")) return "report";
+  if (rel.toLowerCase().endsWith(".json")) return "newsettings";
   return "other";
 }
 
