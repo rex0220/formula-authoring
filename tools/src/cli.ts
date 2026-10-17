@@ -7,7 +7,8 @@
  * 接続のファイル（複数の profile）と kintone/ のフォルダー（take / edit / files）は工程 1 の後半。
  * 終了コード: 0 成功、1 検査のエラー・認証・kintone・zip・入力の誤り、2 使い方の誤り（パスの制限を含む）。
  */
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createContext, type WorkContext } from "./context.ts";
 import { formulaProdDir } from "./dev-paths.ts";
@@ -114,8 +115,14 @@ async function engineOf(): Promise<Engine> {
   const zip = pluginZipPath({ cwd: W.root, env: W.env });
   const dev = W.env.FORMULA_ALLOW_DEV_PLUGIN === "1" ? formulaProdDir(W.env) : undefined;
   const engine = await loadEngine({ pluginZip: zip, devPluginDir: dev });
-  const baseUrl = baseUrlFromEnv({ cwd: W.root, env: W.env });
-  if (baseUrl) engine.setContext({ baseUrl });
+  // 接続先は APP_URL などの元にするだけ。無い・不正でも zip は読める（version が zip を確かめられるように。接続の誤りは通信するコマンドで止まる）
+  try {
+    const baseUrl = baseUrlFromEnv({ cwd: W.root, env: W.env });
+    if (baseUrl) engine.setContext({ baseUrl });
+  } catch (e) {
+    if (!(e instanceof AuthError)) throw e;
+    engine.warnings.push(e.message);
+  }
   return engine;
 }
 
@@ -378,7 +385,20 @@ export async function main(argv: string[]): Promise<number> {
   }
 }
 
-const invoked = process.argv[1] ? path.resolve(process.argv[1]) : "";
-if (invoked && (invoked === path.resolve(new URL(import.meta.url).pathname) || /[\\/]dist[\\/]cli\.mjs$/.test(invoked))) {
+// 起動の判定: npx の bin（node_modules/.bin/formula-authoring）は dist/cli.mjs への symlink なので実体のパスで比べる
+const invokedRaw = process.argv[1] ? path.resolve(process.argv[1]) : "";
+let invoked = invokedRaw;
+try {
+  invoked = invokedRaw ? realpathSync(invokedRaw) : "";
+} catch {
+  invoked = invokedRaw;
+}
+let self = "";
+try {
+  self = realpathSync(fileURLToPath(import.meta.url));
+} catch {
+  self = fileURLToPath(import.meta.url);
+}
+if (invoked && (invoked === self || /[\\/]dist[\\/]cli\.mjs$/.test(invoked))) {
   main(process.argv.slice(2)).then((code) => { process.exitCode = code; });
 }
