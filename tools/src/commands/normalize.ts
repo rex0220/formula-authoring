@@ -12,6 +12,8 @@ import { Findings } from "../normalize/findings.ts";
 import { ENVELOPE_KEYS, OUTER_KEYS, ROW_SCREEN_KEYS, ROW_SOURCE_KEYS, isGroupRow, isHeaderRow, isLookupRow, isSpacerRow, materialsOf, typeOf, type FieldRow, type FormulaSaved, type FormulaSource, type Lang } from "../normalize/model.ts";
 import { DEFAULT_POLICY, type Policy } from "../normalize/policy.ts";
 import { scanFormula, staticArgsOf, type ScanResult } from "../scan.ts";
+import { scanUserInfoCalls } from "./users.ts";
+import { defaultUsersInfo, type UsersOrigin } from "../users/index.ts";
 import type { UsersInfoTable } from "../users/index.ts";
 
 export interface NormalizeInput {
@@ -22,9 +24,10 @@ export interface NormalizeInput {
   policy?: Policy;
   check?: boolean;
   lang?: Lang;
-  /** UINFO 系の参照するコードの突き合わせ（無ければ既定のテストデータ） */
+  /** UINFO 系の参照するコードの突き合わせと、検証（checkFormula）のエンジンの文脈（無ければ既定のテストデータ） */
   usersInfo?: UsersInfoTable | null;
   usersLabel?: string;
+  usersOrigin?: UsersOrigin;
   now?: () => Date;
 }
 
@@ -32,7 +35,7 @@ export interface NormalizeInput {
 export interface ContextNeeds {
   /** APP_URL を使う項目（接続先の URL が要る） */
   appUrl: string[];
-  /** LOGIN_* / WHICH / UINFO 系を使う項目（ログインユーザーが要る） */
+  /** LOGIN_* / WHICH と、ログインユーザーで決まる UINFO 系（引数なし・項目・式）を使う項目（ログインユーザーが要る。文字列のコードだけの OINFO("sales") などは要らない） */
   login: string[];
   /** LOOKUP_GETID(項目) の項目 → 使っている項目 */
   lookups: Array<{ fieldcode: string; arg: string }>;
@@ -70,7 +73,7 @@ function codesInStrings(scan: ScanResult, userInfoFns: readonly string[]): strin
     if (!userInfoFns.includes(call)) continue;
     for (const c of text.split(",")) {
       const t = c.trim();
-      if (t && !t.startsWith("#") && !UINFO_OPTIONS.has(t) && /^[^\s"]{1,128}$/.test(t)) out.push(t);
+      if (t && !t.startsWith("#") && !UINFO_OPTIONS.has(t) && /^[^\s"]{1,128}$/.test(t) && !out.includes(t)) out.push(t);
     }
   }
   return out;
@@ -265,7 +268,8 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
     for (const id of scan.identifiers) if (!(id in pp) && !byCode.has(id)) findings.info("formula.identifier", where, `項目でない識別子 ${id}（LET などの変数か、関数の引数の名前なら問題ない）`);
     // calc の文脈に要るもの（Codex #6）
     if (used.includes("APP_URL")) contextNeeds.appUrl.push(r.fieldcode);
-    if (used.some((f) => /^LOGIN_|^WHICH$/.test(f) || tags.userInfo.includes(f))) contextNeeds.login.push(r.fieldcode);
+    // ユーザー情報の関数は、1 つ目の引数に文字列のコードを書いたもの（OINFO("sales") など）はログインユーザーが要らない。引数なし・項目・式のときだけ要る（3 回目の試用で見つけた）
+    if (used.some((f) => /^LOGIN_|^WHICH$/.test(f)) || (uinfo.length && scanUserInfoCalls(stripped).dynamic.length)) contextNeeds.login.push(r.fieldcode);
     for (const a of staticArgsOf(stripped, "LOOKUP_GETID")) contextNeeds.lookups.push({ fieldcode: r.fieldcode, arg: a });
     for (const a of staticArgsOf(stripped, "RELATED_GETID")) contextNeeds.related.push({ fieldcode: r.fieldcode, arg: a });
   }
@@ -275,7 +279,9 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   if (engine.dqCount() !== dqBefore) throw new Error("normalize: 走査の前に dq が呼ばれた（tools の誤り）");
   if (findings.hasErrors) return done();
 
-  // 4. 検証（ここで初めて dq）と派生値
+  // 4. 検証（ここで初めて dq）と派生値。ユーザー情報の文脈は入力のもの（無ければ既定のテストデータ）にそろえる
+  //    （同じエンジンで前に calc が「ユーザー情報 OFF」で null にしていると、UINFO 系が "not available" で構文の誤りに見える）
+  engine.setContext({ usersInfo: input.usersInfo ?? defaultUsersInfo(), usersOrigin: input.usersOrigin ?? (input.usersInfo ? { kind: "file", file: input.usersLabel ?? "users" } : { kind: "default" }) });
   const circular = !!misc.circular_refer;
   for (const r of rows) {
     if (!r.state) continue;

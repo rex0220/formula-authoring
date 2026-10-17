@@ -82,6 +82,28 @@ export interface ReferencedCodes {
 
 const CALL_RE = /(?<![A-Za-z0-9_$\u0080-\uFFFF])(UINFO|OINFO|GINFO|OUSERS|GUSERS)\s*\(\s*("(?:\\"|[^"])*"|[^,()]*)/g;
 
+/** 1 つの式（stripFormula の後）のユーザー情報の関数の呼び出し: 1 つ目の引数が文字列ならそのコード、そうでなければ dynamic（決まった文） */
+export function scanUserInfoCalls(text: string): { users: string[]; orgs: string[]; groups: string[]; dynamic: string[] } {
+  const out = { users: [] as string[], orgs: [] as string[], groups: [] as string[], dynamic: [] as string[] };
+  for (const m of text.matchAll(CALL_RE)) {
+    const fn = m[1];
+    const arg = m[2].trim();
+    const kind = USER_INFO_FUNCTIONS[fn];
+    const literal = /^"(?:\\"|[^"])*"$/.test(arg) ? arg.slice(1, -1) : undefined;
+    if (literal === undefined) {
+      out.dynamic.push(`${fn}(${arg ? "式" : "引数なし = ログインユーザー"})`);
+      continue;
+    }
+    const codes = literal.split(",").map((c) => c.trim()).filter(Boolean);
+    if (!codes.length) {
+      out.dynamic.push(`${fn}("") = ログインユーザー`);
+      continue;
+    }
+    for (const c of codes) if (!out[kind].includes(c)) out[kind].push(c);
+  }
+  return out;
+}
+
 /**
  * 設定（封筒か元の値）の pluginInfos の式から、ユーザー情報の関数が 1 つ目の引数に文字列で書いたコードを集める（"a,b" はカンマ区切り）。
  * strip はコメントと改行を除く関数（engine の api.stripFormula。文字列の中の // も行末までコメント = 設定画面と同じ）
@@ -96,23 +118,9 @@ export function referencedCodesOf(settings: Record<string, unknown>, strip: (for
     if (!r || typeof r.formulaSet !== "string" || !r.formulaSet.trim()) continue;
     out.fields++;
     const fieldcode = typeof r.fieldcode === "string" ? r.fieldcode : "?";
-    const text = strip(r.formulaSet);
-    for (const m of text.matchAll(CALL_RE)) {
-      const fn = m[1];
-      const arg = m[2].trim();
-      const kind = USER_INFO_FUNCTIONS[fn];
-      const literal = /^"(?:\\"|[^"])*"$/.test(arg) ? arg.slice(1, -1) : undefined;
-      if (literal === undefined) {
-        out.dynamic.push(`${fieldcode}: ${fn}(${arg ? "式" : "引数なし = ログインユーザー"})`);
-        continue;
-      }
-      const codes = literal.split(",").map((c) => c.trim()).filter(Boolean);
-      if (!codes.length) {
-        out.dynamic.push(`${fieldcode}: ${fn}("") = ログインユーザー`);
-        continue;
-      }
-      for (const c of codes) add(kind, c);
-    }
+    const calls = scanUserInfoCalls(strip(r.formulaSet));
+    for (const d of calls.dynamic) out.dynamic.push(`${fieldcode}: ${d}`);
+    for (const kind of ["users", "orgs", "groups"] as const) for (const c of calls[kind]) add(kind, c);
   }
   return out;
 }

@@ -11,7 +11,7 @@ export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
   const usersInfo = buildUsersInfo(job.usersSource);
   const usersLabel = job.usersOrigin.kind === "file" ? job.usersOrigin.file : "既定のテストデータ（架空）";
   const res = await normalizeSettings({
-    settingsText: job.settingsText, settingsFile: job.settingsFile, fields: job.fields, engine, policy: job.policy, check: job.check, lang: job.lang, usersInfo, usersLabel
+    settingsText: job.settingsText, settingsFile: job.settingsFile, fields: job.fields, engine, policy: job.policy, check: job.check, lang: job.lang, usersInfo, usersLabel, usersOrigin: job.usersOrigin
   });
   const outcome: EvalOutcome = {
     normalize: { summary: res.summary, hasErrors: res.findings.hasErrors, warnings: res.findings.count("warning"), output: res.output, checkDiffs: res.checkDiffs },

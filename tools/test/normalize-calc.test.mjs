@@ -122,6 +122,18 @@ test("normalize: 入れ子の未知のキー、rank の範囲、計算式ツー�
   assert.deepEqual(res2.contextNeeds.lookups, [{ fieldcode: "金額合計", arg: "金額合計" }]);
   assert.deepEqual(res2.contextNeeds.appUrl, ["金額合計"]);
   assert.deepEqual(res2.contextNeeds.login, ["金額合計"]);
+  // ユーザー情報の関数は、1 つ目の引数が文字列のコードならログインユーザーは要らない（3 回目の試用で OINFO("sales") が --user 無しで止まっていた）
+  const s3 = sourceOnly();
+  s3.pluginMiscInfo.userInfo = true;
+  s3.pluginInfos[0].formulaSet = 'OINFO("sales", "name") & OUSERS("sales")';
+  const res3 = await run(s3);
+  assert.equal(res3.findings.count("error"), 0, res3.summary);
+  assert.deepEqual(res3.contextNeeds.login, [], "文字列のコードだけならログインユーザーは要らない");
+  assert.ok(rules(res3, "warning").includes("userinfo.unknown"), "既定のテストデータに sales は無い");
+  const s4 = sourceOnly();
+  s4.pluginMiscInfo.userInfo = true;
+  s4.pluginInfos[0].formulaSet = 'UINFO("", "name") & OINFO("sales")';
+  assert.deepEqual((await run(s4)).contextNeeds.login, ["金額合計"], "引数なし（ログインユーザー）があれば要る");
 });
 
 test("calc: 文脈が足りなければ名指しで止まる。sink が呼ばれたら結果を採らない。--app の取り違え", { skip }, async () => {
