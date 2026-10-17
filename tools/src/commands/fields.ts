@@ -100,22 +100,39 @@ export async function fetchFields(client: RestClient, opt: FieldsOptions): Promi
   };
 }
 
-/** レイアウトの順の項目コード（テーブルとグループは自身のコード。テーブルの子は含めない） */
-function layoutOrder(layout: LayoutRow[]): string[] {
-  const out: string[] = [];
+/** レイアウトの順の項目コード（テーブルとグループは自身のコード。テーブルの子は含めない）と、テーブルごとの子の順（左から右。計算順と同じ） */
+function layoutOrder(layout: LayoutRow[]): { order: string[]; tableChildren: Map<string, string[]> } {
+  const order: string[] = [];
+  const tableChildren = new Map<string, string[]>();
   const walk = (rows: LayoutRow[] | undefined): void => {
     for (const r of rows ?? []) {
       if (r.type === "GROUP") {
-        if (r.code) out.push(r.code);
+        if (r.code) order.push(r.code);
         walk(r.layout);
       } else if (r.type === "SUBTABLE") {
-        if (r.code) out.push(r.code);
+        if (r.code) {
+          order.push(r.code);
+          tableChildren.set(r.code, (r.fields ?? []).map((f) => f.code).filter((c): c is string => !!c));
+        }
       } else {
-        for (const f of r.fields ?? []) if (f.code) out.push(f.code);
+        for (const f of r.fields ?? []) if (f.code) order.push(f.code);
       }
     }
   };
   walk(layout);
+  return { order, tableChildren };
+}
+
+/** テーブルの子をレイアウトの順（左から右）に。レイアウトに無い子は後ろに properties の順で */
+function orderedChildren(table: FieldProperty, inLayout: readonly string[] | undefined): FieldProperty[] {
+  const children = table.fields ?? {};
+  const seen = new Set<string>();
+  const out: FieldProperty[] = [];
+  for (const code of inLayout ?? []) {
+    const c = children[code];
+    if (c && !seen.has(code)) { out.push(c); seen.add(code); }
+  }
+  for (const c of Object.values(children)) if (!seen.has(c.code)) out.push(c);
   return out;
 }
 
@@ -184,12 +201,14 @@ export function listFields(file: FieldsFile, opt: { targetTypes?: ReadonlySet<st
   const line = (p: FieldProperty, indent: string, inTable: boolean): string => `${indent}${p.code}${p.label && p.label !== p.code ? `「${p.label}」` : ""}  ${p.type}${mark(p)}${fieldNotes(p, inTable, copyTargets)}`;
   const lines: string[] = [];
   const shown = new Set<string>();
-  for (const code of layoutOrder(file.layout)) {
+  const { order, tableChildren } = layoutOrder(file.layout);
+  for (const code of order) {
     const p = props[code];
     if (!p || shown.has(code)) continue;
     shown.add(code);
     lines.push(line(p, "", false));
-    if (p.type === "SUBTABLE") for (const c of Object.values(p.fields ?? {})) lines.push(line(c, "  ", true));
+    // テーブルの子はレイアウトの順（左から右 = ランクなしの計算順）。properties の順ではない（4 回目の試用の準備で見つけた）
+    if (p.type === "SUBTABLE") for (const c of orderedChildren(p, tableChildren.get(code))) lines.push(line(c, "  ", true));
   }
   const rest = Object.values(props).filter((p) => !shown.has(p.code));
   const header = `アプリ ${file.appId} ${file.appName}（${file.preview ? "preview" : "運用中"}、lang=${file.lang}、取得 ${file.fetchedAt}）項目 ${Object.keys(props).length}。レイアウトの順、テーブルの子は字下げ${opt.targetTypes ? "。○ = 計算式を設定できる型、－ = できない型" : ""}${file.views ? `。一覧 ${Object.keys(file.views).length}` : file.viewsNote ? `。${file.viewsNote}` : ""}`;

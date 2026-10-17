@@ -58,6 +58,7 @@ kintone/
 ## 構成
 
 - `CLAUDE.md`、`docs/AI作業手順.md`: AI の手順と規則
+- `docs/計算パターン.md`: 定型の計算のやり方（やりたいこと → やり方 → 式の例 → 確かめること → 記事。手で書く）
 - `docs/設定ファイル仕様.md`、`docs/関数一覧.md`、`docs/functions.json`、`docs/schema-manifest.json`、`docs/既定のテストデータ.md`、`samples/users.json`: zip から機械生成（`tools/` で `npm run gen-docs`。`test/docs-sync.test.mjs` が一致を確かめる）
 - `samples/`: 雛形（`settings-source.json`、`fields-2305.json`）
 - `policy/`: 利用者が書く承認（副作用のある関数、各種設定の変更）

@@ -97,6 +97,17 @@ test("calc: テスト用アプリの設定を 1 レコードに当てる（No �
   assert.deepEqual(rows.map((x) => x.value.No.value), ["1", "2", "3"], "No = ROWNO+1");
   assert.equal(rows[0].value.金額.value, "200", "明細の金額 = 数量×単価");
   assert.equal(record.テーブル.value[0].value.金額.value, "", "入力のレコードは書き換えない");
+  // テーブル自身の計算式（行数の制御）で行が足されたときは、入力の行数（0）からの差と、足された行の値を出す（4 回目の試用の出張管理で見つけた）
+  const s5 = sourceOnly();
+  s5.pluginInfos = [...s5.pluginInfos.filter((p) => p.fieldcode !== "テーブル"), { fieldcode: "テーブル", state: true, formulaSet: "3", edit: false, hide: false, rank: "" }];
+  const res5 = await run(s5);
+  assert.equal(res5.findings.count("error"), 0, res5.summary);
+  const empty = { $id: { type: "RECORD_NUMBER", value: "9" }, 商品セット: { type: "CHECK_BOX", value: [] }, 金額合計: { type: "NUMBER", value: "" }, テーブル: { type: "SUBTABLE", value: [] } };
+  const r5 = calcSettings({ normalized: res5, engine, fields: FIELDS_FILE(), appId: 2305, records: [{ id: "9", record: empty }], usersInfo: defaultUsersInfo(), usersOrigin: { kind: "default" } });
+  const t5 = r5.records[0].lines.find((l) => l.fieldcode === "テーブル");
+  assert.ok(t5 && t5.changed && t5.before.length === 0 && t5.after.length === 3, "0 行 → 3 行");
+  assert.match(r5.text, /テーブル: テーブル 0 行 → 3 行/);
+  assert.match(r5.text, /行 1（追加）: .*No "1"/);
   const { evType, event } = validateEvent("app.record.detail.process.proceed", { action: { value: "承認" } });
   assert.equal(evType, "app.record.detail.process.proceed");
   assert.equal(event.action.value, "承認");

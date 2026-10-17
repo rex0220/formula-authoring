@@ -137,8 +137,12 @@ export function calcSettings(input: CalcInput): CalcResult {
     const r = quiet(() => api.calcRecord(saved.pluginFields as never, saved.pluginPP as never, clone as never, { maxTableRows: api.BULK_MAX_TABLE_ROWS, evType, event, typePP: pp as never }));
     const lines: CalcLine[] = [];
     for (const code of Object.keys(r.after)) {
-      const b = (r.before as Record<string, { value?: unknown }>)[code]?.value;
+      const rb = (r.before as Record<string, { value?: unknown }>)[code]?.value;
       const a = (r.after as Record<string, { value?: unknown }>)[code]?.value;
+      // テーブル自身の計算式（行数の制御）で行が足された・減ったときは、API の before（行数の制御の後）でなく入力のレコードの行と比べる
+      // （「0 行 → 6 行」と足された行の値が見えるように。4 回目の試用の出張管理で見つけた）
+      const raw = (record as Record<string, { value?: unknown }>)[code]?.value;
+      const b = isTable(raw) && isTable(rb) && raw.length !== rb.length ? raw : rb;
       lines.push({ fieldcode: code, before: b, after: a, changed: JSON.stringify(b) !== JSON.stringify(a), marks: markOf(code) });
     }
     const byField = new Map<string, { fieldcode: string; phases: string[]; message: string }>();
@@ -164,8 +168,15 @@ export function calcSettings(input: CalcInput): CalcResult {
         const rows = Math.max(l.before.length, l.after.length);
         text.push(`  ${l.changed ? "★" : "　"} ${l.fieldcode}: テーブル ${l.before.length} 行 → ${l.after.length} 行${marks}`);
         for (let i = 0; i < rows; i++) {
-          const bv = l.before[i]?.value ?? {};
+          if (i >= l.after.length) { text.push(`      行 ${i + 1}（削除）`); continue; }
           const av = l.after[i]?.value ?? {};
+          if (i >= l.before.length) {
+            // 行数の制御で足された行: 値のある子の項目を出す
+            const cells = Object.keys(av).filter((c) => av[c]?.value !== undefined && av[c]?.value !== "" && !(Array.isArray(av[c]?.value) && (av[c]?.value as unknown[]).length === 0)).map((c) => `${c} ${short(av[c]?.value)}`);
+            text.push(`      行 ${i + 1}（追加）: ${cells.join("、") || "（空）"}`);
+            continue;
+          }
+          const bv = l.before[i]?.value ?? {};
           const cells = [...new Set([...Object.keys(bv), ...Object.keys(av)])].filter((c) => JSON.stringify(bv[c]?.value) !== JSON.stringify(av[c]?.value)).map((c) => `${c} ${short(bv[c]?.value)} → ${short(av[c]?.value)}`);
           if (cells.length) text.push(`      行 ${i + 1}: ${cells.join("、")}`);
         }

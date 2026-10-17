@@ -13,6 +13,14 @@ test("fields --summary: レイアウトの順、テーブルの子は字下げ�
   const plain = listFields(file);
   assert.ok(!/○ = /.test(plain), "targetTypes が無ければ印なし");
   assert.match(summarizeFields(file), /項目 11（/);
+  // テーブルの子はレイアウトの順（左から右 = ランクなしの計算順）。properties の順（API はオブジェクトなので順が違うことがある）ではない
+  const t = {
+    ...file, appId: 1, appName: "t",
+    properties: { テーブル: { type: "SUBTABLE", code: "テーブル", label: "テーブル", fields: { 備考: { type: "SINGLE_LINE_TEXT", code: "備考", label: "備考" }, 金額: { type: "NUMBER", code: "金額", label: "金額" }, 日付: { type: "DATE", code: "日付", label: "日付" } } } },
+    layout: [{ type: "SUBTABLE", code: "テーブル", fields: [{ type: "DATE", code: "日付" }, { type: "NUMBER", code: "金額" }] }]
+  };
+  const lines = listFields(t).split("\n").filter((l) => l.startsWith("  "));
+  assert.deepEqual(lines.map((l) => l.trim().split(/\s+/)[0]), ["日付", "金額", "備考"], "レイアウトの順、レイアウトに無い子は後ろ");
 });
 
 test("contextTargetsOf: ルックアップ先と関連レコード一覧の先", () => {
