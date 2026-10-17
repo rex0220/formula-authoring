@@ -13,7 +13,7 @@ import { KintoneUrlError, normalizeKintoneBaseUrl } from "./kintone-url.ts";
  * 許可する API（/k/v1/ と /k/guest/<id>/v1/ の後ろ）。app/plugin/config と preview/app/plugin/config は pull が使う（API ラボの
  * 「アプリに追加されているプラグインの設定情報を取得する」。GET だけ。変更の PUT は呼ばない。Takashi 2026-10-05「tools のみで GET だけ」）
  */
-export const ALLOWED_APIS = ["app", "app/form/fields", "app/form/layout", "record", "records", "preview/app/form/fields", "preview/app/form/layout", "app/plugin/config", "preview/app/plugin/config"] as const;
+export const ALLOWED_APIS = ["app", "app/form/fields", "app/form/layout", "app/views", "record", "records", "preview/app/form/fields", "preview/app/form/layout", "preview/app/views", "app/plugin/config", "preview/app/plugin/config"] as const;
 
 /**
  * 受け取る本文の上限（バイト。段階 0-2 の段 4。print-craft-authoring-mcp の docs/api-table.md 2 章）。CLI にも効くので、大きなアプリ
@@ -27,9 +27,19 @@ export const RECEIVE_LIMITS: Record<(typeof ALLOWED_APIS)[number], number> = {
   "preview/app/form/layout": 8 * 1024 * 1024,
   record: 8 * 1024 * 1024,
   records: 8 * 1024 * 1024,
+  "app/views": 2 * 1024 * 1024,
+  "preview/app/views": 2 * 1024 * 1024,
   "app/plugin/config": 2 * 1024 * 1024,
   "preview/app/plugin/config": 2 * 1024 * 1024
 };
+
+/**
+ * User API（cybozu.com 共通。/v1/ の後ろ。users --pull が使う。GET だけ）。kintone アプリの API トークンでは呼べない
+ * （cybozu.com 共通の API トークン（Bearer）かパスワード認証。2 要素認証のユーザーはパスワード認証が使えない）
+ */
+export const ALLOWED_USER_APIS = ["users", "organizations", "groups", "organization/users", "group/users"] as const;
+export type AllowedUserApi = (typeof ALLOWED_USER_APIS)[number];
+export const USER_API_RECEIVE_LIMIT = 8 * 1024 * 1024;
 export type AllowedApi = (typeof ALLOWED_APIS)[number];
 
 export class RestError extends Error {
@@ -101,6 +111,8 @@ export interface RestClient {
   readonly baseUrl: string;
   /** 許可した API を GET で呼ぶ。api は "app" / "app/form/fields" など。guestSpaceId を渡すとゲストスペースの URL */
   get<T>(api: AllowedApi, params: Record<string, string | number | boolean | undefined>, guestSpaceId?: number): Promise<T>;
+  /** User API（/v1/users など。users --pull）。パスワード認証だけ（kintone アプリの API トークンでは 401/403。cybozu.com 共通の API トークンは未対応） */
+  getUser<T>(api: AllowedUserApi, params: Record<string, string | number | boolean | undefined>): Promise<T>;
 }
 
 export function apiPathOf(api: string, guestSpaceId?: number): string {
@@ -148,6 +160,27 @@ export function createRestClient(auth: KintoneAuth, fetchImpl: FetchLike = fetch
         return JSON.parse(text) as T;
       } catch {
         throw new RestError(`kintone ${apiPath} の応答が JSON でない${text ? "" : "（本文が空）"}`, res.status, "ResponseError", apiPath);
+      }
+    },
+    async getUser<T>(api: AllowedUserApi, params: Record<string, string | number | boolean | undefined>): Promise<T> {
+      if (!(ALLOWED_USER_APIS as readonly string[]).includes(api)) throw new NotAllowedError(`この User API は authoring tools では呼ばない: ${api}（許可: ${ALLOWED_USER_APIS.join(", ")}）`);
+      if (auth.token) throw new NotAllowedError("User API（ユーザー・組織・グループ）は kintone アプリの API トークンでは呼べない。KINTONE_USERNAME と KINTONE_PASSWORD（2 要素認証のないアカウント）で");
+      const apiPath = `/v1/${api}.json`;
+      const url = new URL(apiPath, baseUrl);
+      for (const [k, v] of Object.entries(params)) if (v !== undefined) url.searchParams.set(k, String(v));
+      if (url.origin !== baseUrl || url.username || url.password) throw new NotAllowedError(`送信先が kintone の接続先と違うので送らない: ${url.origin}`);
+      const res = await fetchImpl(url.href, { method: "GET", headers });
+      const text = await readCapped(res, USER_API_RECEIVE_LIMIT, apiPath);
+      if (!res.ok) {
+        let code: string | undefined;
+        try { code = typeof (JSON.parse(text) as { code?: string }).code === "string" ? (JSON.parse(text) as { code: string }).code.slice(0, 40) : undefined; } catch { /* JSON でない */ }
+        const hint = res.status === 401 ? "（ログインユーザーの認証情報を確かめる。API トークンでは呼べない）" : res.status === 403 ? "（アクセス権が無い）" : "";
+        throw new RestError(`cybozu.com ${apiPath} が HTTP ${res.status}${code ? ` ${code}` : ""}${hint}`, res.status, code, apiPath);
+      }
+      try {
+        return JSON.parse(text) as T;
+      } catch {
+        throw new RestError(`cybozu.com ${apiPath} の応答が JSON でない`, res.status, "ResponseError", apiPath);
       }
     }
   };

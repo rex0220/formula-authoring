@@ -17,6 +17,8 @@ export const WRITE_ROOTS = {
   records: ["records", "kintone"],
   settings: ["settings", "temp", "kintone"],
   out: ["out", "kintone"],
+  /** users --pull の出力（個人情報。.gitignore）と --users のテストデータ */
+  users: ["users", "kintone"],
   kintone: ["kintone"]
 } as const;
 

@@ -15,3 +15,13 @@ export { PluginZipError, pluginIdOf, readPluginZip, type PluginSources, type Plu
 export { DEFAULT_USERS, UsersDataError, buildUsersInfo, defaultUsersInfo, summarizeUsers, validateUsersSource, type UsersInfoTable, type UsersOrigin, type UsersSource } from "./users/index.ts";
 export { AuthError, baseUrlFromEnv, describeAuth, kintoneConfigPath, loadAuth, pluginZipPath, unquote, type KintoneAuth, type LoadAuthOptions } from "./env.ts";
 export { KintoneUrlError, isKintoneBaseUrl, normalizeKintoneBaseUrl } from "./kintone-url.ts";
+export { InputError, MAX_INPUT_BYTES, PLUGIN_NAME, formatDate, jsonDiff, readFieldsFile, readJsonLimited, readTextLimited, relativeSettingsPath } from "./input.ts";
+export { ALLOWED_APIS, ALLOWED_USER_APIS, NotAllowedError, RECEIVE_LIMITS, RestError, createRestClient, type AllowedApi, type AllowedUserApi, type FetchLike, type RestClient } from "./kintone-rest.ts";
+export { scanFormula, scanFormulas, type ScanResult } from "./scan.ts";
+export { contextTargetsOf, fetchFields, listFields, referenceTablesOf, summarizeFields, type FieldProperty, type FieldsFile, type FieldsOptions, type LayoutRow } from "./commands/fields.ts";
+export { describeRecord, fetchRecord, narrowRecord, shapeLines, summarizeRecord, usedFieldCodes, type KintoneRecord, type RecordFile, type RecordOptions } from "./commands/record.ts";
+export { LIST_LIMIT, QUERY_MAX, QueryError, SHAPE_TEXT_MAX, listQueryOf, listRecordShapes, type RecordShape, type RecordShapes } from "./commands/records.ts";
+export { defaultPullName, pullSettings, type PullOptions, type PullResult } from "./commands/pull.ts";
+export { bodyOf, rowsOf, summarizeSettings, type Envelope, type SourceRow } from "./commands/summary.ts";
+export { diffSettings, type DiffResult, type FieldChange } from "./commands/diff.ts";
+export { DEFAULT_MAX_CALLS, UsersPullError, pullUsers, usersFileNameOf, type PullUsersOptions } from "./commands/users.ts";

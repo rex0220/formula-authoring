@@ -1,0 +1,60 @@
+{
+  "layout": [
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "CHECK_BOX",
+          "code": "商品セット",
+          "size": {}
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "NUMBER",
+          "code": "金額合計",
+          "size": {}
+        }
+      ]
+    },
+    {
+      "type": "SUBTABLE",
+      "code": "テーブル",
+      "fields": [
+        {
+          "type": "NUMBER",
+          "code": "No",
+          "size": {}
+        },
+        {
+          "type": "DROP_DOWN",
+          "code": "分類",
+          "size": {}
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "商品",
+          "size": {}
+        },
+        {
+          "type": "NUMBER",
+          "code": "数量",
+          "size": {}
+        },
+        {
+          "type": "NUMBER",
+          "code": "単価",
+          "size": {}
+        },
+        {
+          "type": "NUMBER",
+          "code": "金額",
+          "size": {}
+        }
+      ]
+    }
+  ]
+}
