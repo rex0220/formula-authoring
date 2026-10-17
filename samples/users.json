@@ -1,0 +1,410 @@
+{
+  "users": [
+    {
+      "id": "1",
+      "code": "demo_user01",
+      "name": "架空 社長",
+      "surName": "架空",
+      "givenName": "社長",
+      "surNameReading": "かくう",
+      "givenNameReading": "しゃちょう",
+      "localName": "",
+      "localNameLocale": "en",
+      "email": "demo_user01@example.com",
+      "timezone": "Asia/Tokyo",
+      "locale": "ja",
+      "valid": true,
+      "description": "既定のテストデータ（架空）",
+      "phone": "",
+      "mobilePhone": "",
+      "extensionNumber": "1001",
+      "callto": "",
+      "url": "",
+      "employeeNumber": "E0001",
+      "birthDate": "",
+      "joinDate": "2011-04-01",
+      "sortOrder": 1,
+      "primaryOrganization": "100",
+      "ctime": "2026-01-01T00:00:00Z",
+      "mtime": "2026-01-01T00:00:00Z",
+      "customItemValues": [
+        {
+          "code": "boss",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "id": "2",
+      "code": "demo_user02",
+      "name": "架空 営業部長",
+      "surName": "架空",
+      "givenName": "営業部長",
+      "surNameReading": "",
+      "givenNameReading": "",
+      "localName": "",
+      "localNameLocale": "en",
+      "email": "demo_user02@example.com",
+      "timezone": "Asia/Tokyo",
+      "locale": "ja",
+      "valid": true,
+      "description": "既定のテストデータ（架空）",
+      "phone": "",
+      "mobilePhone": "",
+      "extensionNumber": "1002",
+      "callto": "",
+      "url": "",
+      "employeeNumber": "E0002",
+      "birthDate": "",
+      "joinDate": "2012-04-01",
+      "sortOrder": 2,
+      "primaryOrganization": "110",
+      "ctime": "2026-01-01T00:00:00Z",
+      "mtime": "2026-01-01T00:00:00Z",
+      "customItemValues": [
+        {
+          "code": "boss",
+          "value": "demo_user01"
+        }
+      ]
+    },
+    {
+      "id": "3",
+      "code": "demo_user03",
+      "name": "架空 開発部長",
+      "surName": "架空",
+      "givenName": "開発部長",
+      "surNameReading": "",
+      "givenNameReading": "",
+      "localName": "",
+      "localNameLocale": "en",
+      "email": "demo_user03@example.com",
+      "timezone": "Asia/Tokyo",
+      "locale": "ja",
+      "valid": true,
+      "description": "既定のテストデータ（架空）",
+      "phone": "",
+      "mobilePhone": "",
+      "extensionNumber": "1003",
+      "callto": "",
+      "url": "",
+      "employeeNumber": "E0003",
+      "birthDate": "",
+      "joinDate": "2013-04-01",
+      "sortOrder": 3,
+      "primaryOrganization": "120",
+      "ctime": "2026-01-01T00:00:00Z",
+      "mtime": "2026-01-01T00:00:00Z",
+      "customItemValues": [
+        {
+          "code": "boss",
+          "value": "demo_user01"
+        }
+      ]
+    },
+    {
+      "id": "4",
+      "code": "demo_user04",
+      "name": "架空 営業一郎",
+      "surName": "架空",
+      "givenName": "営業一郎",
+      "surNameReading": "",
+      "givenNameReading": "",
+      "localName": "",
+      "localNameLocale": "en",
+      "email": "demo_user04@example.com",
+      "timezone": "Asia/Tokyo",
+      "locale": "ja",
+      "valid": true,
+      "description": "既定のテストデータ（架空）",
+      "phone": "",
+      "mobilePhone": "",
+      "extensionNumber": "1004",
+      "callto": "",
+      "url": "",
+      "employeeNumber": "E0004",
+      "birthDate": "",
+      "joinDate": "2014-04-01",
+      "sortOrder": 4,
+      "primaryOrganization": "110",
+      "ctime": "2026-01-01T00:00:00Z",
+      "mtime": "2026-01-01T00:00:00Z",
+      "customItemValues": [
+        {
+          "code": "boss",
+          "value": "demo_user02"
+        }
+      ]
+    },
+    {
+      "id": "5",
+      "code": "demo_user05",
+      "name": "架空 営業二郎",
+      "surName": "架空",
+      "givenName": "営業二郎",
+      "surNameReading": "",
+      "givenNameReading": "",
+      "localName": "Demo Sales 2",
+      "localNameLocale": "en",
+      "email": "demo_user05@example.com",
+      "timezone": "America/Los_Angeles",
+      "locale": "en",
+      "valid": true,
+      "description": "既定のテストデータ（架空）",
+      "phone": "",
+      "mobilePhone": "",
+      "extensionNumber": "1005",
+      "callto": "",
+      "url": "",
+      "employeeNumber": "E0005",
+      "birthDate": "",
+      "joinDate": "2015-04-01",
+      "sortOrder": 5,
+      "primaryOrganization": "110",
+      "ctime": "2026-01-01T00:00:00Z",
+      "mtime": "2026-01-01T00:00:00Z",
+      "customItemValues": [
+        {
+          "code": "boss",
+          "value": "demo_user02"
+        }
+      ]
+    },
+    {
+      "id": "6",
+      "code": "demo_user06",
+      "name": "架空 開発花子",
+      "surName": "架空",
+      "givenName": "開発花子",
+      "surNameReading": "",
+      "givenNameReading": "",
+      "localName": "",
+      "localNameLocale": "en",
+      "email": "demo_user06@example.com",
+      "timezone": "Asia/Tokyo",
+      "locale": "ja",
+      "valid": true,
+      "description": "既定のテストデータ（架空）",
+      "phone": "",
+      "mobilePhone": "",
+      "extensionNumber": "1006",
+      "callto": "",
+      "url": "",
+      "employeeNumber": "E0006",
+      "birthDate": "",
+      "joinDate": "2016-04-01",
+      "sortOrder": 6,
+      "primaryOrganization": "121",
+      "ctime": "2026-01-01T00:00:00Z",
+      "mtime": "2026-01-01T00:00:00Z",
+      "customItemValues": [
+        {
+          "code": "boss",
+          "value": "demo_user03"
+        }
+      ]
+    },
+    {
+      "id": "7",
+      "code": "demo_user07",
+      "name": "架空 開発太郎",
+      "surName": "架空",
+      "givenName": "開発太郎",
+      "surNameReading": "",
+      "givenNameReading": "",
+      "localName": "",
+      "localNameLocale": "en",
+      "email": "demo_user07@example.com",
+      "timezone": "Asia/Singapore",
+      "locale": "en",
+      "valid": true,
+      "description": "既定のテストデータ（架空）",
+      "phone": "",
+      "mobilePhone": "",
+      "extensionNumber": "1007",
+      "callto": "",
+      "url": "",
+      "employeeNumber": "E0007",
+      "birthDate": "",
+      "joinDate": "2017-04-01",
+      "sortOrder": 7,
+      "primaryOrganization": "121",
+      "ctime": "2026-01-01T00:00:00Z",
+      "mtime": "2026-01-01T00:00:00Z",
+      "customItemValues": [
+        {
+          "code": "boss",
+          "value": "demo_user03"
+        }
+      ]
+    },
+    {
+      "id": "8",
+      "code": "demo_user08",
+      "name": "架空 総務一子",
+      "surName": "架空",
+      "givenName": "総務一子",
+      "surNameReading": "",
+      "givenNameReading": "",
+      "localName": "",
+      "localNameLocale": "en",
+      "email": "demo_user08@example.com",
+      "timezone": "Asia/Tokyo",
+      "locale": "ja",
+      "valid": true,
+      "description": "既定のテストデータ（架空）",
+      "phone": "",
+      "mobilePhone": "",
+      "extensionNumber": "1008",
+      "callto": "",
+      "url": "",
+      "employeeNumber": "E0008",
+      "birthDate": "",
+      "joinDate": "2018-04-01",
+      "sortOrder": 8,
+      "primaryOrganization": "100",
+      "ctime": "2026-01-01T00:00:00Z",
+      "mtime": "2026-01-01T00:00:00Z",
+      "customItemValues": [
+        {
+          "code": "boss",
+          "value": "demo_user01"
+        }
+      ]
+    },
+    {
+      "id": "9",
+      "code": "demo_user09",
+      "name": "架空 派遣次郎",
+      "surName": "架空",
+      "givenName": "派遣次郎",
+      "surNameReading": "",
+      "givenNameReading": "",
+      "localName": "",
+      "localNameLocale": "en",
+      "email": "demo_user09@example.com",
+      "timezone": "Asia/Tokyo",
+      "locale": "ja",
+      "valid": true,
+      "description": "既定のテストデータ（架空）。グループには入っていない",
+      "phone": "",
+      "mobilePhone": "",
+      "extensionNumber": "1009",
+      "callto": "",
+      "url": "",
+      "employeeNumber": "E0009",
+      "birthDate": "",
+      "joinDate": "2019-04-01",
+      "sortOrder": 9,
+      "primaryOrganization": "110",
+      "ctime": "2026-01-01T00:00:00Z",
+      "mtime": "2026-01-01T00:00:00Z",
+      "customItemValues": [
+        {
+          "code": "boss",
+          "value": "demo_user02"
+        }
+      ]
+    },
+    {
+      "id": "10",
+      "code": "authoring",
+      "name": "架空 オーサリング",
+      "surName": "架空",
+      "givenName": "オーサリング",
+      "surNameReading": "",
+      "givenNameReading": "",
+      "localName": "",
+      "localNameLocale": "en",
+      "email": "authoring@example.com",
+      "timezone": "Asia/Tokyo",
+      "locale": "ja",
+      "valid": true,
+      "description": "既定のテストデータ（架空）。calc の既定のログインユーザー",
+      "phone": "",
+      "mobilePhone": "",
+      "extensionNumber": "1010",
+      "callto": "",
+      "url": "",
+      "employeeNumber": "E0010",
+      "birthDate": "",
+      "joinDate": "2010-04-01",
+      "sortOrder": 10,
+      "primaryOrganization": "121",
+      "ctime": "2026-01-01T00:00:00Z",
+      "mtime": "2026-01-01T00:00:00Z",
+      "customItemValues": [
+        {
+          "code": "boss",
+          "value": "demo_user03"
+        }
+      ]
+    }
+  ],
+  "organizations": [
+    {
+      "id": "100",
+      "code": "demo_hq",
+      "name": "架空本社",
+      "parentCode": null,
+      "users": [
+        "demo_user01",
+        "demo_user08"
+      ]
+    },
+    {
+      "id": "110",
+      "code": "demo_sales",
+      "name": "架空営業部",
+      "parentCode": "demo_hq",
+      "users": [
+        "demo_user02",
+        "demo_user04",
+        "demo_user05",
+        "demo_user09"
+      ]
+    },
+    {
+      "id": "120",
+      "code": "demo_dev",
+      "name": "架空開発部",
+      "parentCode": "demo_hq",
+      "users": [
+        "demo_user03"
+      ]
+    },
+    {
+      "id": "121",
+      "code": "demo_dev1",
+      "name": "架空開発1課",
+      "parentCode": "demo_dev",
+      "users": [
+        "demo_user06",
+        "demo_user07",
+        "authoring"
+      ]
+    }
+  ],
+  "groups": [
+    {
+      "id": "200",
+      "code": "demo_managers",
+      "name": "架空管理職",
+      "users": [
+        "demo_user01",
+        "demo_user02",
+        "demo_user03"
+      ]
+    },
+    {
+      "id": "201",
+      "code": "demo_approvers",
+      "name": "架空承認者",
+      "users": [
+        "demo_user02",
+        "demo_user03",
+        "demo_user08"
+      ]
+    }
+  ]
+}

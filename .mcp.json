@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "kintone": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["--env-file=.env", "node_modules/@kintone/mcp-server/dist/index.js"]
+    }
+  }
+}

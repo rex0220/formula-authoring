@@ -31,10 +31,8 @@
     "build": "node scripts/vendor.mjs && node scripts/build.mjs",
     "check": "tsc --noEmit -p tsconfig.json",
     "test": "node --test \"test/**/*.test.mjs\"",
-    "gen-functions": "node scripts/gen-functions.mjs",
-    "gen-schema": "node scripts/gen-schema-manifest.mjs",
-    "gen-docs": "node scripts/gen-function-list.mjs",
-    "prepack": "node scripts/vendor.mjs && node scripts/build.mjs"
+    "prepack": "node scripts/vendor.mjs && node scripts/build.mjs",
+    "gen-docs": "node scripts/gen-docs.mjs"
   },
   "repository": {
     "type": "git",

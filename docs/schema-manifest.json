@@ -1,0 +1,625 @@
+{
+  "generatedFrom": {
+    "pluginVersion": "101",
+    "apiVersion": 1,
+    "schemaRevision": "6ecd050f90d4"
+  },
+  "sourceKeys": [
+    "pluginEnable",
+    "pluginProductEnv",
+    "toolEnable",
+    "pluginComment",
+    "pluginDescription",
+    "pluginBtnInfo",
+    "pluginListInfo",
+    "authority",
+    "pluginMiscInfo",
+    "pluginInfos"
+  ],
+  "derivedKeys": [
+    "pluginFields",
+    "pluginPP",
+    "tableTrigger",
+    "pluginRecNo",
+    "pluginModifier",
+    "pluginStatus",
+    "pluginStatusCode",
+    "pluginStatusAssignee",
+    "pluginHide",
+    "pluginLookup",
+    "pluginUOG"
+  ],
+  "screenRowKeys": [
+    "id",
+    "row_type",
+    "type",
+    "fieldlabel",
+    "fieldno",
+    "tableno",
+    "tablepos",
+    "message",
+    "ptcode",
+    "usedFields",
+    "width",
+    "formula"
+  ],
+  "targetTypes": [
+    "GROUP",
+    "SUBTABLE",
+    "MULTI_LINE_TEXT",
+    "SINGLE_LINE_TEXT",
+    "RICH_TEXT",
+    "NUMBER",
+    "DATE",
+    "DATETIME",
+    "TIME",
+    "DROP_DOWN",
+    "RADIO_BUTTON",
+    "CHECK_BOX",
+    "MULTI_SELECT",
+    "GROUP_SELECT",
+    "ORGANIZATION_SELECT",
+    "USER_SELECT",
+    "LINK"
+  ],
+  "miscDefaults": {
+    "circular_refer": false,
+    "async": true,
+    "userInfo": true,
+    "calcStep1": true,
+    "calcTable": true,
+    "calcStep2": true,
+    "tableCalcSkip": false,
+    "eventCreateShow": true,
+    "eventEditShow": true,
+    "eventCreateChange": true,
+    "eventEditChange": true,
+    "eventCreateSubmit": true,
+    "eventEditSubmit": true,
+    "eventCreateSuccess": true,
+    "eventEditSuccess": true,
+    "eventProcess": true
+  },
+  "btnDefaults": {
+    "detail_btn": {
+      "state": false,
+      "default": "計算",
+      "ja": "",
+      "en": "",
+      "zh": ""
+    },
+    "list_btn": {
+      "state": false,
+      "default": "一括計算",
+      "ja": "",
+      "en": "",
+      "zh": ""
+    }
+  },
+  "functionTags": {
+    "sideEffect": [
+      "FSET",
+      "FSET_TADD",
+      "BUTTON",
+      "DIALOG",
+      "CLIPBORD_WRITE",
+      "EV_SET"
+    ],
+    "kintoneContext": [
+      "LOOKUP_GETID",
+      "RELATED_GETID",
+      "APP_URL",
+      "DECODE_URICP",
+      "LOGIN_CODE",
+      "LOGIN_NAME",
+      "LOGIN_EMAIL",
+      "LOGIN_INFO",
+      "WHICH"
+    ],
+    "userInfo": [
+      "UINFO",
+      "OINFO",
+      "GINFO",
+      "OUSERS",
+      "GUSERS"
+    ],
+    "event": [
+      "EV_INFO",
+      "EV_SET"
+    ],
+    "volatile": [
+      "RAND",
+      "RANDBETWEEN",
+      "NOW",
+      "TODAY",
+      "UUID"
+    ]
+  },
+  "entries": [
+    {
+      "path": "$",
+      "type": "object",
+      "optional": false
+    },
+    {
+      "path": "$.pluginEnable",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginProductEnv",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.toolEnable",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginComment",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginDescription",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo",
+      "type": "object",
+      "optional": true
+    },
+    {
+      "path": "$.pluginBtnInfo.detail_btn",
+      "type": "object",
+      "optional": true
+    },
+    {
+      "path": "$.pluginBtnInfo.detail_btn.state",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginBtnInfo.detail_btn.default",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo.detail_btn.ja",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo.detail_btn.en",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo.detail_btn.zh",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo.detail_btn.btn",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo.detail_btn.btn_name",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo.list_btn",
+      "type": "object",
+      "optional": true
+    },
+    {
+      "path": "$.pluginBtnInfo.list_btn.state",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginBtnInfo.list_btn.default",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo.list_btn.ja",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo.list_btn.en",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo.list_btn.zh",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo.list_btn.btn",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo.list_btn.btn_name",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginBtnInfo.edit_btn",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "$.pluginListInfo",
+      "type": "object",
+      "optional": true
+    },
+    {
+      "path": "$.pluginListInfo.all_enabled",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginListInfo.views",
+      "type": "map",
+      "optional": true,
+      "maxKeys": 5000
+    },
+    {
+      "path": "$.pluginListInfo.views.<key>",
+      "type": "string",
+      "optional": false,
+      "maxLength": 256
+    },
+    {
+      "path": "$.authority",
+      "type": "object",
+      "optional": true
+    },
+    {
+      "path": "$.authority.everyone",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.authority.users",
+      "type": "map",
+      "optional": true,
+      "maxKeys": 5000
+    },
+    {
+      "path": "$.authority.users.<key>",
+      "type": "string",
+      "optional": false,
+      "maxLength": 256
+    },
+    {
+      "path": "$.authority.organizations",
+      "type": "map",
+      "optional": true,
+      "maxKeys": 5000
+    },
+    {
+      "path": "$.authority.organizations.<key>",
+      "type": "string",
+      "optional": false,
+      "maxLength": 256
+    },
+    {
+      "path": "$.authority.groups",
+      "type": "map",
+      "optional": true,
+      "maxKeys": 5000
+    },
+    {
+      "path": "$.authority.groups.<key>",
+      "type": "string",
+      "optional": false,
+      "maxLength": 256
+    },
+    {
+      "path": "$.pluginMiscInfo",
+      "type": "object",
+      "optional": true
+    },
+    {
+      "path": "$.pluginMiscInfo.circular_refer",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.async",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.userInfo",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.calcStep1",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.calcTable",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.calcStep2",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.tableCalcSkip",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.eventCreateShow",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.eventEditShow",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.eventCreateChange",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.eventEditChange",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.eventCreateSubmit",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.eventEditSubmit",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.eventCreateSuccess",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.eventEditSuccess",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginMiscInfo.eventProcess",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginInfos",
+      "type": "array",
+      "optional": true,
+      "maxItems": 5000
+    },
+    {
+      "path": "$.pluginInfos[]",
+      "type": "object",
+      "optional": false
+    },
+    {
+      "path": "$.pluginInfos[].fieldcode",
+      "type": "string",
+      "optional": false,
+      "maxLength": 128
+    },
+    {
+      "path": "$.pluginInfos[].state",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginInfos[].formulaSet",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginInfos[].formula",
+      "type": "string",
+      "optional": true,
+      "maxLength": 200000
+    },
+    {
+      "path": "$.pluginInfos[].edit",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginInfos[].hide",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginInfos[].rank",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "$.pluginInfos[].id",
+      "type": "scalar-string",
+      "optional": true,
+      "maxLength": 10
+    },
+    {
+      "path": "$.pluginInfos[].row_type",
+      "type": "string",
+      "optional": true,
+      "maxLength": 256
+    },
+    {
+      "path": "$.pluginInfos[].type",
+      "type": "string",
+      "optional": true,
+      "maxLength": 64
+    },
+    {
+      "path": "$.pluginInfos[].fieldlabel",
+      "type": "string",
+      "optional": true,
+      "maxLength": 512
+    },
+    {
+      "path": "$.pluginInfos[].fieldno",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "$.pluginInfos[].tableno",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "$.pluginInfos[].tablepos",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "$.pluginInfos[].message",
+      "type": "string",
+      "optional": true,
+      "maxLength": 1000
+    },
+    {
+      "path": "$.pluginInfos[].ptcode",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "$.pluginInfos[].usedFields",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "$.pluginInfos[].width",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "$.pluginFields",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "$.pluginPP",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "$.tableTrigger",
+      "type": "any",
+      "optional": true
+    },
+    {
+      "path": "$.pluginRecNo",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginModifier",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginStatus",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginStatusCode",
+      "type": "string",
+      "optional": true,
+      "maxLength": 128
+    },
+    {
+      "path": "$.pluginStatusAssignee",
+      "type": "string",
+      "optional": true,
+      "maxLength": 128
+    },
+    {
+      "path": "$.pluginHide",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginLookup",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    },
+    {
+      "path": "$.pluginUOG",
+      "type": "boolean",
+      "optional": true,
+      "loose": true
+    }
+  ]
+}

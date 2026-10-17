@@ -1,0 +1,1807 @@
+{
+  "pluginVersion": "101",
+  "functions": {
+    "ABS": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "ADD_TAGS": {
+      "type": [
+        "HTML",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "AND": {
+      "type": [
+        "LOGIC"
+      ],
+      "tags": []
+    },
+    "APP_URL": {
+      "type": [
+        "STRING"
+      ],
+      "tags": [
+        "kintoneContext"
+      ]
+    },
+    "ARRAY": {
+      "type": [
+        "ARRAY"
+      ],
+      "tags": []
+    },
+    "ARRAY_COUNT": {
+      "type": [
+        "ARRAY"
+      ],
+      "tags": []
+    },
+    "ARRAY_DEL": {
+      "type": [
+        "ARRAY"
+      ],
+      "tags": []
+    },
+    "ARRAY_DIC": {
+      "type": [
+        "DIC",
+        "OBJECT",
+        "ARRAY"
+      ],
+      "tags": []
+    },
+    "ARRAY_EQUALS": {
+      "type": [
+        "ARRAY"
+      ],
+      "tags": []
+    },
+    "ARRAY_EVERY": {
+      "type": [
+        "ARRAY",
+        "VARIABLE"
+      ],
+      "tags": []
+    },
+    "ARRAY_FIL": {
+      "type": [
+        "ARRAY",
+        "VARIABLE"
+      ],
+      "tags": []
+    },
+    "ARRAY_FOR": {
+      "type": [
+        "ARRAY",
+        "VARIABLE"
+      ],
+      "tags": []
+    },
+    "ARRAY_GET": {
+      "type": [
+        "ARRAY"
+      ],
+      "tags": []
+    },
+    "ARRAY_MAP": {
+      "type": [
+        "ARRAY",
+        "VARIABLE"
+      ],
+      "tags": []
+    },
+    "ARRAY_SOME": {
+      "type": [
+        "ARRAY",
+        "VARIABLE"
+      ],
+      "tags": []
+    },
+    "ARRAY_SORT": {
+      "type": [
+        "ARRAY"
+      ],
+      "tags": []
+    },
+    "ASC": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "ATTR": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "AVE": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "AVEIF": {
+      "type": [
+        "AGGREGATE",
+        "NUMBER",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "BATTR": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "BOOL": {
+      "type": [
+        "LOGIC"
+      ],
+      "tags": []
+    },
+    "BOPT": {
+      "type": [
+        "BUTTON",
+        "DIALOG"
+      ],
+      "tags": []
+    },
+    "BROUND": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "BUTTON": {
+      "type": [
+        "BUTTON",
+        "DIALOG"
+      ],
+      "tags": [
+        "sideEffect"
+      ]
+    },
+    "CEIL": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "CHOOSE": {
+      "type": [
+        "BRANCH",
+        "LOGIC"
+      ],
+      "tags": []
+    },
+    "CLIPBORD_WRITE": {
+      "type": [
+        "STRING",
+        "UTILITY"
+      ],
+      "tags": [
+        "sideEffect"
+      ]
+    },
+    "CONCAT": {
+      "type": [
+        "AGGREGATE",
+        "STRING",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "CONCATIF": {
+      "type": [
+        "AGGREGATE",
+        "STRING",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "CONTAINS": {
+      "type": [
+        "ARRAY",
+        "LOGIC",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "COUNT": {
+      "type": [
+        "AGGREGATE",
+        "STRING",
+        "NUMBER",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "COUNTA": {
+      "type": [
+        "AGGREGATE",
+        "STRING",
+        "NUMBER",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "COUNTIF": {
+      "type": [
+        "AGGREGATE",
+        "NUMBER",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "COUNTROW": {
+      "type": [
+        "NUMBER",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "CRC32": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "CSV_TVAL": {
+      "type": [
+        "TABLE",
+        "OBJECT",
+        "CSV_TVAL",
+        "CSV",
+        "JSON"
+      ],
+      "tags": []
+    },
+    "DATE_ADD": {
+      "type": [
+        "DATE/TIME"
+      ],
+      "tags": []
+    },
+    "DATE_DIFF": {
+      "type": [
+        "DATE/TIME"
+      ],
+      "tags": []
+    },
+    "DATE_ENDOF": {
+      "type": [
+        "DATE/TIME"
+      ],
+      "tags": []
+    },
+    "DATE_FORMAT": {
+      "type": [
+        "DATE/TIME"
+      ],
+      "tags": []
+    },
+    "DATE_STARTOF": {
+      "type": [
+        "DATE/TIME"
+      ],
+      "tags": []
+    },
+    "DECODE_URI": {
+      "type": [
+        "STRING",
+        "URI"
+      ],
+      "tags": []
+    },
+    "DECODE_URICP": {
+      "type": [
+        "STRING",
+        "URI"
+      ],
+      "tags": [
+        "kintoneContext"
+      ]
+    },
+    "DIALOG": {
+      "type": [
+        "BUTTON",
+        "DIALOG"
+      ],
+      "tags": [
+        "sideEffect"
+      ]
+    },
+    "DIC": {
+      "type": [
+        "DIC",
+        "OBJECT"
+      ],
+      "tags": []
+    },
+    "DIC_ASSIGN": {
+      "type": [
+        "DIC",
+        "OBJECT"
+      ],
+      "tags": []
+    },
+    "DIC_COUNT": {
+      "type": [
+        "DIC",
+        "OBJECT"
+      ],
+      "tags": []
+    },
+    "DIC_DEL": {
+      "type": [
+        "DIC",
+        "OBJECT"
+      ],
+      "tags": []
+    },
+    "DIC_EXISTS": {
+      "type": [
+        "DIC",
+        "OBJECT"
+      ],
+      "tags": []
+    },
+    "DIC_ITEM": {
+      "type": [
+        "DIC",
+        "OBJECT"
+      ],
+      "tags": []
+    },
+    "DIC_KEYS": {
+      "type": [
+        "DIC",
+        "OBJECT"
+      ],
+      "tags": []
+    },
+    "DIC_MAP": {
+      "type": [
+        "DIC",
+        "VARIABLE"
+      ],
+      "tags": []
+    },
+    "DISTINCT": {
+      "type": [
+        "ARRAY"
+      ],
+      "tags": []
+    },
+    "DQUOTE": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "DURATION": {
+      "type": [
+        "DATE/TIME"
+      ],
+      "tags": []
+    },
+    "DURATION_AS": {
+      "type": [
+        "DATE/TIME"
+      ],
+      "tags": []
+    },
+    "DURATION_FORMAT": {
+      "type": [
+        "DATE/TIME"
+      ],
+      "tags": []
+    },
+    "DURATION_GET": {
+      "type": [
+        "DATE/TIME"
+      ],
+      "tags": []
+    },
+    "ENCODE_URI": {
+      "type": [
+        "STRING",
+        "URI"
+      ],
+      "tags": []
+    },
+    "ENCODE_URICP": {
+      "type": [
+        "STRING",
+        "URI"
+      ],
+      "tags": []
+    },
+    "ESC_HTML": {
+      "type": [
+        "HTML",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "EV_INFO": {
+      "type": [
+        "EVENT"
+      ],
+      "tags": [
+        "event"
+      ]
+    },
+    "EV_SET": {
+      "type": [
+        "EVENT"
+      ],
+      "tags": [
+        "sideEffect",
+        "event"
+      ]
+    },
+    "FIELDS_HTML": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "FILE": {
+      "type": [
+        "FILE",
+        "ARRAY",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "FIND": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "FIRST": {
+      "type": [
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "FIRSTIF": {
+      "type": [
+        "AGGREGATE",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "FISCAL_YEAR": {
+      "type": [
+        "DATE/TIME"
+      ],
+      "tags": []
+    },
+    "FIXED": {
+      "type": [
+        "NUMBER",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "FLOOR": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "FSET": {
+      "type": [
+        "BUTTON",
+        "DIALOG"
+      ],
+      "tags": [
+        "sideEffect"
+      ]
+    },
+    "FSET_TADD": {
+      "type": [
+        "BUTTON",
+        "DIALOG"
+      ],
+      "tags": [
+        "sideEffect"
+      ]
+    },
+    "FSIZE": {
+      "type": [
+        "FILE",
+        "NUMBER",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "FVAL": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "GINFO": {
+      "type": [
+        "USER",
+        "ORGANIZATION",
+        "GROUP"
+      ],
+      "tags": [
+        "userInfo"
+      ]
+    },
+    "GUSERS": {
+      "type": [
+        "USER",
+        "ORGANIZATION",
+        "GROUP"
+      ],
+      "tags": [
+        "userInfo"
+      ]
+    },
+    "HIRAGANA": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "HTML": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "HTML_TAGS": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "IF": {
+      "type": [
+        "BRANCH",
+        "LOGIC"
+      ],
+      "tags": []
+    },
+    "IFS": {
+      "type": [
+        "BRANCH",
+        "LOGIC"
+      ],
+      "tags": []
+    },
+    "IMGSRC": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "IN": {
+      "type": [
+        "ARRAY",
+        "LOGIC"
+      ],
+      "tags": []
+    },
+    "INDEXOF": {
+      "type": [
+        "ARRAY"
+      ],
+      "tags": []
+    },
+    "INT": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "INTERSECT": {
+      "type": [
+        "ARRAY"
+      ],
+      "tags": []
+    },
+    "ISBLANK": {
+      "type": [
+        "STRING",
+        "NUMBER",
+        "LOGIC"
+      ],
+      "tags": []
+    },
+    "ISNUMBER": {
+      "type": [
+        "NUMBER",
+        "LOGIC"
+      ],
+      "tags": []
+    },
+    "JIS": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "JOIN": {
+      "type": [
+        "ARRAY",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "JSON_P": {
+      "type": [
+        "ARRAY",
+        "STRING",
+        "OBJECT",
+        "JSON"
+      ],
+      "tags": []
+    },
+    "JSON_S": {
+      "type": [
+        "ARRAY",
+        "STRING",
+        "OBJECT",
+        "JSON"
+      ],
+      "tags": []
+    },
+    "KATAKANA": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "LAST": {
+      "type": [
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "LASTIF": {
+      "type": [
+        "AGGREGATE",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "LEFT": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "LENGTH": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "LET": {
+      "type": [
+        "VARIABLE"
+      ],
+      "tags": []
+    },
+    "LOG": {
+      "type": [
+        "DEV"
+      ],
+      "tags": []
+    },
+    "LOGIN_CODE": {
+      "type": [
+        "USER"
+      ],
+      "tags": [
+        "kintoneContext"
+      ]
+    },
+    "LOGIN_EMAIL": {
+      "type": [
+        "USER"
+      ],
+      "tags": [
+        "kintoneContext"
+      ]
+    },
+    "LOGIN_INFO": {
+      "type": [
+        "USER"
+      ],
+      "tags": [
+        "kintoneContext"
+      ]
+    },
+    "LOGIN_NAME": {
+      "type": [
+        "USER"
+      ],
+      "tags": [
+        "kintoneContext"
+      ]
+    },
+    "LOOKUP_GETID": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": [
+        "kintoneContext"
+      ]
+    },
+    "LOWER": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "LTRIM": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "MATCH": {
+      "type": [
+        "ARRAY",
+        "REGEX",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "MAX": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "MAXIF": {
+      "type": [
+        "AGGREGATE",
+        "NUMBER",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "MAX_STR": {
+      "type": [
+        "STRING",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "MEDIAN": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "MID": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "MIN": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "MINIF": {
+      "type": [
+        "AGGREGATE",
+        "NUMBER",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "MIN_STR": {
+      "type": [
+        "STRING",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "MOD": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "MROUND": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "M_ACOS": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_ACOSH": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_ASIN": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_ASINH": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_ATAN": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_ATAN2": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_ATANH": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_COS": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_COSH": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_DEG": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_EXP": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "EXP_LOG"
+      ],
+      "tags": []
+    },
+    "M_LN": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "EXP_LOG"
+      ],
+      "tags": []
+    },
+    "M_LOG": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "EXP_LOG"
+      ],
+      "tags": []
+    },
+    "M_NTHROOT": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "EXP_LOG"
+      ],
+      "tags": []
+    },
+    "M_POW": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "EXP_LOG"
+      ],
+      "tags": []
+    },
+    "M_RAD": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_SIN": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_SINH": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_TAN": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "M_TANH": {
+      "type": [
+        "NUMBER",
+        "MATH",
+        "TRIG"
+      ],
+      "tags": []
+    },
+    "NEWLINE": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "NOT": {
+      "type": [
+        "LOGIC"
+      ],
+      "tags": []
+    },
+    "NOW": {
+      "type": [
+        "DATE/TIME"
+      ],
+      "tags": [
+        "volatile"
+      ]
+    },
+    "NVL": {
+      "type": [
+        "BRANCH",
+        "STRING",
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "OINFO": {
+      "type": [
+        "USER",
+        "ORGANIZATION",
+        "GROUP"
+      ],
+      "tags": [
+        "userInfo"
+      ]
+    },
+    "OPT": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "OR": {
+      "type": [
+        "LOGIC"
+      ],
+      "tags": []
+    },
+    "OTCSV": {
+      "type": [
+        "STRING",
+        "TABLE",
+        "OBJECT",
+        "CSV",
+        "OTCSV"
+      ],
+      "tags": []
+    },
+    "OTVAL": {
+      "type": [
+        "STRING",
+        "TABLE",
+        "OBJECT",
+        "JSON",
+        "OTVAL"
+      ],
+      "tags": []
+    },
+    "OUSERS": {
+      "type": [
+        "USER",
+        "ORGANIZATION",
+        "GROUP"
+      ],
+      "tags": [
+        "userInfo"
+      ]
+    },
+    "PAGE_HTML": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "PI": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "PRODUCT": {
+      "type": [
+        "AGGREGATE",
+        "NUMBER",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "PRODUCTIF": {
+      "type": [
+        "AGGREGATE",
+        "NUMBER",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "RAND": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": [
+        "volatile"
+      ]
+    },
+    "RANDBETWEEN": {
+      "type": [
+        "NUMBER",
+        "ARRAY"
+      ],
+      "tags": [
+        "volatile"
+      ]
+    },
+    "RECS_HTML": {
+      "type": [
+        "HTML",
+        "RECORDS"
+      ],
+      "tags": []
+    },
+    "RECS_MAP": {
+      "type": [
+        "HTML",
+        "RECORDS"
+      ],
+      "tags": []
+    },
+    "RECS_SUM": {
+      "type": [
+        "HTML",
+        "RECORDS"
+      ],
+      "tags": []
+    },
+    "RELATED_GETID": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": [
+        "kintoneContext"
+      ]
+    },
+    "REPEAT": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "REPLACE": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "REPLACEALL": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "REPLACERE": {
+      "type": [
+        "REGEX",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "REVERSE": {
+      "type": [
+        "ARRAY",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "RIGHT": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "ROUND": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "ROUNDDOWN": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "ROUNDUP": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "ROWID": {
+      "type": [
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "ROWNO": {
+      "type": [
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "RTRIM": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "R_CUMIPMT": {
+      "type": [
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_CUMPRINC": {
+      "type": [
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_EFFECT": {
+      "type": [
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_FV": {
+      "type": [
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_IPMT": {
+      "type": [
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_IRR": {
+      "type": [
+        "ARRAY",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_MIRR": {
+      "type": [
+        "ARRAY",
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_NOMINAL": {
+      "type": [
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_NPER": {
+      "type": [
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_NPV": {
+      "type": [
+        "NUMBER",
+        "ARRAY",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_PMT": {
+      "type": [
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_PPMT": {
+      "type": [
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_PV": {
+      "type": [
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_RATE": {
+      "type": [
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_RRI": {
+      "type": [
+        "NUMBER",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_XIRR": {
+      "type": [
+        "ARRAY",
+        "DATE",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "R_XNPV": {
+      "type": [
+        "NUMBER",
+        "ARRAY",
+        "DATE",
+        "FINANCE"
+      ],
+      "tags": []
+    },
+    "SEARCH": {
+      "type": [
+        "REGEX",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "SEL_CODE": {
+      "type": [
+        "USER"
+      ],
+      "tags": []
+    },
+    "SEL_NAME": {
+      "type": [
+        "USER"
+      ],
+      "tags": []
+    },
+    "SET_CODE": {
+      "type": [
+        "USER"
+      ],
+      "tags": []
+    },
+    "SHUFFLE": {
+      "type": [
+        "ARRAY"
+      ],
+      "tags": []
+    },
+    "SLICE": {
+      "type": [
+        "ARRAY",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "SPLIT": {
+      "type": [
+        "ARRAY",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "SQRT": {
+      "type": [
+        "NUMBER"
+      ],
+      "tags": []
+    },
+    "STDEV": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "STDEVP": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "STRIP_TAGS": {
+      "type": [
+        "HTML",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "STR_COMP": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "STYLE": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "SUBSTR": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "SUBSTRING": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "SUBTABLE": {
+      "type": [
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "SUM": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "SUMIF": {
+      "type": [
+        "AGGREGATE",
+        "NUMBER",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "SWITCH": {
+      "type": [
+        "BRANCH",
+        "LOGIC"
+      ],
+      "tags": []
+    },
+    "TABLE_DATA": {
+      "type": [
+        "TABLE",
+        "TABLE_DATA"
+      ],
+      "tags": []
+    },
+    "TABLE_DIC": {
+      "type": [
+        "DIC",
+        "OBJECT",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "TABLE_HTML": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "TABLE_MAP": {
+      "type": [
+        "TABLE",
+        "TABLE_DATA"
+      ],
+      "tags": []
+    },
+    "TABLE_SORT": {
+      "type": [
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "TAG": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "TAGS_HTML": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "TARRAY": {
+      "type": [
+        "ARRAY",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "TARRAYIF": {
+      "type": [
+        "ARRAY",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "TDS": {
+      "type": [
+        "AGGREGATE",
+        "ARRAY",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "TDSIF": {
+      "type": [
+        "AGGREGATE",
+        "ARRAY",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "TDUPCK": {
+      "type": [
+        "LOGIC",
+        "TABLE"
+      ],
+      "tags": []
+    },
+    "TEST": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "TESTRE": {
+      "type": [
+        "REGEX",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "TEXTJOIN": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "TLTABLE": {
+      "type": [
+        "AGGREGATE",
+        "TABLE",
+        "TLTABLE",
+        "OBJECT"
+      ],
+      "tags": []
+    },
+    "TODAY": {
+      "type": [
+        "DATE/TIME"
+      ],
+      "tags": [
+        "volatile"
+      ]
+    },
+    "TPDIC": {
+      "type": [
+        "TABLE",
+        "TABLE_DATA"
+      ],
+      "tags": []
+    },
+    "TPFILTER": {
+      "type": [
+        "TABLE_SORT",
+        "TLTABLE",
+        "OTCSV",
+        "OTVAL"
+      ],
+      "tags": []
+    },
+    "TPKEY": {
+      "type": [
+        "TLTABLE"
+      ],
+      "tags": []
+    },
+    "TPLABEL": {
+      "type": [
+        "TLTABLE",
+        "CSV_TVAL",
+        "OTCSV",
+        "OTVAL"
+      ],
+      "tags": []
+    },
+    "TPOPT": {
+      "type": [
+        "TABLE",
+        "TLTABLE",
+        "CSV_TVAL",
+        "OTCSV",
+        "OTVAL"
+      ],
+      "tags": []
+    },
+    "TPOUT": {
+      "type": [
+        "TLTABLE",
+        "CSV_TVAL",
+        "OTCSV",
+        "OTVAL"
+      ],
+      "tags": []
+    },
+    "TPSORT": {
+      "type": [
+        "TABLE",
+        "TABLE_SORT",
+        "TLTABLE",
+        "CSV_TVAL",
+        "OTCSV",
+        "OTVAL"
+      ],
+      "tags": []
+    },
+    "TPVAL": {
+      "type": [
+        "TLTABLE"
+      ],
+      "tags": []
+    },
+    "TRIM": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "TR_AVE": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "TR_COUNT": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "TR_COUNTA": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "TR_MAX": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "TR_MIN": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "TR_SUM": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "UINFO": {
+      "type": [
+        "USER",
+        "ORGANIZATION",
+        "GROUP"
+      ],
+      "tags": [
+        "userInfo"
+      ]
+    },
+    "UNESC_HTML": {
+      "type": [
+        "HTML",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "UPPER": {
+      "type": [
+        "STRING"
+      ],
+      "tags": []
+    },
+    "URL": {
+      "type": [
+        "HTML",
+        "STRING"
+      ],
+      "tags": []
+    },
+    "UUID": {
+      "type": [
+        "STRING"
+      ],
+      "tags": [
+        "volatile"
+      ]
+    },
+    "VAR": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "VARP": {
+      "type": [
+        "NUMBER",
+        "TABLE",
+        "AGGREGATE"
+      ],
+      "tags": []
+    },
+    "VTAG": {
+      "type": [
+        "HTML"
+      ],
+      "tags": []
+    },
+    "WHICH": {
+      "type": [
+        "BRANCH",
+        "LOGIC",
+        "USER"
+      ],
+      "tags": [
+        "kintoneContext"
+      ]
+    },
+    "XOR": {
+      "type": [
+        "LOGIC"
+      ],
+      "tags": []
+    },
+    "YEN": {
+      "type": [
+        "NUMBER",
+        "STRING"
+      ],
+      "tags": []
+    }
+  }
+}

@@ -98,6 +98,8 @@ export interface Engine {
   functionNames(): string[];
   /** 関数名 → 説明文の type（USER / EVENT / BUTTON / TABLE / AGGREGATE …。エンジンの desc。関数一覧の生成と normalize の分類に） */
   functionTypes(): Record<string, string[]>;
+  /** 関数名 → 説明文（設定画面の ? と計算式ツールの文言。type と ja / en / zh。関数一覧の生成に） */
+  functionDocs(): Record<string, { type: string[]; ja: string; en: string; zh: string }>;
   /** dq が呼ばれた回数（走査の前に評価していないことの確認） */
   dqCount(): number;
   /** 実行時の sink（clipboard、kintone.api）が呼ばれた記録。評価の前に空にして、後で見る */
@@ -333,6 +335,12 @@ async function startEngine(src: PluginSources & { kind: "zip" | "dev"; api: stri
     checker: (pp, crec) => new Ctor("formula", pp, crec, true, true),
     runner: (pp, record, evType, event) => new Ctor("formula", pp, record, true, false, evType, event),
     functionNames: () => Object.keys(new Ctor("formula", {}, {}, true, true).funs).sort(),
+    functionDocs: () => {
+      const desc = (new Ctor("formula", {}, {}, true, true) as unknown as { desc?: Record<string, { type?: string[]; ja?: string; en?: string; zh?: string }> }).desc ?? {};
+      const out: Record<string, { type: string[]; ja: string; en: string; zh: string }> = {};
+      for (const [name, d] of Object.entries(desc)) out[name] = { type: Array.isArray(d?.type) ? [...d.type] : [], ja: String(d?.ja ?? ""), en: String(d?.en ?? ""), zh: String(d?.zh ?? "") };
+      return out;
+    },
     functionTypes: () => {
       const desc = (new Ctor("formula", {}, {}, true, true) as unknown as { desc?: Record<string, { type?: string[] }> }).desc ?? {};
       const out: Record<string, string[]> = {};
