@@ -1,0 +1,15 @@
+# 認証情報（KINTONE_BASE_URL / KINTONE_API_TOKEN / KINTONE_USERNAME / KINTONE_PASSWORD と FORMULA_PLUGIN_ZIP）
+.env
+node_modules/
+# record コマンドの出力（個人情報を含む）、calc の出力、users --pull の実データ（個人情報）
+records/
+out/
+users/*.json
+!users/sample.json
+# tools の開発用（tools/.gitignore も参照）
+tools/dist/
+tools/vendor/*.js
+# 1.x の環境ごとの認証（environments.json の envFile。tools 2.0.0 から使わない。消し忘れてもコミットしない）
+env/
+# 設定のダウンロードを置く場所（take がアプリのフォルダーへ移す）
+inbox/

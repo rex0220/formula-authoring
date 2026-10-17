@@ -1,0 +1,22 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node"],
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "paths": {
+      "formula/*": ["../../formula/*"],
+      "rexgrid/*": ["../../../rexgrid/*"],
+      "plugin-config-kit/*": ["../../../plugin-config-kit/*"]
+    }
+  },
+  "include": ["src/**/*.ts"]
+}

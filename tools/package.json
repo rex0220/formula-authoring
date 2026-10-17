@@ -1,0 +1,58 @@
+{
+  "name": "@rex0220/formula-authoring-tools",
+  "version": "0.1.0",
+  "description": "rex0220 計算式プラグイン（kintone）の設定を AI で作るための CLI。利用者のプラグインの zip から authoring API と計算式エンジンを読んで Node で動く",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "formula-authoring": "dist/cli.mjs"
+  },
+  "exports": {
+    "./core": {
+      "types": "./dist/types/core.d.ts",
+      "import": "./dist/core.mjs",
+      "default": "./dist/core.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist/**",
+    "vendor/**",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "SECURITY.md",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "vendor": "node scripts/vendor.mjs",
+    "build": "node scripts/vendor.mjs && node scripts/build.mjs",
+    "check": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "gen-functions": "node scripts/gen-functions.mjs",
+    "gen-schema": "node scripts/gen-schema-manifest.mjs",
+    "gen-docs": "node scripts/gen-function-list.mjs",
+    "prepack": "node scripts/vendor.mjs && node scripts/build.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rex0220/formula-authoring.git",
+    "directory": "tools"
+  },
+  "bugs": {
+    "url": "https://github.com/rex0220/formula-authoring/issues"
+  },
+  "dependencies": {
+    "happy-dom": "20.14.5"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "esbuild": "^0.28.2",
+    "formula": "file:../../formula",
+    "plugin-config-kit": "file:../../../plugin-config-kit",
+    "rexgrid": "file:../../../rexgrid",
+    "typescript": "^7.0.2"
+  }
+}

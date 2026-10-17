@@ -1,0 +1,13 @@
+{
+  "defaultProfile": "dev",
+  "profiles": {
+    "dev": {
+      "baseUrl": "https://dev-example.cybozu.com",
+      "tokenMap": { "APP101": "env:PCRAFT_TOKEN_APP101" }
+    },
+    "prod": {
+      "baseUrl": "https://example.cybozu.com",
+      "tokenMap": { "APP3740": "env:PCRAFT_TOKEN_APP3740" }
+    }
+  }
+}
