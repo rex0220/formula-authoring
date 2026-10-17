@@ -25,3 +25,8 @@ export { defaultPullName, pullSettings, type PullOptions, type PullResult } from
 export { bodyOf, rowsOf, summarizeSettings, type Envelope, type SourceRow } from "./commands/summary.ts";
 export { diffSettings, type DiffResult, type FieldChange } from "./commands/diff.ts";
 export { DEFAULT_MAX_CALLS, UsersPullError, pullUsers, usersFileNameOf, type PullUsersOptions } from "./commands/users.ts";
+export { normalizeSettings, findCycles, type NormalizeInput, type NormalizeResult } from "./commands/normalize.ts";
+export { DEFAULT_EVENT, EVENT_RE, RECORDS_MAX, calcSettings, validateEvent, type CalcInput, type CalcLine, type CalcRecordResult, type CalcResult } from "./commands/calc.ts";
+export { DEFAULT_POLICY, POLICY_FILE, PolicyError, loadPolicy, parsePolicy, type Policy } from "./normalize/policy.ts";
+export { Findings, type Finding, type Level } from "./normalize/findings.ts";
+export { materialsOf, viewsOf, type FormulaSaved, type FormulaSource, type Lang } from "./normalize/model.ts";

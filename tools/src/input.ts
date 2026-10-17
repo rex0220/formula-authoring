@@ -66,3 +66,18 @@ export function relativeSettingsPath(file: string, cwd: string): string {
   const rel = path.relative(cwd, path.resolve(cwd, file));
   return rel.startsWith("..") ? file : rel.replace(/\\/g, "/");
 }
+
+/** 呼び出しの間だけ console.log / warn / error を抑える（kit の legacy-field-ids の [rexgd] と計算式エンジンの err11 などの出力を tools の出力に混ぜない）。例外はそのまま */
+export function quiet<T>(fn: () => T): T {
+  const saved = { log: console.log, warn: console.warn, error: console.error };
+  console.log = () => undefined;
+  console.warn = () => undefined;
+  console.error = () => undefined;
+  try {
+    return fn();
+  } finally {
+    console.log = saved.log;
+    console.warn = saved.warn;
+    console.error = saved.error;
+  }
+}

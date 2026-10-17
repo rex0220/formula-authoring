@@ -1,3 +1,4 @@
 {
-  "allowExternal": []
+  "allowFunctions": [],
+  "allowMiscChanges": false
 }

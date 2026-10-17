@@ -27,7 +27,12 @@ import { defaultPullName, pullSettings } from "./commands/pull.ts";
 import { summarizeSettings } from "./commands/summary.ts";
 import { diffSettings } from "./commands/diff.ts";
 import { UsersPullError, pullUsers, usersFileNameOf } from "./commands/users.ts";
-import { readFieldsFile } from "./input.ts";
+import { readFieldsFile, readTextLimited } from "./input.ts";
+import { normalizeSettings, type NormalizeResult } from "./commands/normalize.ts";
+import { calcSettings } from "./commands/calc.ts";
+import { PolicyError, loadPolicy } from "./normalize/policy.ts";
+import { buildUsersInfo, type UsersInfoTable } from "./users/index.ts";
+import type { FieldsFile } from "./commands/fields.ts";
 
 const USAGE = `使い方: npx @rex0220/formula-authoring-tools <command> [options]
   version                                   tools の版と、zip から読んだ計算式プラグインの版・API の版・エンジンの SHA-256
@@ -47,6 +52,11 @@ const USAGE = `使い方: npx @rex0220/formula-authoring-tools <command> [option
                                             ユーザー情報のテストデータの要約（既定は tools 同梱の架空の 10 人）
   users --pull [--out users/<host>.json] [--force] [--max N]
                                             ユーザー・組織・グループと所属を User API から users/ に（個人情報。パスワード認証だけ）
+  normalize <settings.json> [--fields fields/N.json] [--users <f>] [--out <f>] [--force] [--check]
+                                            設定画面と同じ手順で検査し、既定値を補った設定を書き出す（--check は入力との差）
+  calc <settings.json> --app N (--id R | --records R1,R2,…) [--fields fields/N.json] [--users <f>] [--user <code>]
+       [--event <種別>] [--action A --status S --next-status T] [--mobile]
+                                            取得済みのレコード（records/）に設定を当てた模擬（更新しない）
   help
 
 読むのは作業フォルダー（起動したフォルダー）の中のファイルだけ。書くのは fields/ records/ settings/ temp/ users/ の下だけ。
@@ -241,6 +251,80 @@ function cmdDiff(positional: string[]): number {
   return 0;
 }
 
+interface Prepared {
+  res: NormalizeResult;
+  fields: FieldsFile;
+  usersInfo: UsersInfoTable;
+  usersOrigin: UsersOrigin;
+  engine: Engine;
+  raw: Record<string, unknown>;
+  settingsAbs: string;
+}
+
+/** normalize / calc の共通: 設定ファイル、fields、ユーザー情報、policy、engine を揃えて検査する */
+async function prepare(positional: string[], flags: Flags, usage: string): Promise<Prepared> {
+  const file = positional[1];
+  if (!file) throw new UsageError(usage);
+  const settingsAbs = existingFile(file, "pull か、設定ファイルを置く");
+  const raw = readJsonLimited(settingsAbs);
+  const appFromEnv = typeof raw.appId === "number" ? raw.appId : intFlag(flags, "app", false);
+  const fieldsRel = str(flags, "fields") ?? (appFromEnv ? path.join("fields", `${appFromEnv}.json`) : undefined);
+  if (!fieldsRel) throw new UsageError("--fields fields/N.json（設定の appId が無いときは必須）");
+  const fields = readFieldsFile(existingFile(fieldsRel, `fields --app ${appFromEnv ?? "N"}`));
+  const { src, origin } = usersSourceOf(str(flags, "users"));
+  const usersInfo = buildUsersInfo(src);
+  const engine = await engineOf();
+  const policy = loadPolicy(W.root);
+  const res = await normalizeSettings({
+    settingsText: readTextLimited(settingsAbs), settingsFile: shown(settingsAbs), fields, engine, policy, check: has(flags, "check"),
+    lang: (str(flags, "lang") as "ja" | "en" | "zh" | undefined), usersInfo, usersLabel: origin.kind === "file" ? origin.file : "既定のテストデータ（架空）"
+  });
+  return { res, fields, usersInfo, usersOrigin: origin, engine, raw, settingsAbs };
+}
+
+async function cmdNormalize(positional: string[], flags: Flags): Promise<number> {
+  const p = await prepare(positional, flags, "normalize <settings.json> [--fields fields/N.json]");
+  console.log(p.res.summary);
+  if (p.res.checkDiffs) {
+    console.log(p.res.checkDiffs.length ? `--check: 入力と出力の差 ${p.res.checkDiffs.length}\n  ${p.res.checkDiffs.join("\n  ")}` : "--check: 入力と出力の差 0");
+  }
+  if (p.res.findings.hasErrors || !p.res.output) return 1;
+  const out = str(flags, "out");
+  if (out) {
+    const abs = writeJson(out, p.res.output, WRITE_ROOTS.settings, has(flags, "force"));
+    console.log(`→ ${shown(abs)}（既定値を補った設定。設定画面で取り込み → 保存 → 運用環境に反映。既存のレコードは「既存レコードを変更」か「一括計算」で）`);
+  }
+  return 0;
+}
+
+async function cmdCalc(positional: string[], flags: Flags): Promise<number> {
+  const app = intFlag(flags, "app", true) as number;
+  const ids = str(flags, "records") ? (str(flags, "records") as string).split(",").map((x) => x.trim()).filter(Boolean) : str(flags, "id") ? [str(flags, "id") as string] : [];
+  if (!ids.length) throw new UsageError("calc <settings.json> --app N --id R（または --records R1,R2,…）");
+  for (const id of ids) if (!/^[1-9]\d{0,9}$/.test(id)) throw new UsageError(`レコード番号が正の整数でない: ${id}`);
+  const p = await prepare(positional, flags, "calc <settings.json> --app N --id R");
+  if (p.res.findings.hasErrors) {
+    console.log(p.res.summary);
+    console.log("normalize のエラーがあるので calc しない");
+    return 1;
+  }
+  const records = ids.map((id) => {
+    const rel = path.join("records", `${app}-${id}.json`);
+    const data = readJsonLimited(existingFile(rel, `record --app ${app} --id ${id}`)) as { record?: Record<string, { type: string; value: unknown }> };
+    if (!data.record || typeof data.record !== "object") throw new InputError(`${rel} は record コマンドの出力ではない`);
+    return { id, record: data.record };
+  });
+  const r = calcSettings({
+    normalized: p.res, engine: p.engine, fields: p.fields, appId: app, records,
+    evType: str(flags, "event"), event: has(flags, "action") || has(flags, "status") || has(flags, "next-status") ? { action: { value: str(flags, "action") ?? "" }, status: { value: str(flags, "status") ?? "" }, nextStatus: { value: str(flags, "next-status") ?? "" } } : undefined,
+    mobile: has(flags, "mobile"), user: str(flags, "user"), usersInfo: p.usersInfo, usersOrigin: p.usersOrigin
+  });
+  const warnings = p.res.findings.count("warning");
+  if (warnings) console.log(`normalize の警告 ${warnings}（normalize で確かめる）`);
+  console.log(r.text);
+  return r.records.some((x) => x.errors.length) ? 1 : 0;
+}
+
 async function cmdUsers(flags: Flags): Promise<number> {
   if (has(flags, "summary")) {
     const { src, origin } = usersSourceOf(str(flags, "users"));
@@ -275,6 +359,8 @@ export async function main(argv: string[]): Promise<number> {
       case "summary": return await cmdSummary(positional, flags);
       case "diff": return cmdDiff(positional);
       case "users": return await cmdUsers(flags);
+      case "normalize": return await cmdNormalize(positional, flags);
+      case "calc": return await cmdCalc(positional, flags);
       default:
         console.error(`不明なコマンド: ${command}\n${USAGE}`);
         return 2;
@@ -284,7 +370,7 @@ export async function main(argv: string[]): Promise<number> {
       console.error(`${e.message}\n${USAGE}`);
       return 2;
     }
-    if (e instanceof PluginZipError || e instanceof AuthError || e instanceof UsersDataError || e instanceof InputError || e instanceof RestError || e instanceof NotAllowedError || e instanceof KintoneUrlError || e instanceof QueryError || e instanceof UsersPullError) {
+    if (e instanceof PluginZipError || e instanceof AuthError || e instanceof UsersDataError || e instanceof InputError || e instanceof RestError || e instanceof NotAllowedError || e instanceof KintoneUrlError || e instanceof QueryError || e instanceof UsersPullError || e instanceof PolicyError) {
       console.error(e.message);
       return 1;
     }
