@@ -11,6 +11,6 @@
   },
   "dependencies": {
     "@kintone/mcp-server": "1.8.2",
-    "@rex0220/formula-authoring-tools": "0.3.0"
+    "@rex0220/formula-authoring-tools": "0.3.1"
   }
 }
