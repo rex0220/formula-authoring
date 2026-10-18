@@ -5,6 +5,7 @@
  *   - expect はレコードごとの値（対象の型に入れた後の値）。show を付けるとテーブル（SUBTABLE の対象）の結果はその子の値の配列。
  *     長い HTML などは expectIncludes（結果の JSON に含まれるべき文字列の配列）で確かめる（検証の文書では結果を 300 字で切る）
  *   - policy は副作用のある関数（FSET など）を評価するときだけ付ける。note は検証の文書に添える説明
+ *   - click: true（ボタンのクリックの模擬。計画 26 章）: expect はレコードごとの「押した後に変わる項目」（{ 項目コード: 後の値 }。項目コード順。テーブルは show の子の値の配列）
  *   - 値はすべて架空。実在の人・組織・本番の値は入れない
  */
 
@@ -406,7 +407,27 @@ export const PATTERN_CASES = [
       { formula: 'SET_CODE(UINFO(SEL_CODE(ユーザー1, "text"), "#boss"))', as: "ユーザー2", expect: [[{ code: "demo_user01" }], [], [{ code: "demo_user01" }], [{ code: "demo_user01" }, { code: "demo_user02" }, { code: "demo_user03" }]], note: "IF を省くと、空のときに全員の上司が入る" }
     ]
   },
-  // ---- イベント ----
+  // ---- ボタン・イベント ----
+  {
+    section: "ボタン・イベント", pattern: "ボタンで項目をセットする（BUTTON + FSET）", data: [{ 数値1: 10 }, { 数値1: "" }], policy: { allowFunctions: ["BUTTON", "FSET"], allowMiscChanges: true },
+    formulas: [
+      { formula: 'BUTTON("加算", FSET(数値1, NVL(数値1, 0) + 1), FSET(文字列1, "押した"))', click: true, expect: [{ 数値1: "11", 文字列1: "押した" }, { 数値1: "1", 文字列1: "押した" }], note: "スペース項目に置く。押す前の表示は { TYPE: BUTTON, TITLE: 加算 }。押すと FSET の順に値が入り、全項目を再計算する。空の数値 + 1 は空のまま（空・比較・端数の決まり）なので NVL で 0 に" },
+      { formula: 'BUTTON("加算", FSET(数値1, 数値1 + 1))', click: true, expect: [{ 数値1: "11" }, {}], note: "NVL が無いと、空の数値は押しても空のまま（変わる項目なし）" },
+      { formula: 'BUTTON(BOPT("TITLE", "加算", "CSS", "{\'color\':\'white\',\'background-color\':\'#3498db\'}"), FSET(数値1, NVL(数値1, 0) + 1))', click: true, expect: [{ 数値1: "11" }, { 数値1: "1" }], note: "BOPT で色（CSS）。押した後の値は同じ" }
+    ]
+  },
+  {
+    section: "ボタン・イベント", pattern: "確認ダイアログの後にセットする（DIALOG + FSET）", data: [{ 数値1: 10 }], policy: { allowFunctions: ["DIALOG", "FSET"], allowMiscChanges: true },
+    formulas: [
+      { formula: 'DIALOG(ARRAY("確認", "数値1 に 1 を足します", "question"), FSET(数値1, 数値1 + 1))', click: true, expect: [{ 数値1: "11" }], note: "表示は TITLE / HTML / ICON（info / warning / question / success / error）/ キャンセルの有無（4 つ目。既定あり）。OK で FSET が走る。キャンセルなら何も変わらない" }
+    ]
+  },
+  {
+    section: "ボタン・イベント", pattern: "ボタンでテーブルに行を足す（BUTTON + FSET_TADD）", data: [{ テーブル1: [{ T1_数値: 1 }] }, { テーブル1: [] }], policy: { allowFunctions: ["BUTTON", "FSET_TADD"], allowMiscChanges: true },
+    formulas: [
+      { formula: "BUTTON(\"行を追加\", FSET_TADD(テーブル1, \"[{'T1_数値':'5','T1_文字列':'x'}]\"))", click: true, show: "T1_数値", expect: [{ テーブル1: ["1", "5"] }, { テーブル1: ["5"] }], note: "行の値は JSON の文字列（引用符は '）か配列。書かない子は空。0 行のテーブルにも足せる" }
+    ]
+  },
   {
     section: "ボタン・イベント", pattern: "イベントで結果を変える（既定は allUpdate）", records: [3],
     formulas: [{ formula: 'EV_INFO("type")', as: "TEXT", expect: ["allUpdate"] }]

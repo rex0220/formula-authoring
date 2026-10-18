@@ -23,6 +23,7 @@ Projects/
 - `src/scan.ts` … 計算式の字面の走査（関数、識別子、文字列と、それを引数に持つ関数）。評価しない
 - `src/commands/normalize.ts` … 設定画面と同じ手順の検査（生の JSON の未知のキー → normalizeSource → 走査（副作用 / 文脈 / イベント / ユーザー情報）→ checkFormula / deriveSemantic → 循環 → 大きさ）と既定値を補った封筒。`src/normalize/` … 規則（findings）、policy、型、差分
 - `src/commands/calc.ts` … 取得したレコードに設定を当てる模擬（authoring API の `calcRecord`。イベント、ログインユーザー、ユーザー情報、文脈の fail-closed、sink の拒否）。`src/worker/` … 評価を Worker で動かし時間上限で止める
+- `src/commands/click.ts` … ボタン（BUTTON / DIALOG）のクリックの模擬（`clickFormula`。calc の `click` と try の式の `click`。0.4.0）
 - `src/commands/try.ts` / `src/commands/try-data.ts` / `src/sample-app.ts` … 式の試し計算（`try`。formula MCP の `fml_try`）。`try-data.ts` は架空の項目（標本に足す）と簡略形の値（kintone の形に変換・検査）。同梱のサンプルアプリ（`src/sample-app/`。全項目タイプ × 2、テーブル 2 つ、レコード 3 件 = 典型 / 端 / 空。実在の値は無い。`scripts/gen-sample-app.mjs` で取り直す）に式ごとに 1 行だけの設定を組み、normalize → calc で値（型に入れた後の値と、エンジンの生の値）を返す。利用者のアプリ・レコード・接続は使わない
 - `src/users/` … ユーザー情報のテストデータ（既定の架空の 10 人）と `users/*.json` の形。`src/commands/users.ts` … User API からの取得（全部 / `--only-referenced` = 式が参照するコードとその所属だけ）
 - `src/connections.ts` / `src/workspace.ts` / `src/permission.ts` / `src/commit-file.ts` … kintone の接続のファイル（kSQL の `ksql.config.json` と同じ形。profile、`tokenMap`、`userApiToken`）、`kintone/<profile>/<番号>-<アプリ名>/` のフォルダーと印 `.formula-app.json`、kintone/ の下を変える許可、ファイルの確定とロック（print-craft-authoring tools 2.0.0 の写し）
@@ -60,6 +61,7 @@ npm pack --dry-run  # 公開前に中身を確かめる（dist、vendor、LICENS
 
 ## 履歴
 
+- 0.4.0（2026-10）: ボタン（BUTTON / DIALOG）のクリックの模擬（計画 26 章。`calc --click <項目コード>`、`try --click`。formula MCP 0.3.0 の `fml_calc` の click / `fml_try` の式の click）。デスクトップの buttonClick と同じ手順（押す前の表示 → EV_SET("click") → 式 → 全項目の再計算）を写しのレコードで行い、押す前の表示（TYPE / TITLE / HTML / ICON / キャンセルの有無）と押した後に変わる項目（計算式の無い項目も。項目コード順）を返す（`src/commands/click.ts`）。policy の承認は今までどおり要る。計算パターン集の「ボタン・イベント」に 3 例と検証（47 ケース 128 式）
 - 0.3.1（2026-10）: normalize がスペース項目（要素 ID のある SPACER）とヘッダーの行の計算式を `field.type` で誤って止めていたのを直した（設定画面は許す）。`try` でスペース項目を対象にできる（`--as sp1` / `SPACER`。標本に `sp1` を足した。レコードに値が無いので式の返り値をそのまま返す）
 - 0.3.0（2026-10）: 計算パターン集の例の検証（`docs/計算パターン_検証.md`。gen-docs）。式の試し計算 `try`（計画 25 章。formula MCP 0.2.0 の `fml_try`）。同梱のサンプルアプリ（`src/sample-app/`）に 1 行だけの設定を組んで normalize → calc。架空の項目と値（`src/commands/try-data.ts`: `--fields` で標本に項目を足す、`--data` で簡略形の値のレコード、`--app` で利用者のアプリの項目定義に架空の値）。`core` に `trySettings` / `SAMPLE_APP` / `describeSampleApp`、評価の仕事の kind `try`（`EvalJob` の `settingsText` / `settingsFile` / `fields` は try では省略できる）、`calcSettings` の `allowDefaultBaseUrl`。`CORE_API_VERSION` は 2 のまま（足しただけ）
 - 0.2.1（2026-10）: formula MCP の Codex レビューへの対応。`updateFields` の `common` を共通の設定のキー（`COMMON_KEYS`）だけに。Worker の中の誤りの種類（`EvalError.kind`）と名前を中核が instanceof で決める（zip のコードの例外の name / constructor.name / 文を応答や標準エラーに出さない。`classifyEvalError` / `builtinErrorName`）。保存の結果の想定外の誤りも種類だけ（`zipCode`）。CLI の想定外の誤りは種類だけ（`FORMULA_DEBUG=1` で文とスタック）。接続の誤りの文の print-craft の名残を直した

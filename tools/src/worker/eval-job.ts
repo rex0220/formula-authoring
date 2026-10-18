@@ -3,6 +3,7 @@
  * normalize / calc の評価（zip のコードの実行）は Worker の中で行い、主スレッドは時間上限で terminate する（計画 7 章・11 章、Codex レビュー BLOCKER 1）。
  * tools 0.2.0（MCP。計画 24 章）: 結果に findings と calc のレコードごとの行を足した（MCP が構造のまま返す。CLI は summary / text を使う）。vendorDir（moment の置き場所）
  * tools 0.3.0（計画 25 章）: kind "try"（同梱のサンプルアプリで式の試し計算。設定ファイル・項目定義は要らない）。結果の try
+ * tools 0.4.0（計画 26 章）: calc.click（ボタンのクリックの模擬）、try の式の click
  */
 import type { FieldsFile } from "../commands/fields.ts";
 import type { KintoneRecord } from "../commands/record.ts";
@@ -40,6 +41,8 @@ export interface EvalJob {
     event?: CalcEvent;
     mobile?: boolean;
     user?: string;
+    /** ボタン（BUTTON / DIALOG）のクリックを模擬する行の項目コード（スペース項目は "(要素ID)"） */
+    click?: string;
   };
   /** 式の試し計算（kind "try"。サンプルアプリに 1 行だけの設定を組んで normalize + calc） */
   try?: {

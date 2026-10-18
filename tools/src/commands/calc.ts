@@ -6,6 +6,7 @@
  */
 import { DEFAULT_CONTEXT_BASE_URL, type CalcEvent, type Engine } from "../engine.ts";
 import { InputError, quiet } from "../input.ts";
+import { CLICK_TYPES, clickFormula, describeDisplay, type ClickResult } from "./click.ts";
 import type { FieldsFile } from "./fields.ts";
 import { contextTargetsOf } from "./fields.ts";
 import type { KintoneRecord } from "./record.ts";
@@ -33,6 +34,8 @@ export interface CalcInput {
   usersOrigin: UsersOrigin | { kind: "none" };
   /** APP_URL を使う式でも、接続先が無ければ既定の接続先（例の URL）で評価する（try。サンプルアプリに実在の接続は無い）。既定は名指しで止める */
   allowDefaultBaseUrl?: boolean;
+  /** ボタン（BUTTON / DIALOG）のクリックを模擬する行の項目コード（スペース項目は "(要素ID)"）。計算の後に押して、変わる項目を返す（click.ts。計画 26 章） */
+  click?: string;
 }
 
 export interface CalcLine {
@@ -51,6 +54,8 @@ export interface CalcRecordResult {
   sinks: string[];
   /** 実行時の sink が呼ばれた = 走査の漏れ。結果を採らない（Codex #9） */
   failed: boolean;
+  /** ボタンのクリックの模擬の結果（click を指定したとき。計算後のレコードで押す） */
+  click?: ClickResult;
 }
 
 export interface CalcResult {
@@ -82,6 +87,42 @@ const short = (v: unknown): string => {
   return s === undefined ? "undefined" : [...s].length > 60 ? [...s].slice(0, 60).join("") + "…" : s;
 };
 
+/** 1 項目の前後の値の行（テーブルは行ごと・子の項目ごとの差だけ。値の JSON を丸ごと出さない） */
+export function renderLine(l: CalcLine, indent: string): string[] {
+  const out: string[] = [];
+  const marks = l.marks.length ? `  [${l.marks.join("、")}]` : "";
+  if (isTable(l.before) && isTable(l.after)) {
+    const rows = Math.max(l.before.length, l.after.length);
+    out.push(`${indent}${l.changed ? "★" : "　"} ${l.fieldcode}: テーブル ${l.before.length} 行 → ${l.after.length} 行${marks}`);
+    for (let i = 0; i < rows; i++) {
+      if (i >= l.after.length) { out.push(`${indent}    行 ${i + 1}（削除）`); continue; }
+      const av = l.after[i]?.value ?? {};
+      if (i >= l.before.length) {
+        // 行数の制御や FSET_TADD で足された行: 値のある子の項目を出す
+        const cells = Object.keys(av).filter((c) => av[c]?.value !== undefined && av[c]?.value !== "" && !(Array.isArray(av[c]?.value) && (av[c]?.value as unknown[]).length === 0)).map((c) => `${c} ${short(av[c]?.value)}`);
+        out.push(`${indent}    行 ${i + 1}（追加）: ${cells.join("、") || "（空）"}`);
+        continue;
+      }
+      const bv = l.before[i]?.value ?? {};
+      const cells = [...new Set([...Object.keys(bv), ...Object.keys(av)])].filter((c) => JSON.stringify(bv[c]?.value) !== JSON.stringify(av[c]?.value)).map((c) => `${c} ${short(bv[c]?.value)} → ${short(av[c]?.value)}`);
+      if (cells.length) out.push(`${indent}    行 ${i + 1}: ${cells.join("、")}`);
+    }
+    return out;
+  }
+  out.push(`${indent}${l.changed ? "★" : "　"} ${l.fieldcode}: ${short(l.before)} → ${short(l.after)}${marks}`);
+  return out;
+}
+
+/** クリックの模擬の結果の文（押す前の表示、変わる項目、エラー） */
+export function renderClick(c: ClickResult, code: string, indent: string): string[] {
+  const out = [`${indent}クリック ${code}: ${describeDisplay(c.display)}`];
+  for (const l of c.changes) out.push(...renderLine(l, `${indent}  `));
+  if (c.display && !c.errors.some((e) => e.phases.includes("click"))) out.push(`${indent}  クリックで変わる項目: ${c.changes.length ? `${c.changes.map((l) => l.fieldcode).join("、")}（${c.changes.length} 項目）` : "なし"}`);
+  for (const e of c.errors) out.push(`${indent}  ！ ${e.fieldcode}（${e.phases.join(", ")}）: ${e.message}`);
+  if (c.failed) out.push(`${indent}  ！ クリックの結果は採らない（実行時の sink）`);
+  return out;
+}
+
 export function calcSettings(input: CalcInput): CalcResult {
   const { engine, normalized, fields } = input;
   const api = engine.api;
@@ -96,6 +137,18 @@ export function calcSettings(input: CalcInput): CalcResult {
     if (r.fileId !== undefined && String(r.fileId) !== r.id) throw new InputError(`レコード ${r.id} のファイルの id が ${r.fileId}`);
   }
   const { evType, event } = validateEvent(input.evType, input.event);
+  // ボタンのクリックの模擬: 行があり、テーブルの外で、式が BUTTON / DIALOG を使うこと（policy の承認は normalize が確かめ済み）
+  let clickRow: { formula: string } | undefined;
+  if (input.click !== undefined) {
+    const code = input.click;
+    const rows = saved.pluginFields as Array<{ fieldcode: string; formula: string; ptcode?: string | null }>;
+    const row = rows.find((f) => f.fieldcode === code);
+    if (!row) throw new InputError(`click の項目 ${code} は設定の計算式の行にない（スペース項目は "(要素ID)"。summary で行を見る）`);
+    if (row.ptcode) throw new InputError(`テーブルの中のボタン（${code}。${row.ptcode} の子）は模擬できない`);
+    const fns = Object.keys(normalized.scans.get(code)?.functions ?? {});
+    if (!fns.some((f) => CLICK_TYPES.includes(f))) throw new InputError(`${code} の式は BUTTON / DIALOG を使っていない（${fns.join(", ") || "関数なし"}）`);
+    clickRow = row;
+  }
   const tags = api.FUNCTION_TAGS as Record<string, readonly string[]>;
   // 文脈
   const targets = contextTargetsOf(fields.properties);
@@ -157,37 +210,23 @@ export function calcSettings(input: CalcInput): CalcResult {
     const sinks = engine.sinkCalls().map((s) => `${s.sink} ${s.detail}`.trim());
     const errors = [...byField.values()];
     for (const sk of sinks) errors.push({ fieldcode: "(sink)", phases: ["runtime"], message: `実行時の sink が呼ばれた: ${sk}（走査で止められなかった副作用。この結果は採らない）` });
-    results.push({ id, lines, changed: lines.filter((l) => l.changed).length, errors, sinks, failed: sinks.length > 0 });
+    const res: CalcRecordResult = { id, lines, changed: lines.filter((l) => l.changed).length, errors, sinks, failed: sinks.length > 0 };
+    if (clickRow) {
+      // 計算後のレコード（画面に出ている状態）で押す
+      res.click = clickFormula({ engine, saved: { pluginFields: saved.pluginFields, pluginPP: saved.pluginPP }, typePP: pp, record: clone as KintoneRecord, code: input.click as string, formula: clickRow.formula, evType, event });
+      if (res.click.failed) res.failed = true;
+    }
+    results.push(res);
   }
   engine.clearSinkCalls();
   const text: string[] = [notice, contextLine];
+  if (clickRow) text.push(`クリックの模擬: ${input.click}（デスクトップの処理と同じ手順 = 押す前の表示 → EV_SET("click") → 式 → 全項目の再計算。見た目・ダイアログの表示・record.set の後の change イベントは模擬しない。最後は実機のテスト用アプリで押して確かめる）`);
   for (const res of results) {
     text.push(`レコード ${res.id}: 計算対象 ${res.lines.length} 項目、変わる ${res.changed}${res.errors.length ? `、エラー ${res.errors.length}` : ""}`);
-    for (const l of res.lines) {
-      const marks = l.marks.length ? `  [${l.marks.join("、")}]` : "";
-      if (isTable(l.before) && isTable(l.after)) {
-        // テーブルは行ごと・子の項目ごとの差だけ（値の JSON を丸ごと出さない）
-        const rows = Math.max(l.before.length, l.after.length);
-        text.push(`  ${l.changed ? "★" : "　"} ${l.fieldcode}: テーブル ${l.before.length} 行 → ${l.after.length} 行${marks}`);
-        for (let i = 0; i < rows; i++) {
-          if (i >= l.after.length) { text.push(`      行 ${i + 1}（削除）`); continue; }
-          const av = l.after[i]?.value ?? {};
-          if (i >= l.before.length) {
-            // 行数の制御で足された行: 値のある子の項目を出す
-            const cells = Object.keys(av).filter((c) => av[c]?.value !== undefined && av[c]?.value !== "" && !(Array.isArray(av[c]?.value) && (av[c]?.value as unknown[]).length === 0)).map((c) => `${c} ${short(av[c]?.value)}`);
-            text.push(`      行 ${i + 1}（追加）: ${cells.join("、") || "（空）"}`);
-            continue;
-          }
-          const bv = l.before[i]?.value ?? {};
-          const cells = [...new Set([...Object.keys(bv), ...Object.keys(av)])].filter((c) => JSON.stringify(bv[c]?.value) !== JSON.stringify(av[c]?.value)).map((c) => `${c} ${short(bv[c]?.value)} → ${short(av[c]?.value)}`);
-          if (cells.length) text.push(`      行 ${i + 1}: ${cells.join("、")}`);
-        }
-        continue;
-      }
-      text.push(`  ${l.changed ? "★" : "　"} ${l.fieldcode}: ${short(l.before)} → ${short(l.after)}${marks}`);
-    }
+    for (const l of res.lines) text.push(...renderLine(l, "  "));
     for (const e of res.errors) text.push(`  ！ ${e.fieldcode}（${e.phases.join(", ")}）: ${e.message}`);
-    if (res.failed) text.push("  ！ このレコードの結果は採らない（実行時の sink）");
+    if (res.sinks.length) text.push("  ！ このレコードの結果は採らない（実行時の sink）");
+    if (res.click) text.push(...renderClick(res.click, input.click as string, "  "));
   }
   let summary = "";
   if (results.length > 1) {

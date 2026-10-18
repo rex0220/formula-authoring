@@ -4,6 +4,7 @@
  * tools 0.2.0（計画 24.4。CORE_API_VERSION 2）: 作業フォルダーとアプリのフォルダー（workspace）、接続のファイル（connections）、kintone/ の下の許可（permission）、
  * ファイルの確定とロック（commit-file）、take、保存の約束（save: saveNewSettings / updateFields）、users の参照するコードの取得、JSON の誤りの文、行のキー
  * tools 0.3.0（計画 25 章。CORE_API_VERSION は 2 のまま = 足しただけ）: 同梱のサンプルアプリ（sample-app）と式の試し計算（try: trySettings。評価の仕事の kind "try"）
+ * tools 0.4.0（計画 26 章。2 のまま）: ボタンのクリックの模擬（click: clickFormula。calc の click、try の式の click）
  */
 export const CORE_API_VERSION = 2;
 
@@ -32,7 +33,9 @@ export {
   DEFAULT_MAX_CALLS, USER_INFO_FUNCTIONS, UsersPullError, pullReferencedUsers, pullUsers, referencedCodesOf, scanUserInfoCalls, usersFileNameOf, type PullUsersOptions, type ReferencedCodes
 } from "./commands/users.ts";
 export { normalizeSettings, findCycles, stronglyConnected, type ContextNeeds, type NormalizeInput, type NormalizeResult } from "./commands/normalize.ts";
-export { DEFAULT_EVENT, EVENT_RE, RECORDS_MAX, calcSettings, validateEvent, type CalcInput, type CalcLine, type CalcRecordResult, type CalcResult } from "./commands/calc.ts";
+export { DEFAULT_EVENT, EVENT_RE, RECORDS_MAX, calcSettings, renderClick, renderLine, validateEvent, type CalcInput, type CalcLine, type CalcRecordResult, type CalcResult } from "./commands/calc.ts";
+// tools 0.4.0（計画 26 章。CORE_API_VERSION は 2 のまま = 足しただけ）: ボタン（BUTTON / DIALOG）のクリックの模擬（calc の click、try の式の click）
+export { CLICK_TYPES, clickFormula, describeDisplay, isButtonDisplay, type ClickInput, type ClickResult } from "./commands/click.ts";
 export { takeInbox, type TakeResult } from "./commands/take.ts";
 // tools 0.3.0（計画 25 章）: 同梱のサンプルアプリと式の試し計算（try / fml_try）
 export { SAMPLE_APP, describeSampleApp, sampleApp, type SampleApp, type SampleRecord } from "./sample-app.ts";

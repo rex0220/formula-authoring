@@ -230,3 +230,62 @@ test("スペース項目（SPACER。要素 ID sp1）: 設定画面と同じく�
   assert.equal(bad.status, "invalid");
   assert.match(r.text, /\[1\] スペース項目 sp1（SPACER）← ARRAY/);
 });
+
+test("ボタンのクリックの模擬（click。計画 26 章）: BUTTON / DIALOG / FSET_TADD を押す前の表示と押した後の差で返す。as の省略はスペース項目。ボタンでない式と policy の無い式は invalid", { skip }, async () => {
+  const policy = parsePolicy('{"allowFunctions":["BUTTON","DIALOG","FSET","FSET_TADD"],"allowMiscChanges":true}', "policy");
+  const r = await run([
+    { formula: 'BUTTON("加算", FSET(数値1, 数値1 + 1), FSET(文字列1, "押した"))', click: true },
+    { formula: 'DIALOG(ARRAY("確認", "数値1 に 1 を足します", "question", 0), FSET(数値1, 数値1 + 1))', click: true },
+    { formula: "BUTTON(\"行を追加\", FSET_TADD(テーブル1, \"[{'T1_数値':'5','T1_文字列':'x'}]\"))", click: true },
+    { formula: "数値1 + 1", click: true },
+    { formula: 'BUTTON("何もしない", FSET(数値1, 数値1))', click: true }
+  ], { policy, records: [1, 2] });
+  const [btn, dialog, tadd, plain, same] = r.results;
+  // BUTTON: 押す前の表示は TYPE / TITLE。押すと FSET の順に値が入る（レコードごと）
+  assert.equal(btn.status, "ok", JSON.stringify(btn.findings));
+  assert.deepEqual(btn.target, { code: "(sp1)", type: "SPACER", elementId: "sp1" }, "as の省略はスペース項目");
+  assert.deepEqual(btn.values[0].value, { TYPE: "BUTTON", TITLE: "加算" });
+  assert.deepEqual(btn.values[0].click.display, { TYPE: "BUTTON", TITLE: "加算" });
+  assert.deepEqual(btn.values[0].click.changes.map((l) => [l.fieldcode, l.before, l.after]), [["数値1", "1234", "1235"], ["文字列1", "サンプル文字列 1", "押した"]], "項目コード順");
+  assert.deepEqual(btn.values[1].click.changes.map((l) => [l.fieldcode, l.after]), [["数値1", "1"], ["文字列1", "押した"]], "レコード 2（0）→ 1");
+  assert.deepEqual([btn.values[0].click.errors, btn.values[0].click.failed], [[], false]);
+  assert.match(r.text, /クリック: BUTTON「加算」/);
+  assert.match(r.text, /変わる項目: .*数値1 "1234" → "1235"/);
+  // DIALOG: 表示は TITLE / HTML / ICON / SCAN（0 = キャンセルなし）
+  assert.equal(dialog.status, "ok", JSON.stringify(dialog.findings));
+  assert.deepEqual(dialog.values[0].click.display, { TYPE: "DIALOG", TITLE: "確認", HTML: "数値1 に 1 を足します", ICON: "question", SCAN: false });
+  assert.deepEqual(dialog.values[0].click.changes.map((l) => [l.fieldcode, l.after]), [["数値1", "1235"]]);
+  assert.match(r.text, /DIALOG「確認」 HTML "数値1 に 1 を足します" ICON question キャンセル なし/);
+  // FSET_TADD: テーブルに行が足される（レコード 2 は 1 行 → 2 行）
+  assert.equal(tadd.status, "ok", JSON.stringify(tadd.findings));
+  const t2 = tadd.values[1].click.changes.find((l) => l.fieldcode === "テーブル1");
+  assert.deepEqual([t2.before.length, t2.after.length, t2.after[1].value.T1_数値.value, t2.after[1].value.T1_文字列.value], [1, 2, "5", "x"]);
+  assert.match(r.text, /テーブル1 テーブル 1 行 → 2 行（行 2 追加: .*T1_数値 "5"/);
+  // ボタンでない式: 値は返るが、クリックは display のエラー → invalid（try.click）
+  assert.equal(plain.status, "invalid");
+  assert.equal(plain.values[0].value, 1235);
+  assert.equal(plain.values[0].click.display, null);
+  assert.ok(plain.values[0].click.errors.some((e) => e.phases.includes("display") && /ボタンでない/.test(e.message)));
+  assert.ok(plain.findings.some((f) => f.rule === "try.click"));
+  // 変わらないボタン: 変わる項目なし
+  assert.equal(same.status, "ok");
+  assert.deepEqual(same.values[0].click.changes, []);
+  assert.match(r.text, /変わる項目: なし/);
+  // クリック時の式が失敗（検査は通るがレコードの値で壊れる: 正規表現に "("）: 実機と同じく何も変えない（click のエラー）
+  const brokenRun = await run([{ formula: 'BUTTON("壊れる", FSET(文字列1, "a" & REPLACERE(文字列1, 文字列2, "x")), FSET(数値1, 1))', click: true }], { policy, data: [{ 文字列1: "abc", 文字列2: "(" }] });
+  const broken = brokenRun.results[0];
+  assert.equal(broken.status, "invalid", JSON.stringify(broken.findings));
+  assert.deepEqual(broken.values[0].click.display, { TYPE: "BUTTON", TITLE: "壊れる" });
+  assert.deepEqual(broken.values[0].click.changes, [], "途中まで FSET が走っていても、変わる項目は無し（実機は record.set を呼ばない）");
+  assert.ok(broken.values[0].click.errors.some((e) => e.phases.includes("click") && /エラーのダイアログ/.test(e.message)));
+  // policy が無ければ評価しない（normalize の formula.side-effect）
+  const no = await run([{ formula: 'BUTTON("加算", FSET(数値1, 1))', click: true }], { records: [1] });
+  assert.equal(no.results[0].status, "invalid");
+  assert.ok(no.results[0].findings.some((f) => f.rule === "formula.side-effect" && f.level === "error"));
+  assert.equal(no.results[0].values.length, 0);
+  // 文脈（イベント）はクリックにも効く。click を付けなければ click は無い
+  const ev = await run([{ formula: 'BUTTON("種別", FSET(文字列1, EV_INFO("type")))', click: true }, { formula: 'BUTTON("x", FSET(文字列1, "y"))' }], { policy, records: [3], evType: "app.record.edit.show" });
+  assert.deepEqual(ev.results[0].values[0].click.changes.map((l) => [l.fieldcode, l.after]), [["文字列1", "app.record.edit.show"]]);
+  assert.equal(ev.results[1].values[0].click, undefined);
+  assert.equal(ev.results[1].target.code, "文字列2", "click を付けなければ as の省略は今までどおり TEXT（式が参照しない 文字列2）");
+});

@@ -63,14 +63,16 @@ const USAGE = `使い方: npx @rex0220/formula-authoring-tools <command> [option
   normalize <settings.json> [--fields fields/N.json] [--users <f>] [--out <f>] [--force] [--check] [--timeout 秒]
                                             設定画面と同じ手順で検査し、既定値を補った設定を書き出す（--check は入力との差）
   calc <settings.json> --app N (--id R | --records R1,R2,…) [--fields fields/N.json] [--users <f>] [--user <code>]
-       [--event <種別>] [--action A --status S --next-status T] [--mobile] [--timeout 秒]
-                                            取得済みのレコード（records/）に設定を当てた模擬（更新しない）。評価は Worker で動かし、既定 60 秒で止める
+       [--event <種別>] [--action A --status S --next-status T] [--mobile] [--click <項目コード>] [--timeout 秒]
+                                            取得済みのレコード（records/）に設定を当てた模擬（更新しない）。評価は Worker で動かし、既定 60 秒で止める。
+                                            --click はボタン（BUTTON / DIALOG）の行の項目コード（スペース項目は "(sp1)"）: 計算の後に押して、変わる項目を出す
   try "<式>" [--as <型 | 項目コード>] [--table <テーブル>] [--records 1,2,3] [--users <f>] [--user <code>]
-      [--event <種別>] [--action A --status S --next-status T] [--mobile] [--timeout 秒]
+      [--event <種別>] [--action A --status S --next-status T] [--mobile] [--click] [--timeout 秒]
       [--fields '<JSON>'] [--data '<JSON>'] [--base 3] [--app N]
                                             同梱のサンプルアプリ（全項目タイプ × 2、テーブル 2 つ、レコード 3 件 = 典型 / 端 / 空）に 1 行だけの設定を組んで
                                             検査と模擬の計算（関数の使い方や式の断片を確かめる。利用者のアプリは使わない）。--as は型（NUMBER / TEXT / DATE …。
                                             既定 TEXT = 文字列 1 行）か項目コード、テーブルの中で計算するなら --table テーブル1。スペース項目は --as sp1（返り値をそのまま）。
+                                            --click はボタン（BUTTON / DIALOG）の式を押す模擬（押す前の表示と、変わる項目。--as の省略はスペース項目）。
                                             --fields '[{"code":"単価","type":"NUMBER"},{"code":"分類","type":"DROP_DOWN","options":["明細","小計"]}]' で項目を足す、
                                             --data '[{"単価":100,"テーブル1":[{"T1_数値":1}]}]' で架空の値のレコード（土台は --base の標本。既定 3 = 空）、
                                             --app N で利用者のアプリの項目定義（fields/N.json かアプリのフォルダー）に --data の架空の値を当てる
@@ -519,7 +521,7 @@ async function cmdCalc(positional: string[], flags: Flags): Promise<number> {
   job.calc = {
     appId: app, records, evType: str(flags, "event"),
     event: has(flags, "action") || has(flags, "status") || has(flags, "next-status") ? { action: { value: str(flags, "action") ?? "" }, status: { value: str(flags, "status") ?? "" }, nextStatus: { value: str(flags, "next-status") ?? "" } } : undefined,
-    mobile: has(flags, "mobile"), user: str(flags, "user")
+    mobile: has(flags, "mobile"), user: str(flags, "user"), click: str(flags, "click")
   };
   const outcome = await runEval(job, { timeoutSec: timeoutOf(flags), inline: inline() });
   for (const w of outcome.engineWarnings) console.log(`注意: ${w}`);
@@ -582,7 +584,7 @@ async function cmdTry(positional: string[], flags: Flags): Promise<number> {
     kind: "try", pluginZip: pluginZipPath(authOpt()), devPluginDir: W.env.FORMULA_ALLOW_DEV_PLUGIN === "1" ? formulaProdDir(W.env) : undefined, baseUrl,
     usersSource: src, usersOrigin: origin, policy: loadPolicy(W.root), lang: str(flags, "lang") as "ja" | "en" | "zh" | undefined,
     try: {
-      formulas: [{ formula, as: str(flags, "as"), table: str(flags, "table") }], records, fields: fieldsDef, data, base, appFields, evType: str(flags, "event"),
+      formulas: [{ formula, as: str(flags, "as"), table: str(flags, "table"), click: has(flags, "click") || undefined }], records, fields: fieldsDef, data, base, appFields, evType: str(flags, "event"),
       event: has(flags, "action") || has(flags, "status") || has(flags, "next-status") ? { action: { value: str(flags, "action") ?? "" }, status: { value: str(flags, "status") ?? "" }, nextStatus: { value: str(flags, "next-status") ?? "" } } : undefined,
       mobile: has(flags, "mobile"), user: str(flags, "user")
     }

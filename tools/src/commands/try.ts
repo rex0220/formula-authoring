@@ -11,6 +11,8 @@
  *     実機のスペースの処理と同じく式を評価した返り値（ARRAY(ラベル, 書式, 値, 書式) や HTML）をそのまま返す。表示は実機で（計画 25.5。2026-10-18 Takashi）
  *   - 架空の項目と値（try-data.ts。計画 25.3）: fields で標本に項目を足す（案 2）、data で簡略形の値のレコードを作る（案 1。土台は標本の base = 3 の空のレコード）、
  *     appFields で利用者のアプリの項目定義に架空の値（案 3。標本のレコードは使わない。data が要る）
+ *   - ボタン（BUTTON / DIALOG）のクリックの模擬（click: true。計画 26 章。2026-10-18 Takashi「案 1 + 案 2」）: 対象（省略はスペース項目 sp1）に置いた式を、押す前の表示 →
+ *     EV_SET("click") → 式 → 全項目の再計算の順で評価し（click.ts。実機の buttonClick と同じ）、レコードごとに変わる項目を values[].click に返す
  */
 import type { CalcEvent, Engine } from "../engine.ts";
 import { InputError, quiet } from "../input.ts";
@@ -22,7 +24,8 @@ import type { Policy } from "../normalize/policy.ts";
 import type { UsersInfoTable, UsersOrigin } from "../users/index.ts";
 import { DEFAULT_POLICY } from "../normalize/policy.ts";
 import { scanFormula } from "../scan.ts";
-import { calcSettings, type CalcLine } from "./calc.ts";
+import { calcSettings, validateEvent, type CalcLine } from "./calc.ts";
+import { clickFormula, describeDisplay, type ClickResult } from "./click.ts";
 import { normalizeSettings } from "./normalize.ts";
 import { sampleApp } from "../sample-app.ts";
 import { TYPE_ALIASES, applyData, checkDataList, emptyRecordOf, extendFields, fillMissing, normalizeDefaults, type TryData, type TryFieldDef } from "./try-data.ts";
@@ -38,6 +41,8 @@ export interface TryFormula {
   as?: string;
   /** テーブルの中で計算するときのテーブルのコード（テーブル1 / テーブル2） */
   table?: string;
+  /** ボタン（BUTTON / DIALOG）の式: 押す前の表示に加えて、クリックの模擬（変わる項目）も返す。as の省略はスペース項目（SPACER） */
+  click?: boolean;
 }
 
 export interface TryTarget {
@@ -59,6 +64,8 @@ export interface TryValue {
   error?: string;
   /** 実行時の sink が呼ばれた（結果を採らない） */
   failed?: boolean;
+  /** クリックの模擬（click: true のとき）: 押す前の表示（display）、押した後に変わる項目（changes。対象の項目自身は除く）、エラー */
+  click?: ClickResult;
 }
 
 export interface TryFormulaResult {
@@ -261,6 +268,30 @@ const short = (v: unknown): string => {
   return s === undefined ? "undefined" : [...s].length > 200 ? [...s].slice(0, 200).join("") + "…" : s;
 };
 
+/** クリックの模擬の文（1 レコード分。押す前の表示と、変わる項目を 1 行に） */
+function renderTryClick(c: ClickResult): string[] {
+  const out = [`      クリック: ${describeDisplay(c.display)}`];
+  const clicked = c.display && !c.errors.some((e) => e.phases.includes("click"));
+  if (clicked) {
+    const cells = c.changes.map((l) => {
+      const b = l.before;
+      const a = l.after;
+      if (!(isTable(b) && isTable(a))) return `${l.fieldcode} ${short(b)} → ${short(a)}`;
+      // テーブルは行数と、足された行の値のある子（FSET_TADD）
+      const added = a.slice(b.length).map((row, i) => {
+        const v = row.value ?? {};
+        const kids = Object.keys(v).filter((k) => v[k]?.value !== undefined && v[k]?.value !== "" && !(Array.isArray(v[k]?.value) && (v[k]?.value as unknown[]).length === 0)).map((k) => `${k} ${short(v[k]?.value)}`);
+        return `行 ${b.length + i + 1} 追加: ${kids.join("、") || "（空）"}`;
+      });
+      return `${l.fieldcode} テーブル ${b.length} 行 → ${a.length} 行${added.length ? `（${added.join("。")}）` : ""}`;
+    });
+    out.push(`      変わる項目: ${cells.length ? `${cells.join("、")}（${cells.length} 項目）` : "なし"}`);
+  }
+  for (const e of c.errors) out.push(`      ！ ${e.fieldcode}（${e.phases.join(", ")}）: ${e.message}`);
+  if (c.failed) out.push("      ！ クリックの結果は採らない（実行時の sink）");
+  return out;
+}
+
 export async function trySettings(input: TryInput): Promise<TryResult> {
   const { engine } = input;
   const api = engine.api;
@@ -330,8 +361,9 @@ export async function trySettings(input: TryInput): Promise<TryResult> {
     if ([...f.formula].length > TRY_MAX_FORMULA_CHARS) { fail("try.formula", `式が長すぎる（${TRY_MAX_FORMULA_CHARS} 文字まで）`); continue; }
     let target: TryTarget;
     const referenced = scanFormula(api.stripFormula(f.formula)).identifiers;
+    const wantClick = f.click === true;
     try {
-      target = resolveTryTarget(fields, targetTypes, f.as, f.table, referenced);
+      target = resolveTryTarget(fields, targetTypes, wantClick && f.as === undefined ? "SPACER" : f.as, f.table, referenced);
     } catch (e) {
       if (e instanceof InputError) { fail("try.target", e.message); continue; }
       throw e;
@@ -373,8 +405,7 @@ export async function trySettings(input: TryInput): Promise<TryResult> {
         res.values.push(v);
       }
       res.marks = [...(normalizedMarks(n, target.code)), "スペース項目（返り値をそのまま。表示は実機で）"];
-      continue;
-    }
+    } else {
     const lineCode = target.table ?? target.code;
     for (const r of c.records) {
       const line: CalcLine | undefined = r.lines.find((l) => l.fieldcode === lineCode);
@@ -395,6 +426,20 @@ export async function trySettings(input: TryInput): Promise<TryResult> {
       if (line) res.marks = line.marks;
       if (v.failed) res.status = "failed";
     }
+    }
+    if (wantClick) {
+      // クリックの模擬（レコードごと。押す前のレコードは標本の写し。対象の項目自身の差（ボタンの返り値が入る）は除く）
+      const ev = validateEvent(input.evType, input.event);
+      for (const v of res.values) {
+        const src = picked.find((p) => p.id === v.record);
+        if (!src || v.failed) continue;
+        const cr = clickFormula({ engine, saved: { pluginFields: n.saved.pluginFields, pluginPP: n.saved.pluginPP }, typePP: n.pp, record: structuredClone(src.record), code: target.code, formula: stripped, evType: ev.evType, event: ev.event });
+        cr.changes = cr.changes.filter((l) => l.fieldcode !== target.code);
+        v.click = cr;
+        if (cr.failed) { v.failed = true; res.status = "failed"; }
+        else if (cr.errors.length && res.status === "ok") { res.status = "invalid"; res.findings.push({ level: "error", rule: "try.click", where, message: `レコード ${v.record}: ${cr.errors[0].message}` }); }
+      }
+    }
   }
   const okCount = results.filter((r) => r.status === "ok").length;
   const ids = picked.map((r) => r.id);
@@ -409,7 +454,10 @@ export async function trySettings(input: TryInput): Promise<TryResult> {
   for (const r of results) {
     const head = r.target ? `${r.target.type === "SPACER" ? `スペース項目 ${r.target.elementId}` : r.target.code}（${r.target.type}${r.target.table ? `。${r.target.table} の中` : ""}）← ` : "";
     text.push(`[${r.index}] ${head}${r.formula.replace(/\s*\n\s*/g, " ")}`);
-    for (const v of r.values) text.push(`    レコード ${v.record}: ${short(v.value)}${v.raw !== undefined ? `（生の値 ${short(v.raw)}）` : ""}${v.error ? `  ！ ${v.error}` : ""}${v.failed ? "  ！ 結果を採らない（実行時の sink）" : ""}`);
+    for (const v of r.values) {
+      text.push(`    レコード ${v.record}: ${short(v.value)}${v.raw !== undefined ? `（生の値 ${short(v.raw)}）` : ""}${v.error ? `  ！ ${v.error}` : ""}${v.failed ? "  ！ 結果を採らない（実行時の sink）" : ""}`);
+      if (v.click) text.push(...renderTryClick(v.click));
+    }
     if (r.marks.length) text.push(`    印: ${r.marks.join("、")}`);
     for (const f of r.findings) if (f.level !== "info") text.push(`    ${f.level === "error" ? "エラー" : "警告"} ${f.rule}: ${f.message}`);
   }

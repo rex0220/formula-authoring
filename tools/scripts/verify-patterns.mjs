@@ -18,19 +18,24 @@ async function runCase(c, deps) {
   const policy = c.policy ? { allowFunctions: c.policy.allowFunctions ?? [], allowMiscChanges: c.policy.allowMiscChanges ?? false } : undefined;
   const r = await trySettings({
     engine, usersInfo: defaultUsersInfo(), usersOrigin: { kind: "default" }, policy,
-    formulas: c.formulas.map(({ formula, as, table }) => ({ formula, as, table })), fields: c.fields, data: c.data, base: c.base, records: c.records
+    formulas: c.formulas.map(({ formula, as, table, click }) => ({ formula, as, table, click })), fields: c.fields, data: c.data, base: c.base, records: c.records
   });
   return c.formulas.map((f, i) => {
     const x = r.results[i];
     const got = x.values.map((v) => {
+      if (f.click) {
+        // クリックの模擬: 押した後に変わる項目（項目コード → 後の値。テーブルは show の子の値の配列）。項目コード順
+        if (!v.click) return null;
+        return Object.fromEntries(v.click.changes.map((l) => [l.fieldcode, f.show && isTable(l.after) ? l.after.map((row) => row.value?.[f.show]?.value) : l.after]).sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0)));
+      }
       let val = v.value;
       if (f.show && isTable(val)) val = val.map((row) => row.value?.[f.show]?.value);
       return val;
     });
-    const errors = [...x.findings.filter((y) => y.level === "error").map((y) => `${y.rule}: ${y.message}`), ...x.values.map((v) => v.error).filter(Boolean)];
+    const errors = [...x.findings.filter((y) => y.level === "error").map((y) => `${y.rule}: ${y.message}`), ...x.values.map((v) => v.error).filter(Boolean), ...x.values.flatMap((v) => (v.click?.errors ?? []).map((e) => `click（${e.phases.join(", ")}）: ${e.message}`))];
     // expectIncludes: 長い HTML などは、結果の JSON に含まれるべき文字列で確かめる
     const match = x.status === "ok" && (f.expectIncludes ? f.expectIncludes.every((t) => json(got).includes(t)) : json(got) === json(f.expect));
-    const target = x.target ? `${x.target.code}${x.target.table ? `（${x.target.table} の中）` : ""}${f.show ? ` → ${f.show}` : ""}` : "—";
+    const target = x.target ? `${x.target.code}${x.target.table ? `（${x.target.table} の中）` : ""}${f.click ? "（クリック: 押した後に変わる項目）" : ""}${f.show ? ` → ${f.show}` : ""}` : "—";
     return { formula: f.formula, target, got, expect: f.expectIncludes ? `（含む）${f.expectIncludes.join(" / ")}` : f.expect, match, errors, note: f.note, records: r.app.records, extraFields: r.app.extraFields };
   });
 }

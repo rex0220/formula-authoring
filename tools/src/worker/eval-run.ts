@@ -62,7 +62,7 @@ export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
   if (job.kind === "calc" && job.calc && !res.findings.hasErrors) {
     const c = job.calc;
     const r = calcSettings({
-      normalized: res, engine, fields: job.fields, appId: c.appId, records: c.records, evType: c.evType, event: c.event, mobile: c.mobile, user: c.user,
+      normalized: res, engine, fields: job.fields, appId: c.appId, records: c.records, evType: c.evType, event: c.event, mobile: c.mobile, user: c.user, click: c.click,
       usersInfo, usersOrigin: job.usersOrigin
     });
     outcome.calc = { text: r.text, failed: r.records.some((x) => x.errors.length > 0 || x.failed), records: r.records, contextLine: r.contextLine, notice: r.notice, summary: r.summary };

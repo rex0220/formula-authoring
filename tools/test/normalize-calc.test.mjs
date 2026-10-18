@@ -185,3 +185,43 @@ test("engine: blockDq の間は dq が例外", { skip }, async () => {
   engine.blockDq(false);
   assert.equal(kf.dq("1+1"), 2);
 });
+
+test("calc: ボタンのクリックの模擬（click。計画 26 章）: 計算後のレコードで押し、FSET の直後に全項目を再計算した差を返す。行が無い・テーブルの中・ボタンでない式は名指しで止まる", { skip }, async () => {
+  const { sampleApp } = await import("../src/sample-app.ts");
+  const { buildTryEnvelope } = await import("../src/commands/try.ts");
+  const { calcSettings: calc } = await import("../src/commands/calc.ts");
+  const engine = await loadEngine();
+  const app = sampleApp();
+  const fields = app.fields;
+  // 2 行の設定: スペース項目 sp1 のボタン（数値1 に 1 を足す）と、数値2 = 数値1 * 2（クリックの後に再計算されること）
+  const envelope = buildTryEnvelope(engine, fields, "(sp1)", 'BUTTON("加算", FSET(数値1, 数値1 + 1))', "ja");
+  envelope.pluginInfos.push({ fieldcode: "数値2", state: true, formulaSet: "数値1 * 2", edit: false, hide: false, rank: "" });
+  const policy = parsePolicy('{"allowFunctions":["BUTTON","FSET"],"allowMiscChanges":true}', "policy");
+  const norm = (text) => normalizeSettings({ settingsText: JSON.stringify(text), settingsFile: "settings/t.json", fields, engine, usersInfo: defaultUsersInfo(), policy, now: () => new Date("2026-10-18T00:00:00Z") });
+  const res = await norm(envelope);
+  assert.equal(res.findings.count("error"), 0, res.summary);
+  const record = app.records[0].record;
+  const base = { normalized: res, engine, fields, appId: 4329, records: [{ id: "1", record: structuredClone(record) }], usersInfo: defaultUsersInfo(), usersOrigin: { kind: "default" }, allowDefaultBaseUrl: true };
+  const r = calc({ ...base, click: "(sp1)" });
+  const rec = r.records[0];
+  // 計算（押す前）: 数値2 = 2468
+  assert.equal(rec.lines.find((l) => l.fieldcode === "数値2").after, "2468");
+  // クリック: 数値1 1234 → 1235、再計算で 数値2 → 2470
+  assert.deepEqual(rec.click.display, { TYPE: "BUTTON", TITLE: "加算" });
+  assert.deepEqual(rec.click.changes.map((l) => [l.fieldcode, l.before, l.after]), [["数値1", "1234", "1235"], ["数値2", "2468", "2470"]], "項目コード順");
+  assert.deepEqual([rec.click.errors, rec.click.failed, rec.failed], [[], false, false]);
+  assert.match(r.text, /クリックの模擬: \(sp1\)/);
+  assert.match(r.text, /クリック \(sp1\): BUTTON「加算」/);
+  assert.match(r.text, /★ 数値2: "2468" → "2470"/);
+  assert.match(r.text, /クリックで変わる項目: 数値1、数値2（2 項目）/);
+  assert.equal(record["数値1"].value, "1234", "入力のレコードは変えない");
+  // click を付けなければ click は無い
+  assert.equal(calc(base).records[0].click, undefined);
+  // 名指しで止まる: 行が無い、テーブルの中、ボタンでない式
+  assert.throws(() => calc({ ...base, click: "sp9" }), /click の項目 sp9 は設定の計算式の行にない/);
+  assert.throws(() => calc({ ...base, click: "数値2" }), /数値2 の式は BUTTON \/ DIALOG を使っていない/);
+  const inTable = buildTryEnvelope(engine, fields, "T1_数値", 'BUTTON("表の中", FSET(T1_文字列, "x", 0))', "ja");
+  const resT = await norm(inTable);
+  assert.equal(resT.findings.count("error"), 0, resT.summary);
+  assert.throws(() => calc({ ...base, normalized: resT, click: "T1_数値" }), /テーブルの中のボタン/);
+});
