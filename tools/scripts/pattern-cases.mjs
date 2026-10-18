@@ -216,6 +216,32 @@ export const PATTERN_CASES = [
       { formula: "ARRAY_FIL(ARRAY(1,2,3), v, v>1)", as: "TEXT", expect: ["2,3"] }
     ]
   },
+  // ---- スペース項目（式の返り値を文字列の項目で見る。表示は実機） ----
+  {
+    section: "スペース項目", pattern: "文字を表示する（ラベルと値、書式）", data: [{ 日付1: "1996-01-15" }, { 日付1: "" }],
+    formulas: [
+      { formula: 'ARRAY("年齢", "", IF(日付1, DATE_DIFF(日付1, "TODAY", "years") & " 才"), "text-align:right;")', expect: ["年齢,,30 才,text-align:right;", "年齢,,,text-align:right;"], note: "返り値は 4 要素の配列（文字列の項目では , 区切り）。年齢は 2026 年の評価" },
+      { formula: 'IF(日付1, ARRAY("年齢", "", DATE_DIFF(日付1, "TODAY", "years") & " 才", "text-align:right;"), ARRAY())', expect: ["年齢,,30 才,text-align:right;", ""], note: "ARRAY() は非表示" }
+    ]
+  },
+  {
+    section: "スペース項目", pattern: "HTML の表やまとめを表示する", data: [{ 文字列1: "架空商事", 数値1: 1234567 }],
+    formulas: [
+      { formula: 'LET(label, TAGS_HTML(TAG("style", JOIN(ARRAY(".custom-table td { border: 1px solid darkgray; padding: 4px 6px; }"), NEWLINE())), TAG("div", "概要")), table, TAGS_HTML(TAG("table", ATTR("class", "custom-table"), TAG("tr", TAG("td", "顧客名"), TAG("td", 文字列1)), TAG("tr", TAG("td", "合計"), TAG("td", FIXED(数値1), STYLE("text-align:right;"), IF(数値1 > 1000000, STYLE("color:red;")))))), ARRAY(label, "", table, ""))',
+        expect: ['<style>.custom-table td { border: 1px solid darkgray; padding: 4px 6px; }</style>\n<div>概要</div>,,<table  class="custom-table"><tr><td>顧客名</td><td>架空商事</td></tr><tr><td>合計</td><td  style="text-align:right; color:red;">1,234,567</td></tr></table>,'], note: "1 つの LET に label と table を並べる。STYLE は複数書けて 1 つの style 属性にまとまる" },
+      { formula: 'TAGS_HTML(TAG("tr", ARRAY_MAP(ARRAY("A", "B"), v, TAG("th", v))))', expect: ["<tr><th>A</th><th>B</th></tr>"], note: "ARRAY_MAP で行や列を繰り返す（結果は TAG の配列。TAG の中に置くと並ぶ。配列をそのまま文字列の項目に入れると [object Object]）" }
+    ]
+  },
+  {
+    section: "スペース項目", pattern: "属性の値を条件で変える（class など）。& は関数の結果の空白を落とす", records: [3],
+    formulas: [
+      { formula: 'TAGS_HTML(TAG("td", ATTR("class", IF(1 = 1, "sun today", "sun")), "18"))', expect: ['<td  class="sun today">18</td>'] },
+      { formula: '"sun" & IF(1 = 1, " today", "")', expect: ["suntoday"], note: "& は関数の結果の前後の空白を落とす" },
+      { formula: '"sun" & " today"', expect: ["sun today"], note: "文字列と項目の空白は残る" },
+      { formula: 'CONCAT("sun", IF(1 = 1, " today", ""))', expect: ["sun today"], note: "CONCAT は落とさない" },
+      { formula: 'LET(a, 1, b, a + 1, c, b * 2, a & "-" & b & "-" & c)', expect: ["1-2-4"], note: "1 つの LET に変数を並べる（後の式で前の変数を使える）" }
+    ]
+  },
   // ---- ユーザー情報（既定のテストデータ。架空） ----
   {
     section: "ユーザー情報", pattern: "ログインユーザーの情報（既定のテストデータ。ログインユーザーは authoring）", records: [3],
