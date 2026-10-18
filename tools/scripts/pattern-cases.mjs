@@ -201,12 +201,15 @@ export const PATTERN_CASES = [
     formulas: [{ formula: 'REPLACEALL(文字列1, ARRAY("(株)", "株式会社", "（株）", "株式会社"))', as: "TEXT", expect: ["株式会社甲 株式会社乙"] }]
   },
   {
-    section: "値・文字列・日付", pattern: "日付の書式・加算・差", data: [{ 日付1: "2026-01-31", 日付2: "2026-03-01" }],
+    section: "値・文字列・日付", pattern: "日付の書式・加算・差", data: [{ 日付1: "2026-01-31", 日付2: "2026-03-01" }, { 日付1: "2027-12-15" }, { 日付1: "2028-01-31" }, { 日付1: "" }],
     formulas: [
-      { formula: 'DATE_FORMAT(日付1, "YYYY/MM/DD")', as: "TEXT", expect: ["2026/01/31"] },
-      { formula: 'DATE_ADD(日付1, 1, "months")', as: "DATE", expect: ["2026-02-28"] },
-      { formula: 'DATE_DIFF(日付1, 日付2, "days")', as: "NUMBER", expect: ["29"], note: "引数は（前の日付, 後の日付）。逆にすると負の数" },
-      { formula: 'DATE_DIFF(日付2, 日付1, "days")', as: "NUMBER", expect: ["-29"] }
+      { formula: 'DATE_ENDOF(DATE_ADD(日付1, 1, "month"), "month")', as: "DATE", expect: ["2026-02-28", "2028-01-31", "2028-02-29", ""], note: "翌月末日（1 か月足してから月末。年またぎ、うるう年、空）" },
+      { formula: 'DATE_STARTOF(DATE_ADD(日付1, 1, "month"), "month")', as: "DATE", expect: ["2026-02-01", "2028-01-01", "2028-02-01", ""], note: "翌月初" },
+      { formula: 'DATE_FORMAT(日付1, "YYYY/MM/DD")', as: "TEXT", expect: ["2026/01/31", "2027/12/15", "2028/01/31", ""] },
+      { formula: 'DATE_ADD(日付1, 1, "months")', as: "DATE", expect: ["2026-02-28", "2028-01-15", "2028-02-29", ""] },
+      { formula: 'DATE_DIFF(日付1, 日付2, "days")', as: "NUMBER", expect: ["29", "-21166", "-21213", "0"], note: "引数は（前の日付, 後の日付）。逆にすると負の数。空の日付は 1970-01-01 として数えられる（両方空なら 0）ので、空は IF で分ける" },
+      { formula: 'DATE_DIFF(日付2, 日付1, "days")', as: "NUMBER", expect: ["-29", "21166", "21213", "0"] },
+      { formula: 'IF(AND(日付1, 日付2), DATE_DIFF(日付1, 日付2, "days"), "")', as: "NUMBER", expect: ["29", "", "", ""], note: "空を分けた形" }
     ]
   },
   {
@@ -280,6 +283,104 @@ export const PATTERN_CASES = [
       { formula: 'LET(a, 1, b, a + 1, c, b * 2, a & "-" & b & "-" & c)', expect: ["1-2-4"], note: "1 つの LET に変数を並べる（後の式で前の変数を使える）" }
     ]
   },
+  // ---- 空・比較・端数の決まり（2026-10-18 Takashi「Go」で追加。どの式にも効く） ----
+  {
+    section: "空・比較・端数の決まり", pattern: "空の数値（計算は空のまま、比較は偽、空の判定）", data: [{ 数値1: "", 数値2: 10 }, { 数値1: 2.5, 数値2: 0 }],
+    formulas: [
+      { formula: "数値1 + 1", as: "NUMBER", expect: ["", "3.5"], note: "空の数値を計算すると空のまま" },
+      { formula: 'IF(数値1 > 0, "正", "正でない")', expect: ["正でない", "正"], note: "空との比較は偽" },
+      { formula: 'IF(数値1 = "", "空", "空でない")', expect: ["空", "空でない"] },
+      { formula: 'ISBLANK(数値1) & "/" & NOT(数値1)', expect: ["true/true", "false/false"], note: "ISBLANK は複数の項目をまとめて判定できる" },
+      { formula: 'IF(数値2, "値あり", "空か 0")', expect: ["値あり", "空か 0"], note: "IF(項目, …) は 0 も偽" },
+      { formula: "1 / 数値2", as: "NUMBER", expect: ["0.1", ""], note: "ゼロ除算は空（エラーにならない）" }
+    ]
+  },
+  {
+    section: "空・比較・端数の決まり", pattern: "比較は、両方が数に見えれば数、そうでなければ文字順", data: [{ 文字列1: "2", 文字列2: "10" }, { 文字列1: "abc", 文字列2: "abd" }, { 文字列1: "2", 文字列2: "10a" }],
+    formulas: [
+      { formula: 'IF(文字列1 > 文字列2, "大きい", "小さい")', expect: ["小さい", "小さい", "大きい"], note: '"2" と "10" は数として比べる（2 < 10）。"2" と "10a" は文字順（"2" > "1"）' },
+      { formula: 'IF(文字列1 * 1 > 文字列2 * 1, "数で大きい", "数で小さい")', expect: ["数で小さい", "数で小さい", "数で大きい"], note: '* 1 で数にする。数でない文字は空になる（"abc" * 1 → 空、"10a" * 1 → 空）ので比較は偽か逆になる' },
+      { formula: 'IF(文字列1 = 2, "等しい", "違う")', expect: ["等しい", "違う", "等しい"], note: "数と文字の = も数として比べる" }
+    ]
+  },
+  {
+    section: "空・比較・端数の決まり", pattern: "端数と小数（10 進で計算。割った後は ROUND）", records: [3],
+    formulas: [
+      { formula: 'ROUND(2.5, 0) & "/" & ROUND(3.5, 0) & "/" & ROUND(-1.5, 0) & "/" & ROUND(-2.5, 0)', expect: ["3/4/-2/-3"], note: "ROUND は 0 から遠い方へ（四捨五入。銀行丸めでない）" },
+      { formula: 'ROUNDDOWN(-2.5, 0) & "/" & ROUNDUP(-2.5, 0) & "/" & INT(-2.5) & "/" & MOD(-7, 3)', expect: ["-2/-3/-3/-1"], note: "ROUNDDOWN は 0 へ、ROUNDUP は 0 から遠い方へ、INT は小さい方へ、MOD の符号は割られる数" },
+      { formula: 'ROUND(1.005, 2) & "/" & (0.1 + 0.2) & "/" & (12345.678 * 1.1)', expect: ["1.01/0.3/13580.2458"], note: "10 進で計算するので 2 進の誤差は出ない" },
+      { formula: "1 / 3 * 3", as: "NUMBER", expect: ["0.99999999999999999999"], note: "割り切れない値は 20 桁。割った後は ROUND" },
+      { formula: "ROUND(1 / 3 * 3, 10)", as: "NUMBER", expect: ["1"] }
+    ]
+  },
+  // ---- 日付・時刻（曜日、年度、和暦、時刻の差、タイムゾーン） ----
+  {
+    section: "日付・時刻", pattern: "曜日（英語の略と日本語、休日の判定）", data: [{ 日付1: "2026-10-18" }, { 日付1: "2026-10-19" }, { 日付1: "" }],
+    formulas: [
+      { formula: 'DATE_FORMAT(日付1, "ddd")', expect: ["Sun", "Mon", ""], note: "曜日の名前は英語" },
+      { formula: 'IF(日付1, ARRAY_GET(ARRAY("日", "月", "火", "水", "木", "金", "土"), DATE_FORMAT(日付1, "d") * 1), "")', expect: ["日", "月", ""], note: '"d" は 0（日曜）〜6。空は分ける' },
+      { formula: 'IF(日付1, IF(IN(DATE_FORMAT(日付1, "d") * 1, 0, 6), "休日", "平日"), "")', expect: ["休日", "平日", ""] }
+    ]
+  },
+  {
+    section: "日付・時刻", pattern: "年度（4 月始まり）と和暦", data: [{ 日付1: "2026-10-18" }, { 日付1: "2026-03-31" }, { 日付1: "2019-04-30" }, { 日付1: "2019-05-01" }, { 日付1: "" }],
+    formulas: [
+      { formula: 'FISCAL_YEAR(日付1, "04-01")', as: "NUMBER", expect: ["2026", "2025", "2019", "2019", ""], note: "年度の始まりは月日で指定" },
+      { formula: `LET(
+  fDate, DATE_FORMAT(日付1),
+  eDate, IFS(fDate >= "2019-05-01", "2019-01-01", fDate >= "1989-01-08", "1989-01-01", fDate >= "1926-12-25", "1926-01-01", fDate >= "1912-07-30", "1912-01-01", fDate >= "1868-01-25", "1868-01-01", ""),
+  gengo, IFS(fDate >= "2019-05-01", "令和", fDate >= "1989-01-08", "平成", fDate >= "1926-12-25", "昭和", fDate >= "1912-07-30", "大正", fDate >= "1868-01-25", "明治", ""),
+  IF(eDate, gengo & (DATE_DIFF(eDate, fDate, "years") + 1) & "年", "")
+)`, expect: ["令和8年", "令和8年", "平成31年", "令和1年", ""], note: "記事 9f8eb7607fec4f22060a の式を 1 つの LET に。元号の開始日以上で判定、年は開始年の 1 月 1 日との差 + 1。「元年」にするなら年が 1 のときを IF で分ける" }
+    ]
+  },
+  {
+    section: "日付・時刻", pattern: "時刻項目の差（勤務時間など。日をまたぐとき）", data: [{ 時刻1: "09:30", 時刻2: "18:15" }, { 時刻1: "22:00", 時刻2: "06:00" }, { 時刻1: "", 時刻2: "" }],
+    formulas: [
+      { formula: 'DATE_DIFF(時刻1, 時刻2, "minutes")', as: "NUMBER", expect: ["NaN", "NaN", "0"], note: "時刻の項目を DATE_DIFF に渡すと NaN（日付が無いため。両方空なら 0）" },
+      { formula: 'DURATION_AS(時刻2, "minutes") - DURATION_AS(時刻1, "minutes")', as: "NUMBER", expect: ["525", "-960", "0"], note: "DURATION_AS で分に。日をまたぐと負" },
+      { formula: 'MOD(DURATION_AS(時刻2, "minutes") - DURATION_AS(時刻1, "minutes") + 1440, 1440)', as: "NUMBER", expect: ["525", "480", "0"], note: "日をまたぐなら 1440 を足して MOD。空は 0 になるので IF で分ける" },
+      { formula: 'DURATION_FORMAT(DURATION(MOD(DURATION_AS(時刻2, "minutes") - DURATION_AS(時刻1, "minutes") + 1440, 1440), "minutes"), "%H時間 @m分")', expect: ["8時間 45分", "8時間 0分", "0時間 0分"], note: "表示は DURATION_FORMAT" }
+    ]
+  },
+  {
+    section: "日付・時刻", pattern: "日時の表示はタイムゾーンで変わる", data: [{ 日時1: "2026-10-18T09:30:00Z" }],
+    formulas: [
+      { formula: 'DATE_FORMAT(日時1, "YYYY-MM-DD HH:mm")', expect: ["2026-10-18 18:30"], note: "既定は利用者のタイムゾーン（検証の環境は Asia/Tokyo）" },
+      { formula: 'DATE_FORMAT(日時1, "YYYY-MM-DD HH:mm", "UTC")', expect: ["2026-10-18 09:30"], note: "3 つ目の引数でタイムゾーン" }
+    ]
+  },
+  // ---- 文字列の操作 ----
+  {
+    section: "文字列の操作", pattern: "長さ・切り出し・検索（位置の数え方に注意）", data: [{ 文字列2: "東京都千代田区" }],
+    formulas: [
+      { formula: 'LENGTH(文字列2) & "/" & LEFT(文字列2, 3) & "/" & RIGHT(文字列2, 3)', expect: ["7/東京都/代田区"], note: "長さは LENGTH（LEN は無い）" },
+      { formula: 'MID(文字列2, 3, 4) & "/" & SUBSTR(文字列2, 3, 4)', expect: ["都千代田/千代田区"], note: "MID の位置は 1 から、SUBSTR は 0 から" },
+      { formula: 'FIND(文字列2, "千代田") & "/" & FIND(文字列2, "大阪") & "/" & TEST(文字列2, "千代田")', expect: ["3/-1/true"], note: "FIND は 0 から数えた位置、無ければ -1。TEST は文字の有無（正規表現ではない）" },
+      { formula: 'REPLACE(文字列2, "千代田", "港") & "/" & REPLACEALL(文字列2, ARRAY("東京", "大阪", "千代田", "北"))', expect: ["東京都港区/大阪都北区"] }
+    ]
+  },
+  {
+    section: "文字列の操作", pattern: "全角半角・空白・大文字小文字・ゼロ埋め・分割", data: [{ 文字列1: " ＡＢＣ-123-ｱｲｳ ", 数値1: 42 }],
+    formulas: [
+      { formula: 'ASC(文字列1) & "|" & JIS(文字列1)', expect: ["ABC-123-ｱｲｳ|ＡＢＣ－１２３－アイウ"], note: "ASC は全角 → 半角、JIS は半角 → 全角（2 つ目の引数で対象を絞れる。関数一覧）" },
+      { formula: 'TRIM(文字列1) & "|" & UPPER("abc") & "|" & LOWER("ABC")', expect: ["ＡＢＣ-123-ｱｲｳ|ABC|abc"] },
+      { formula: 'RIGHT("0000" & 数値1, 4) & "/" & REPEAT("*", 3)', expect: ["0042/***"], note: "ゼロ埋めは 0 を足して右から取る" },
+      { formula: 'ARRAY_GET(SPLIT(TRIM(文字列1), "-"), 1) & "/" & ARRAY_COUNT(SPLIT(TRIM(文字列1), "-"))', expect: ["123/3"], note: "SPLIT で配列にして ARRAY_GET（0 から）" }
+    ]
+  },
+  // ---- テーブルの検査 ----
+  {
+    section: "テーブルの検査", pattern: "重複・件数・条件に合う行の別項目・最大の行", data: [{ テーブル1: [{ T1_文字列: "a", T1_数値: 10 }, { T1_文字列: "b", T1_数値: 30 }, { T1_文字列: "a", T1_数値: 20 }, { T1_文字列: "", T1_数値: "" }] }],
+    formulas: [
+      { formula: 'IF(TDUPCK(T1_文字列), "重複あり", "重複なし")', expect: ["重複あり"], note: "TDUPCK は重複があれば true（2 つ目の引数 1 で空を数えない）" },
+      { formula: 'COUNTROW(テーブル1) & "/" & COUNT(T1_数値) & "/" & COUNTA(T1_文字列)', expect: ["4/3/3"], note: "行数は COUNTROW、数値のある行は COUNT、空でない行は COUNTA" },
+      { formula: 'LASTIF(T1_数値 = MAX(T1_数値), T1_文字列)', expect: ["b"], note: "最大の行の別の項目（同じ最大が複数なら最後の行）" },
+      { formula: 'FIRSTIF(T1_文字列 = "a", T1_数値) & "/" & LASTIF(T1_文字列 = "a", T1_数値)', expect: ["10/20"], note: "条件に合う最初 / 最後の行の値" },
+      { formula: 'ARRAY_COUNT(TARRAYIF(T1_数値 > 15, T1_数値))', as: "NUMBER", expect: ["2"], note: "条件に合う行の数（COUNTIF でも）" },
+      { formula: 'IF(T1_数値 = MAX(T1_数値), "最大", "")', as: "T1_文字列", table: "テーブル1", expect: [["", "最大", "", ""]], note: "テーブルの中で全体の最大と比べる" }
+    ]
+  },
   // ---- ユーザー情報（既定のテストデータ。架空） ----
   {
     section: "ユーザー情報", pattern: "ログインユーザーの情報（既定のテストデータ。ログインユーザーは authoring）", records: [3],
@@ -295,6 +396,14 @@ export const PATTERN_CASES = [
       { formula: 'OINFO("demo_sales", "name")', as: "TEXT", expect: ["架空営業部"] },
       { formula: 'OUSERS("demo_sales")', as: "TEXT", expect: ["demo_user02,demo_user04,demo_user05,demo_user09"], note: "配列を文字列の項目に入れるとカンマ区切り" },
       { formula: 'GINFO("demo_managers", "name")', as: "TEXT", expect: ["架空管理職"] }
+    ]
+  },
+  {
+    section: "ユーザー情報", pattern: "上長・所属組織（ユーザー選択項目の上司を上司項目に。既定のテストデータの boss）",
+    data: [{ ユーザー1: "demo_user02" }, { ユーザー1: "demo_user01" }, { ユーザー1: ["demo_user02", "demo_user03"] }, { ユーザー1: [] }],
+    formulas: [
+      { formula: 'IF(ユーザー1, SET_CODE(UINFO(SEL_CODE(ユーザー1, "text"), "#boss")), "")', as: "ユーザー2", expect: [[{ code: "demo_user01" }], [], [{ code: "demo_user01" }], []], note: "上司の無い人は空。2 人の上司が同じなら 1 人。空は空" },
+      { formula: 'SET_CODE(UINFO(SEL_CODE(ユーザー1, "text"), "#boss"))', as: "ユーザー2", expect: [[{ code: "demo_user01" }], [], [{ code: "demo_user01" }], [{ code: "demo_user01" }, { code: "demo_user02" }, { code: "demo_user03" }]], note: "IF を省くと、空のときに全員の上司が入る" }
     ]
   },
   // ---- イベント ----
