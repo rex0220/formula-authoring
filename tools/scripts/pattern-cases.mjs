@@ -172,6 +172,19 @@ export const PATTERN_CASES = [
     ]
   },
   {
+    section: "値・文字列・日付", pattern: "テーブルの文字列を 1 つの項目にまとめる",
+    data: [{ テーブル1: [{ T1_文字列: "りんご" }, { T1_文字列: "" }, { T1_文字列: "みかん" }, { T1_文字列: "りんご" }] }, { テーブル1: [] }],
+    formulas: [
+      { formula: 'JOIN(TARRAYIF(T1_文字列 <> "", T1_文字列), "、")', expect: ["りんご、みかん、りんご", ""], note: "空の行を除き、順はそのまま、末尾に区切りは付かない" },
+      { formula: 'JOIN(TARRAYIF(T1_文字列 <> "", T1_文字列), NEWLINE())', as: "MULTI_LINE_TEXT", expect: ["りんご\nみかん\nりんご", ""] },
+      { formula: "CONCAT(T1_文字列)", expect: ["りんごみかんりんご", ""] },
+      { formula: 'CONCAT(T1_文字列, "、")', expect: ["りんご、、みかん、りんご、", ""], note: "区切りは各行の後ろ（最後にも）。空の行は空のまま" },
+      { formula: 'CONCATIF(T1_文字列 <> "", T1_文字列, "、")', expect: ["りんご、みかん、りんご、", ""], note: "空の行は除くが末尾の区切りは残る" },
+      { formula: 'JOIN(TDS(T1_文字列), "、")', expect: ["みかん、りんご", ""], note: "重複を除いて並べ替える" },
+      { formula: 'TEXTJOIN("、", 1, T1_文字列)', expect: ["りんご", ""], note: "テーブルの列には使えない（1 行目だけ）" }
+    ]
+  },
+  {
     section: "値・文字列・日付", pattern: "文字をつなぐ", fields: [TABLE_2305, { code: "金額合計", type: "NUMBER" }], data: [{ テーブル: ROWS_2305, 金額合計: 850 }],
     formulas: [{ formula: '"小計 " & COUNTIF(分類="小計", No) & " 件 / 合計 " & 金額合計', as: "TEXT", expect: ["小計 2 件 / 合計 850"] }]
   },
