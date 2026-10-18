@@ -36,7 +36,7 @@ export { DEFAULT_EVENT, EVENT_RE, RECORDS_MAX, calcSettings, validateEvent, type
 export { takeInbox, type TakeResult } from "./commands/take.ts";
 // tools 0.3.0（計画 25 章）: 同梱のサンプルアプリと式の試し計算（try / fml_try）
 export { SAMPLE_APP, describeSampleApp, sampleApp, type SampleApp, type SampleRecord } from "./sample-app.ts";
-export { TRY_DEFAULT_AS, TRY_MAX_FORMULAS, TRY_MAX_FORMULA_CHARS, buildTryEnvelope, resolveTryTarget, trySettings, type TryFormula, type TryFormulaResult, type TryInput, type TryResult, type TryTarget, type TryValue } from "./commands/try.ts";
+export { TRY_DEFAULT_AS, TRY_MAX_FORMULAS, TRY_MAX_FORMULA_CHARS, buildTryEnvelope, resolveTryTarget, spacersOf, trySettings, type TryFormula, type TryFormulaResult, type TryInput, type TryResult, type TryTarget, type TryValue } from "./commands/try.ts";
 export {
   EXTRA_TYPES, TRY_MAX_DATA, TRY_MAX_EXTRA_FIELDS, TRY_MAX_OPTIONS, TRY_MAX_TABLE_ROWS, TRY_MAX_VALUE_CHARS, TYPE_ALIASES, applyData, canonicalType, checkDataList, convertValue, emptyRecordOf, extendFields, normalizeDefaults, type TryData, type TryFieldDef
 } from "./commands/try-data.ts";

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
 import { loadEngine, PLUGIN_ZIP } from "./helpers.mjs";
 import { SAMPLE_APP, describeSampleApp, sampleApp } from "../src/sample-app.ts";
-import { TRY_MAX_FORMULAS, buildTryEnvelope, resolveTryTarget, trySettings } from "../src/commands/try.ts";
+import { TRY_MAX_FORMULAS, buildTryEnvelope, resolveTryTarget, spacersOf, trySettings } from "../src/commands/try.ts";
 import { runEval } from "../src/worker/run.ts";
 import { DEFAULT_USERS, defaultUsersInfo } from "../src/users/index.ts";
 import { DEFAULT_POLICY, parsePolicy } from "../src/normalize/policy.ts";
@@ -39,6 +39,8 @@ test("サンプルアプリ: 全項目タイプ × 2、テーブル 2 つ（子 
   const d = describeSampleApp(new Set(["NUMBER"]));
   assert.match(d, /数値1  NUMBER  ○/);
   assert.match(d, /1: 典型/);
+  assert.deepEqual(spacersOf(fields), ["sp1"], "要素 ID のあるスペース項目（2026-10-18 に足した）");
+  assert.match(d, /スペース項目（要素 ID。.*）: sp1/);
 });
 
 test("対象の決め方: 型は式が参照していない項目を優先（数値1 を使えば 数値2）、別名（TEXT）、項目コード、テーブルの子（table 省略でも探す）、計算式を置けない型は誤り", async () => {
@@ -55,6 +57,8 @@ test("対象の決め方: 型は式が参照していない項目を優先（数
   assert.throws(() => resolveTryTarget(f, types, "計算1", undefined), (e) => e instanceof InputError && /CALC には計算式を設定できない/.test(e.message));
   assert.throws(() => resolveTryTarget(f, types, "NUMBER", "数値1"), (e) => e instanceof InputError && /テーブルでない/.test(e.message));
   assert.throws(() => resolveTryTarget(f, types, "ZZZ", undefined), (e) => e instanceof InputError && /型でも項目コードでもない/.test(e.message));
+  for (const as of ["SPACER", "sp1", "(sp1)"]) assert.deepEqual(resolveTryTarget(f, types, as, undefined), { code: "(sp1)", type: "SPACER", elementId: "sp1" }, as);
+  assert.throws(() => resolveTryTarget(f, types, "sp1", "テーブル1"), (e) => e instanceof InputError && /テーブルの中に置けない/.test(e.message));
   const env = buildTryEnvelope(engine, f, "数値2", "1 + 1", "ja");
   assert.equal(env.pluginID, "rex0220 formula plugin");
   assert.equal(env.PluginVersion, engine.source.pluginVersion);
@@ -207,4 +211,22 @@ test("利用者のアプリの項目定義（案 3）: fixture 2305 に架空の
   await assert.rejects(run([{ formula: "1" }], { appFields: FIELDS_FILE() }), (e) => e instanceof InputError && /data（架空の値のレコード）が要る/.test(e.message));
   await assert.rejects(run([{ formula: "1" }], { appFields: FIELDS_FILE(), data: [{}], records: [1] }), (e) => e instanceof InputError && /records）は使えない/.test(e.message));
   await assert.rejects(run([{ formula: "1" }], { appFields: FIELDS_FILE(), data: [{ 数値1: 1 }] }), (e) => e instanceof InputError && /data\[0\]\.数値1: 無い項目/.test(e.message));
+});
+
+test("スペース項目（SPACER。要素 ID sp1）: 設定画面と同じく式を置ける（normalize が止めない）。レコードに値が無いので式の返り値をそのまま返す（配列 / HTML）", { skip }, async () => {
+  const r = await run([
+    { formula: 'ARRAY("年齢", "", IF(日付1, DATE_DIFF(日付1, "TODAY", "years") & " 才"), "text-align:right;")', as: "sp1" },
+    { formula: 'IF(日付1, ARRAY("年齢", "", "x", ""), ARRAY())', as: "SPACER" },
+    { formula: 'TAGS_HTML(TAG("div", 文字列1))', as: "(sp1)" },
+    { formula: "NOSUCH(1)", as: "sp1" }
+  ], { data: [{ 日付1: "1996-01-15", 文字列1: "架空商事" }, { 日付1: "", 文字列1: "" }] });
+  const [age, hide, html, bad] = r.results;
+  assert.deepEqual([age.status, age.target], ["ok", { code: "(sp1)", type: "SPACER", elementId: "sp1" }], JSON.stringify(age.findings));
+  assert.ok(!age.findings.some((f) => f.rule === "field.type"), "SPACER の行の計算式を field.type で止めない");
+  assert.deepEqual(age.values.map((v) => v.value), [["年齢", "", "30 才", "text-align:right;"], ["年齢", "", "", "text-align:right;"]], "返り値の配列そのまま。年齢は 2026 年の評価");
+  assert.ok(age.marks.some((m) => /スペース項目/.test(m)));
+  assert.deepEqual(hide.values.map((v) => v.value), [["年齢", "", "x", ""], []], "ARRAY() は非表示");
+  assert.deepEqual(html.values.map((v) => v.value), ["<div>架空商事</div>", "<div></div>"]);
+  assert.equal(bad.status, "invalid");
+  assert.match(r.text, /\[1\] スペース項目 sp1（SPACER）← ARRAY/);
 });

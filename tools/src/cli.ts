@@ -70,7 +70,7 @@ const USAGE = `使い方: npx @rex0220/formula-authoring-tools <command> [option
       [--fields '<JSON>'] [--data '<JSON>'] [--base 3] [--app N]
                                             同梱のサンプルアプリ（全項目タイプ × 2、テーブル 2 つ、レコード 3 件 = 典型 / 端 / 空）に 1 行だけの設定を組んで
                                             検査と模擬の計算（関数の使い方や式の断片を確かめる。利用者のアプリは使わない）。--as は型（NUMBER / TEXT / DATE …。
-                                            既定 TEXT = 文字列 1 行）か項目コード、テーブルの中で計算するなら --table テーブル1。
+                                            既定 TEXT = 文字列 1 行）か項目コード、テーブルの中で計算するなら --table テーブル1。スペース項目は --as sp1（返り値をそのまま）。
                                             --fields '[{"code":"単価","type":"NUMBER"},{"code":"分類","type":"DROP_DOWN","options":["明細","小計"]}]' で項目を足す、
                                             --data '[{"単価":100,"テーブル1":[{"T1_数値":1}]}]' で架空の値のレコード（土台は --base の標本。既定 3 = 空）、
                                             --app N で利用者のアプリの項目定義（fields/N.json かアプリのフォルダー）に --data の架空の値を当てる

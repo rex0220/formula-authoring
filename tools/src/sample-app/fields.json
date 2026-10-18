@@ -1051,6 +1051,14 @@
             "width": "250",
             "innerHeight": "125"
           }
+        },
+        {
+          "type": "SPACER",
+          "elementId": "sp1",
+          "size": {
+            "width": "458",
+            "height": "163"
+          }
         }
       ]
     },
@@ -1436,14 +1444,14 @@
           "type": "RADIO_BUTTON",
           "code": "T1_ラジオ",
           "size": {
-            "width": "150"
+            "width": "227"
           }
         },
         {
           "type": "CHECK_BOX",
           "code": "T1_チェック",
           "size": {
-            "width": "150"
+            "width": "227"
           }
         },
         {
@@ -1457,7 +1465,7 @@
           "type": "DROP_DOWN",
           "code": "T1_ドロップダウン",
           "size": {
-            "width": "150"
+            "width": "158"
           }
         },
         {
@@ -1563,14 +1571,14 @@
           "type": "RADIO_BUTTON",
           "code": "T2_ラジオ",
           "size": {
-            "width": "150"
+            "width": "227"
           }
         },
         {
           "type": "CHECK_BOX",
           "code": "T2_チェック",
           "size": {
-            "width": "150"
+            "width": "227"
           }
         },
         {
@@ -1584,7 +1592,7 @@
           "type": "DROP_DOWN",
           "code": "T2_ドロップダウン",
           "size": {
-            "width": "150"
+            "width": "158"
           }
         },
         {

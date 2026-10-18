@@ -9,7 +9,7 @@ import fieldsJson from "./sample-app/fields.json" with { type: "json" };
 import record1 from "./sample-app/record-1.json" with { type: "json" };
 import record2 from "./sample-app/record-2.json" with { type: "json" };
 import record3 from "./sample-app/record-3.json" with { type: "json" };
-import { listFields, summarizeFields, type FieldProperty, type FieldsFile } from "./commands/fields.ts";
+import { listFields, summarizeFields, type FieldProperty, type FieldsFile, type LayoutRow } from "./commands/fields.ts";
 import type { KintoneRecord } from "./commands/record.ts";
 
 export interface SampleRecord {
@@ -53,6 +53,15 @@ export function sampleApp(): SampleApp {
   return structuredClone(SAMPLE_APP);
 }
 
+function spacerIds(layout: LayoutRow[]): string[] {
+  const out: string[] = [];
+  for (const row of layout) {
+    if (row.type === "GROUP" && Array.isArray(row.layout)) { out.push(...spacerIds(row.layout)); continue; }
+    for (const f of row.fields ?? []) if (f.type === "SPACER" && typeof f.elementId === "string" && f.elementId) out.push(f.elementId);
+  }
+  return out;
+}
+
 const tableRows = (record: KintoneRecord, code: string): number => {
   const v = record[code]?.value;
   return Array.isArray(v) ? v.length : 0;
@@ -69,6 +78,7 @@ export function describeSampleApp(targetTypes?: ReadonlySet<string>): string {
     "項目（1 項目 1 行。○ = 計算式を設定できる型。テーブルの子は T1_ / T2_ の接頭辞）:",
     listFields(fields, { targetTypes }),
     "",
+    `スペース項目（要素 ID。as に要素 ID か SPACER。レコードに値は無く、式の返り値をそのまま返す）: ${spacerIds(fields.layout).join(", ") || "無し"}`,
     "レコード（try の records で選ぶ。既定は 3 件とも）:",
     ...records.map((r) => `  ${r.id}: ${r.label}。${tables.map((t) => `${t} ${tableRows(r.record, t)} 行`).join("、")}`),
     "ユーザー・組織・グループの値は既定のテストデータ（架空の 10 人。demo_user01 …）のコード"

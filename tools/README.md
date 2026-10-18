@@ -60,6 +60,7 @@ npm pack --dry-run  # 公開前に中身を確かめる（dist、vendor、LICENS
 
 ## 履歴
 
+- 0.3.1（2026-10）: normalize がスペース項目（要素 ID のある SPACER）とヘッダーの行の計算式を `field.type` で誤って止めていたのを直した（設定画面は許す）。`try` でスペース項目を対象にできる（`--as sp1` / `SPACER`。標本に `sp1` を足した。レコードに値が無いので式の返り値をそのまま返す）
 - 0.3.0（2026-10）: 計算パターン集の例の検証（`docs/計算パターン_検証.md`。gen-docs）。式の試し計算 `try`（計画 25 章。formula MCP 0.2.0 の `fml_try`）。同梱のサンプルアプリ（`src/sample-app/`）に 1 行だけの設定を組んで normalize → calc。架空の項目と値（`src/commands/try-data.ts`: `--fields` で標本に項目を足す、`--data` で簡略形の値のレコード、`--app` で利用者のアプリの項目定義に架空の値）。`core` に `trySettings` / `SAMPLE_APP` / `describeSampleApp`、評価の仕事の kind `try`（`EvalJob` の `settingsText` / `settingsFile` / `fields` は try では省略できる）、`calcSettings` の `allowDefaultBaseUrl`。`CORE_API_VERSION` は 2 のまま（足しただけ）
 - 0.2.1（2026-10）: formula MCP の Codex レビューへの対応。`updateFields` の `common` を共通の設定のキー（`COMMON_KEYS`）だけに。Worker の中の誤りの種類（`EvalError.kind`）と名前を中核が instanceof で決める（zip のコードの例外の name / constructor.name / 文を応答や標準エラーに出さない。`classifyEvalError` / `builtinErrorName`）。保存の結果の想定外の誤りも種類だけ（`zipCode`）。CLI の想定外の誤りは種類だけ（`FORMULA_DEBUG=1` で文とスタック）。接続の誤りの文の print-craft の名残を直した
 - 0.2.0（2026-10）: formula MCP のための中核の入口（`CORE_API_VERSION` 2。CLI の動きは変えない）。`core` に workspace / connections / permission / commit-file / take / users の参照コード / JSON の誤りの文 / 行のキーを追加。`src/commands/save.ts`（`saveNewSettings` / `updateFields`）。`runEval` の `workerFile`（Worker の入口の絶対パス）と `captureOutput`（Worker の標準出力・標準エラーを親に流さず受け取る）、`loadEngine` の `vendorDir`（moment の置き場所）。評価の結果に `findings` と calc のレコードごとの行

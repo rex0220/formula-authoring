@@ -202,7 +202,8 @@ export async function normalizeSettings(input: NormalizeInput): Promise<Normaliz
   for (const r of rows) {
     const where = `${file} ${r.fieldcode}`;
     const t = typeOf(r);
-    if (r.formulaSet && r.formulaSet.trim() && !targetTypes.has(t)) findings.error("field.type", where, `${t} の項目には計算式を設定できない`);
+    // スペース項目（要素 ID のある SPACER。式の返り値を表示する）とヘッダー（ボタン）の行は項目の型でないが計算式を置ける（設定画面と同じ。tools 0.3.1 まで SPACER を誤って止めていた）
+    if (r.formulaSet && r.formulaSet.trim() && !targetTypes.has(t) && !isSpacerRow(r) && !isHeaderRow(r)) findings.error("field.type", where, `${t} の項目には計算式を設定できない`);
     if (r.edit && (isHeaderRow(r) || isSpacerRow(r) || isGroupRow(r))) findings.error("field.flag", where, `${t} に「編集」は付けられない`);
     if (r.hide && (isHeaderRow(r) || isSpacerRow(r))) findings.error("field.flag", where, `${t} に「非表示」は付けられない`);
     if (r.state && r.formulaSet && isLookupRow(r)) findings.warning("field.lookup", where, "ルックアップ項目に計算式（ルックアップの値を上書きする）");

@@ -3,6 +3,7 @@
 `try` / `fml_try`（式の試し計算）と関数一覧・計算パターン集の例の検証に使う、計算式プラグインのサンプルアプリの項目定義とレコード 3 件。
 
 - 元: 開発用の kintone に作ったアプリ「計算式サンプル」（2026-10-18。全項目タイプ × 2、計算 2、グループ枠 + 枠内 2、システム項目 5、カテゴリー・ステータス・作業者、テーブル 2 つ × 子 17。ルックアップ・関連レコード一覧は無し）。定義は work-link の `formula-sample-app/`
-- 取り方: `FORMULA_KINTONE_CONFIG=<接続のファイル> node scripts/gen-sample-app.mjs --app <番号>`（`fetchFields` / `fetchRecord` で取り、接続先・ユーザー・組織・グループ・作成者・更新者・日時を**架空の値**（既定のテストデータの `demo_user01` など、`https://example.cybozu.com`、2026-01-15）に置き換える。実在の値は残さない）
+- 取り方: `FORMULA_KINTONE_CONFIG=<接続のファイル> node scripts/gen-sample-app.mjs --app <番号>`（レコード 2・3 のテーブルに kintone 側で空の行が足されていたら、取り直した record-2 / 3 を git で戻す = 標本は「端 = テーブル1 1 行」「空 = 0 行」のまま。`fetchFields` / `fetchRecord` で取り、接続先・ユーザー・組織・グループ・作成者・更新者・日時を**架空の値**（既定のテストデータの `demo_user01` など、`https://example.cybozu.com`、2026-01-15）に置き換える。実在の値は残さない）
+- スペース項目 `sp1`（要素 ID。2026-10-18 に足した。`try --as sp1` の対象。レコードに値は無い）
 - レコード: 1 = 典型（全項目に値、テーブル1 3 行、テーブル2 2 行）、2 = 端（0、負の小数、改行、未選択、月末と年末の日付、テーブル1 1 行、テーブル2 0 行）、3 = 空（ほぼ全部空、テーブル 0 行）
 - 置き場所は `src/sample-app/`（`src/sample-app.ts` が JSON を import して束ねる。tsc の宣言の rootDir が `src/` なので `src/` の下に置く）。名前に `records/` を使わない（禁じたパスの決まり。`record-<番号>.json`）

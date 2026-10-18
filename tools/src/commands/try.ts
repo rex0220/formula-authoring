@@ -7,12 +7,14 @@
  *   - 対象は式が参照していない項目を選ぶ（数値1 を使う式なら 数値2）。自己参照になるときのために、1 行の設定は各種設定の circular_refer を ON にして組む（設定画面の検査だけの決まり）
  *   - 文脈は calc と同じ（イベント、ログインユーザー、mobile、ユーザー情報のテストデータ、policy の allowFunctions）。APP_URL はサンプルアプリの接続先（既定の例の URL）で評価する
  *   - 走査の上の制限（副作用のある関数は policy の承認、EV_SET は不可）も calc と同じ。結果を採らない sink も同じ
+ *   - スペース項目（レイアウトの SPACER で要素 ID のあるもの。設定画面の行はフィールドコード "(要素ID)"）も対象にできる（as: "SPACER" か要素 ID）。レコードに値が無いので calc は通らず、
+ *     実機のスペースの処理と同じく式を評価した返り値（ARRAY(ラベル, 書式, 値, 書式) や HTML）をそのまま返す。表示は実機で（計画 25.5。2026-10-18 Takashi）
  *   - 架空の項目と値（try-data.ts。計画 25.3）: fields で標本に項目を足す（案 2）、data で簡略形の値のレコードを作る（案 1。土台は標本の base = 3 の空のレコード）、
  *     appFields で利用者のアプリの項目定義に架空の値（案 3。標本のレコードは使わない。data が要る）
  */
 import type { CalcEvent, Engine } from "../engine.ts";
 import { InputError, quiet } from "../input.ts";
-import type { FieldProperty, FieldsFile } from "./fields.ts";
+import type { FieldProperty, FieldsFile, LayoutRow } from "./fields.ts";
 import type { KintoneRecord } from "./record.ts";
 import type { Finding } from "../normalize/findings.ts";
 import type { Lang } from "../normalize/model.ts";
@@ -42,6 +44,8 @@ export interface TryTarget {
   code: string;
   type: string;
   table?: string;
+  /** スペース項目のとき（type "SPACER"）の要素 ID。code は "(要素ID)" */
+  elementId?: string;
 }
 
 export interface TryValue {
@@ -121,9 +125,22 @@ const TRY_OWN_RULES = new Set(["misc.changed", "fieldno.screen", "size.bytes", "
 type TableRows = Array<{ id?: string; value: Record<string, { value?: unknown }> }>;
 const isTable = (v: unknown): v is TableRows => Array.isArray(v) && v.every((r) => r && typeof r === "object" && "value" in (r as object));
 
+/** レイアウトのスペース項目（要素 ID のあるもの。グループ枠の中も）。設定画面の行と同じ順 */
+export function spacersOf(fields: FieldsFile): string[] {
+  const out: string[] = [];
+  const walk = (rows: LayoutRow[]): void => {
+    for (const row of rows) {
+      if (row.type === "GROUP" && Array.isArray(row.layout)) { walk(row.layout); continue; }
+      for (const f of row.fields ?? []) if (f.type === "SPACER" && typeof f.elementId === "string" && f.elementId) out.push(f.elementId);
+    }
+  };
+  walk(fields.layout);
+  return out;
+}
+
 /**
  * 対象の項目を決める（型か項目コード、テーブルの中かどうか）。型のときは、式が参照していない項目を優先し、短いコードの順で最初（文字列1、数値1 …。数値1 を使う式なら 数値2）。
- * referenced は式の識別子（scanFormula）
+ * referenced は式の識別子（scanFormula）。スペース項目は as: "SPACER"（最初の要素 ID）か要素 ID（"sp1" / "(sp1)"）
  */
 export function resolveTryTarget(fields: FieldsFile, targetTypes: ReadonlySet<string>, as: string | undefined, table: string | undefined, referenced: ReadonlySet<string> = new Set()): TryTarget {
   const props = fields.properties;
@@ -131,6 +148,14 @@ export function resolveTryTarget(fields: FieldsFile, targetTypes: ReadonlySet<st
   const want = (as ?? TRY_DEFAULT_AS).trim();
   if (!want) throw new InputError("as が空（型 NUMBER / TEXT / DATE … か項目コード）");
   const upper = want.toUpperCase();
+  // スペース項目（レコードに値が無い。テーブルの中には置けない）
+  const spacers = spacersOf(fields);
+  const spacer = upper === "SPACER" || upper === "SPACE" ? spacers[0] : spacers.find((id) => id === want || `(${id})` === want);
+  if (upper === "SPACER" || upper === "SPACE" || spacer !== undefined) {
+    if (table !== undefined) throw new InputError("スペース項目はテーブルの中に置けない（table を外す）");
+    if (spacer === undefined) throw new InputError("サンプルアプリに要素 ID のあるスペース項目が無い");
+    return { code: `(${spacer})`, type: "SPACER", elementId: spacer };
+  }
   const type = TYPE_ALIASES[upper] ?? (targetTypes.has(upper) ? upper : undefined);
   let scope: Record<string, FieldProperty> = props;
   let tableCode: string | undefined;
@@ -183,6 +208,18 @@ export function buildTryEnvelope(engine: Engine, fields: FieldsFile, code: strin
     pluginMiscInfo: { ...(source.pluginMiscInfo as Record<string, unknown>), circular_refer: true },
     pluginInfos: [{ fieldcode: code, state: true, formulaSet: formula, edit: false, hide: false, rank: "" }]
   };
+}
+
+/** 走査の分類からの印（calc の markOf と同じ分類。スペース項目は calc の行が無いのでここで付ける） */
+function normalizedMarks(n: { scans: Map<string, { functions: Record<string, number> }> }, code: string): string[] {
+  const scan = n.scans.get(code);
+  if (!scan) return [];
+  const used = Object.keys(scan.functions);
+  const marks: string[] = [];
+  if (used.some((f) => /^(UINFO|OINFO|GINFO|OUSERS|GUSERS)$/.test(f))) marks.push("ユーザー情報は既定のテストデータ（架空）で計算（実機では変わる）");
+  if (used.includes("EV_INFO")) marks.push("イベントに依る");
+  if (used.some((f) => /^(RAND|RANDBETWEEN|NOW|TODAY|UUID)$/.test(f))) marks.push("再計算で変わる");
+  return marks;
 }
 
 /** JSON にできる形に（Worker から構造化クローンで返す。BigNumber / moment は toJSON、できなければ文字に） */
@@ -324,6 +361,20 @@ export async function trySettings(input: TryInput): Promise<TryResult> {
     }
     contextLine ||= c.contextLine;
     calcNotice ||= c.notice;
+    if (target.type === "SPACER") {
+      // レコードに値が無いので calc は何も計算しない。実機のスペースの処理と同じく、式を評価した返り値をそのまま（文脈は calc が整えたもの）
+      for (const r of c.records) {
+        const src = picked.find((p) => p.id === r.id);
+        engine.clearSinkCalls();
+        const raw = src ? rawValueOf(engine, n.saved.pluginPP, structuredClone(src.record) as Record<string, unknown>, stripped, target, input.evType, input.event) : null;
+        const v: TryValue = { record: r.id, value: raw };
+        if (engine.sinkCalls().length) { v.failed = true; v.error = `実行時の sink が呼ばれた: ${engine.sinkCalls().map((s) => `${s.sink} ${s.detail}`.trim()).join(", ")}`; res.status = "failed"; }
+        engine.clearSinkCalls();
+        res.values.push(v);
+      }
+      res.marks = [...(normalizedMarks(n, target.code)), "スペース項目（返り値をそのまま。表示は実機で）"];
+      continue;
+    }
     const lineCode = target.table ?? target.code;
     for (const r of c.records) {
       const line: CalcLine | undefined = r.lines.find((l) => l.fieldcode === lineCode);
@@ -356,7 +407,7 @@ export async function trySettings(input: TryInput): Promise<TryResult> {
   if (extraFields.length) text.push(`足した項目（架空）: ${extraFields.join("、")}`);
   for (const r of picked) if (r.id.startsWith("d")) text.push(`レコード ${r.id}: ${r.label}`);
   for (const r of results) {
-    const head = r.target ? `${r.target.code}（${r.target.type}${r.target.table ? `。${r.target.table} の中` : ""}）← ` : "";
+    const head = r.target ? `${r.target.type === "SPACER" ? `スペース項目 ${r.target.elementId}` : r.target.code}（${r.target.type}${r.target.table ? `。${r.target.table} の中` : ""}）← ` : "";
     text.push(`[${r.index}] ${head}${r.formula.replace(/\s*\n\s*/g, " ")}`);
     for (const v of r.values) text.push(`    レコード ${v.record}: ${short(v.value)}${v.raw !== undefined ? `（生の値 ${short(v.raw)}）` : ""}${v.error ? `  ！ ${v.error}` : ""}${v.failed ? "  ！ 結果を採らない（実行時の sink）" : ""}`);
     if (r.marks.length) text.push(`    印: ${r.marks.join("、")}`);
