@@ -23,18 +23,13 @@
       "Edit(kintone/**)"
     ],
     "deny": [
-      "mcp__kintone__kintone-add-records",
       "mcp__kintone__kintone-update-records",
       "mcp__kintone__kintone-delete-records",
       "mcp__kintone__kintone-update-statuses",
       "mcp__kintone__kintone-add-record-comment",
-      "mcp__kintone__kintone-add-form-fields",
       "mcp__kintone__kintone-update-form-fields",
       "mcp__kintone__kintone-delete-form-fields",
-      "mcp__kintone__kintone-update-form-layout",
       "mcp__kintone__kintone-update-general-settings",
-      "mcp__kintone__kintone-add-app",
-      "mcp__kintone__kintone-deploy-app",
       "mcp__kintone__kintone-download-file",
       "mcp__kintone__kintone-add-space-from-template",
       "mcp__kintone__kintone-update-space",

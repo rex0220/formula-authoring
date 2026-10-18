@@ -34,6 +34,7 @@
     "prepack": "node scripts/vendor.mjs && node scripts/build.mjs",
     "gen-docs": "node scripts/gen-docs.mjs"
   },
+  "homepage": "https://github.com/rex0220/formula-authoring#readme",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/rex0220/formula-authoring.git",
