@@ -6,11 +6,13 @@
  *   docs/functions.json          … 関数名 → type と印（tools の normalize と同じ元）
  *   docs/既定のテストデータ.md    … users の既定のテストデータ（架空）の一覧
  *   samples/users.json           … 既定のテストデータをそのまま（--users の形の例）
+ *   docs/計算パターン_検証.md     … 計算パターン集の例を同梱のサンプルアプリで評価した結果と、関数一覧の使用例の評価（scripts/verify-patterns.mjs。工程 8-4）
  * 実行: tools/ で `npm run gen-docs`（.env の FORMULA_PLUGIN_ZIP か、開発中は FORMULA_ALLOW_DEV_PLUGIN=1）。test/docs-sync.test.mjs が生成物と一致するか確かめる。
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { generateVerification } from "./verify-patterns.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const tools = path.resolve(here, "..");
@@ -140,7 +142,7 @@ export function generateDocs(engine, { DEFAULT_USERS, schemaRevisionOf }) {
   fl.push("");
   fl.push(`計算式プラグイン Ver.${ver} の計算式エンジンが持つ ${Object.keys(docs).length} 個の関数。設定画面の「?」と計算式ツールと同じ説明（日本語）。\`tools/scripts/gen-docs.mjs\` が作る。手で直さない。`);
   fl.push("関数名で検索して読む（全部は読まない）。印: " + Object.entries(tagLabel).map(([k, v]) => `**${v}**（${k}）`).join("、") + "。副作用のある関数は tools が評価しない（policy で承認）。EV_SET は設定に入れない。");
-  fl.push("使用例はエンジンの説明文に同梱のもの（`->` の結果は計算式プラグインの開発時に実際に評価して確かめている。項目や日時に依る例は環境で変わる）。");
+  fl.push("使用例はエンジンの説明文に同梱のもの（`->` の結果は計算式プラグインの開発時に実際に評価して確かめている。項目や日時に依る例は環境で変わる。tools の gen-docs も評価し、合わない例は [計算パターン_検証.md](計算パターン_検証.md) の末尾に列挙）。");
   fl.push("");
   fl.push("| 関数 | 引数 | 説明 | 分類 | 印 |");
   fl.push("| --- | --- | --- | --- | --- |");
@@ -207,6 +209,12 @@ if (invoked === path.resolve(fileURLToPath(import.meta.url))) {
   const zip = process.env.FORMULA_PLUGIN_ZIP || devPluginZip();
   const engine = await loadEngine({ pluginZip: zip ?? undefined, devPluginDir: zip ? undefined : formulaProdDir(process.env), mode: "dev" });
   const files = generateDocs(engine, { DEFAULT_USERS, schemaRevisionOf });
+  const { trySettings } = await import(pathToFileURL(path.join(tools, "src", "commands", "try.ts")).href);
+  const { defaultUsersInfo } = await import(pathToFileURL(path.join(tools, "src", "users", "index.ts")).href);
+  const { quiet } = await import(pathToFileURL(path.join(tools, "src", "input.ts")).href);
+  const v = await generateVerification({ engine, trySettings, defaultUsersInfo, quiet });
+  for (const [rel, text] of v.files) files.set(rel, text);
+  console.log(`検証: ケース ${v.summary.cases}、式 ${v.summary.formulas}、一致 ${v.summary.ok}、不一致 ${v.summary.ng}。使用例 ${v.summary.examples.total}（一致 ${v.summary.examples.ok}、合わない ${v.summary.examples.ng}、評価できない ${v.summary.examples.err}）`);
   for (const [rel, text] of files) {
     const abs = path.join(repo, rel);
     mkdirSync(path.dirname(abs), { recursive: true });
