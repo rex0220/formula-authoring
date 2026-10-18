@@ -28,9 +28,10 @@ async function runCase(c, deps) {
       return val;
     });
     const errors = [...x.findings.filter((y) => y.level === "error").map((y) => `${y.rule}: ${y.message}`), ...x.values.map((v) => v.error).filter(Boolean)];
-    const match = x.status === "ok" && json(got) === json(f.expect);
+    // expectIncludes: 長い HTML などは、結果の JSON に含まれるべき文字列で確かめる
+    const match = x.status === "ok" && (f.expectIncludes ? f.expectIncludes.every((t) => json(got).includes(t)) : json(got) === json(f.expect));
     const target = x.target ? `${x.target.code}${x.target.table ? `（${x.target.table} の中）` : ""}${f.show ? ` → ${f.show}` : ""}` : "—";
-    return { formula: f.formula, target, got, expect: f.expect, match, errors, note: f.note, records: r.app.records, extraFields: r.app.extraFields };
+    return { formula: f.formula, target, got, expect: f.expectIncludes ? `（含む）${f.expectIncludes.join(" / ")}` : f.expect, match, errors, note: f.note, records: r.app.records, extraFields: r.app.extraFields };
   });
 }
 
@@ -118,7 +119,9 @@ export async function generateVerification(deps) {
       out.push("| --- | --- | --- | --- | --- | --- |");
       for (const r of rows) {
         const note = [r.note, ...r.errors].filter(Boolean).join("。");
-        out.push(`| ${code(esc(r.formula))} | ${esc(r.target)} | ${code(esc(json(r.got)))} | ${code(esc(json(r.expect)))} | ${r.match ? "✔" : "✘"} | ${esc(note)} |`);
+        const gotText = json(r.got);
+        const shown = [...gotText].length > 300 ? `${[...gotText].slice(0, 300).join("")}…（${[...gotText].length.toLocaleString()} 字）` : gotText;
+        out.push(`| ${code(esc(r.formula))} | ${esc(r.target)} | ${code(esc(shown))} | ${code(esc(typeof r.expect === "string" ? r.expect : json(r.expect)))} | ${r.match ? "✔" : "✘"} | ${esc(note)} |`);
       }
       out.push("");
     }

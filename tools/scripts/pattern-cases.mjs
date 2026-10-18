@@ -2,7 +2,8 @@
  * 計算パターン集（docs/計算パターン.md）の例を、同梱のサンプルアプリ（4329）に項目を足し、架空の値で評価する検証ケース（計画 25.4。工程 8-4）。
  * scripts/verify-patterns.mjs が trySettings で評価して docs/計算パターン_検証.md を作る。test/docs-sync.test.mjs が「生成物が最新」と「全部一致」を確かめる。
  *   - 1 ケース = 1 回の trySettings（fields / data / records は共通、formulas は式ごとに独立の 1 行の設定。複数の式の組は、前の式の結果を data に書いて 1 式ずつ）
- *   - expect はレコードごとの値（対象の型に入れた後の値）。show を付けるとテーブル（SUBTABLE の対象）の結果はその子の値の配列
+ *   - expect はレコードごとの値（対象の型に入れた後の値）。show を付けるとテーブル（SUBTABLE の対象）の結果はその子の値の配列。
+ *     長い HTML などは expectIncludes（結果の JSON に含まれるべき文字列の配列）で確かめる（検証の文書では結果を 300 字で切る）
  *   - policy は副作用のある関数（FSET など）を評価するときだけ付ける。note は検証の文書に添える説明
  *   - 値はすべて架空。実在の人・組織・本番の値は入れない
  */
@@ -231,6 +232,43 @@ export const PATTERN_CASES = [
         as: "sp1", expect: [['<style>.custom-table td { border: 1px solid darkgray; padding: 4px 6px; }</style>\n<div>概要</div>', "", '<table  class="custom-table"><tr><td>顧客名</td><td>架空商事</td></tr><tr><td>合計</td><td  style="text-align:right; color:red;">1,234,567</td></tr></table>', ""]], note: "1 つの LET に label と table を並べる。STYLE は複数書けて 1 つの style 属性にまとまる" },
       { formula: 'TAGS_HTML(TAG("tr", ARRAY_MAP(ARRAY("A", "B"), v, TAG("th", v))))', expect: ["<tr><th>A</th><th>B</th></tr>"], note: "ARRAY_MAP で行や列を繰り返す（結果は TAG の配列。TAG の中に置くと並ぶ。配列をそのまま文字列の項目に入れると [object Object]）" }
     ]
+  },
+  {
+    section: "スペース項目", pattern: "月のカレンダーを表示する（日曜は赤、土曜は青、基準日は黄色）", data: [{ 日付1: "2026-10-18" }, { 日付1: "2026-08-31" }],
+    formulas: [{
+      formula: `LET(
+  基準日, 日付1,
+  月初, DATE_STARTOF(基準日, "month", "YYYY-MM-DD"),
+  月末, DATE_ENDOF(基準日, "month", "YYYY-MM-DD"),
+  日数, DATE_DIFF(月初, 月末, "days") + 1,
+  空き, MOD(DATE_DIFF("2023-01-01", 月初, "days"), 7),
+  今日マス, 空き + DATE_DIFF(月初, 基準日, "days"),
+  終マス, 空き + 日数 - 1,
+  週数, ROUNDUP((空き + 日数) / 7, 0),
+  css, TAG("style", JOIN(ARRAY(
+    ".fml-cal { border-collapse: collapse; }",
+    ".fml-cal th, .fml-cal td { border: 1px solid #ccc; width: 36px; height: 28px; text-align: center; }",
+    ".fml-cal .sun { color: #d33; }",
+    ".fml-cal .sat { color: #36c; }",
+    ".fml-cal .today { background: #ffe58a; font-weight: bold; }"
+  ), NEWLINE())),
+  見出し, TAG("tr", ARRAY_MAP(ARRAY("日", "月", "火", "水", "木", "金", "土"), w, i,
+    TAG("th", ATTR("class", IF(i = 0, "sun", IF(i = 6, "sat", ""))), w))),
+  本体, ARRAY_FOR(週数, r, TAG("tr", ARRAY_FOR(7, c,
+    TAG("td",
+      ATTR("class", IF(r * 7 + c = 今日マス,
+        IF(c = 0, "sun today", IF(c = 6, "sat today", "today")),
+        IF(c = 0, "sun", IF(c = 6, "sat", "")))),
+      IF(AND(r * 7 + c >= 空き, r * 7 + c <= 終マス), r * 7 + c - 空き + 1, ""))))),
+  ARRAY(
+    TAGS_HTML(css, TAG("div", DATE_FORMAT(月初, "YYYY年M月"))), "",
+    TAGS_HTML(TAG("table", ATTR("class", "fml-cal"), 見出し, 本体)), ""
+  )
+)`,
+      as: "sp1",
+      expectIncludes: ['<div>2026年10月</div>', '<td  class=\\"\\">1</td><td  class=\\"\\">2</td><td  class=\\"sat\\">3</td>', '<td  class=\\"sun today\\">18</td>', '<td  class=\\"sat\\">31</td></tr></table>', '<div>2026年8月</div>', '<td  class=\\"sun\\">30</td><td  class=\\"today\\">31</td>'],
+      note: "1 つの LET に 11 個の変数。基準日を TODAY() にすれば今月（再計算で変わる印が付く）。10 月は 5 週、8 月 31 日は 6 週目。実機で表示を確かめた（2026-10-18）"
+    }]
   },
   {
     section: "スペース項目", pattern: "属性の値を条件で変える（class など）。& は関数の結果の空白を落とす", records: [3],
