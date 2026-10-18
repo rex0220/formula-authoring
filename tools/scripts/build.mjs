@@ -158,15 +158,23 @@ try {
   );
   writeFileSync(
     path.join(consumerDir, "main.ts"),
-    `import { CORE_API_VERSION, createContext, loadEngine, defaultUsersInfo, type Engine, type EngineContext } from "@rex0220/formula-authoring-tools/core";
+    `import { CORE_API_VERSION, createContext, loadEngine, defaultUsersInfo, modeOf, runEval, saveNewSettings, updateFields, type Engine, type EngineContext, type SaveContext, type SaveResult } from "@rex0220/formula-authoring-tools/core";
 export async function f(zip: string): Promise<Engine> {
   const ctx = createContext({ cwd: "/", env: {} });
-  const engine = await loadEngine({ pluginZip: zip, mode: "build" });
+  const engine = await loadEngine({ pluginZip: zip, mode: "build", vendorDir: "/x/vendor" });
   const c: EngineContext = engine.context();
   engine.setContext({ appId: c.appId + 1, usersInfo: defaultUsersInfo(), usersOrigin: { kind: "default" } });
   return ctx.root ? engine : engine;
 }
-export const v: 1 = CORE_API_VERSION;
+// formula MCP が使う保存の約束と Worker（tools 0.2.0）
+export async function g(root: string, zip: string): Promise<SaveResult[]> {
+  const save: SaveContext = { root, mode: modeOf(root, { configFile: undefined, workspaceRoots: [root], env: {}, surface: "mcp" }), policy: { allowSideEffects: [] } as never, source: { pluginZip: zip, vendorDir: "/x/vendor" }, run: { timeoutSec: 60, workerFile: "/x/eval-worker.mjs", captureOutput: () => undefined } };
+  const a = await saveNewSettings(save, { path: "settings/a.json", content: "{}", expectedAbsent: true });
+  const b = await updateFields(save, { path: "settings/a.json", expectedDigest: a.digest ?? "", rows: "[]", common: "{}" });
+  const out = await runEval({ kind: "normalize", settingsText: "{}", settingsFile: "a", fields: { appId: 1, properties: {} } as never, usersSource: {} as never, usersOrigin: { kind: "default" }, policy: {} as never }, save.run);
+  return out.normalize.findings.length ? [a, b] : [b];
+}
+export const v: 2 = CORE_API_VERSION;
 `
   );
   const consumer = spawnSync(process.execPath, [tscBin, "-p", path.join(consumerDir, "tsconfig.json")], { encoding: "utf8" });
@@ -178,7 +186,7 @@ export const v: 1 = CORE_API_VERSION;
   rmSync(consumerDir, { recursive: true, force: true });
 }
 // 入口が読み込めて、版が build で、公開の関数があるか（中核は読み込んだだけでは何も読み書きしない）
-const coreSmoke = spawnSync(process.execPath, ["--input-type=module", "-e", `const c = await import(${JSON.stringify(pathToFileURL(path.join(root, "dist", "core.mjs")).href)}); const m = c.toolsMeta(); if (c.CORE_API_VERSION !== 1 || m.mode !== "build" || typeof c.loadEngine !== "function" || typeof c.defaultUsersInfo !== "function") process.exit(2); console.log(m.toolsVersion);`], { encoding: "utf8" });
+const coreSmoke = spawnSync(process.execPath, ["--input-type=module", "-e", `const c = await import(${JSON.stringify(pathToFileURL(path.join(root, "dist", "core.mjs")).href)}); const m = c.toolsMeta(); if (c.CORE_API_VERSION !== 2 || m.mode !== "build" || typeof c.loadEngine !== "function" || typeof c.defaultUsersInfo !== "function" || typeof c.saveNewSettings !== "function" || typeof c.updateFields !== "function" || typeof c.runEval !== "function") process.exit(2); console.log(m.toolsVersion);`], { encoding: "utf8" });
 if (coreSmoke.status !== 0 || coreSmoke.stdout.trim() !== meta.toolsVersion) {
   console.error(`dist/core.mjs が読み込めない（exit ${coreSmoke.status}）:\n${coreSmoke.stderr}`);
   process.exit(1);

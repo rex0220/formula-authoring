@@ -115,6 +115,13 @@ export interface LoadEngineOptions {
   /** 開発中（mode dev）の読み込み元（隣の formula の prod/）。CLI は FORMULA_ALLOW_DEV_PLUGIN=1 のときだけ dev-paths.ts の formulaProdDir で決めて渡す */
   devPluginDir?: string;
   mode?: "build" | "dev";
+  /** moment（vendor/）の置き場所。省略すれば tools の vendor/（paths.ts）。MCP は束ねた本体の隣の vendor/ を渡す（tools 0.2.0） */
+  vendorDir?: string;
+}
+
+/** moment のファイル（vendorDir があればその中。無ければ tools の vendor/） */
+export function momentFileOf(opt: LoadEngineOptions): string {
+  return opt.vendorDir ? path.join(opt.vendorDir, path.basename(MOMENT_FILE)) : MOMENT_FILE;
 }
 
 export const DEFAULT_CONTEXT_BASE_URL = "https://example.cybozu.com";
@@ -225,16 +232,17 @@ async function loadOnce(opt: LoadEngineOptions): Promise<Engine> {
   }
   if (!src.api) throw new PluginZipError(`計算式プラグインの zip に ${API_ENTRY} が無い（Ver.${MIN_PLUGIN_VERSION} 以降の zip が要る）: ${src.from}`, "no-api", known);
   if (!src.decimal) warnings.push(`zip に ${DECIMAL_ENTRY} が無い（べき乗の小数の指数がエラーになる）`);
-  if (!existsSync(MOMENT_FILE)) throw new Error(`moment が無い: ${MOMENT_FILE}（tools の npm install 時に取る。手で取るなら npm run vendor）`);
+  const momentFile = momentFileOf(opt);
+  if (!existsSync(momentFile)) throw new Error(`moment が無い: ${momentFile}（tools の npm install 時に取る。手で取るなら npm run vendor）`);
   try {
-    return await startEngine({ ...src, api: src.api }, known, warnings, stamp);
+    return await startEngine({ ...src, api: src.api }, known, warnings, stamp, momentFile);
   } catch (e) {
     poisoned = { code: e instanceof PluginZipError ? e.code : "unexpected", info: e instanceof PluginZipError ? e.info : known };
     throw e;
   }
 }
 
-async function startEngine(src: PluginSources & { kind: "zip" | "dev"; api: string }, known: PluginZipErrorInfo, warnings: string[], stamp: SourceStamp | null): Promise<Engine> {
+async function startEngine(src: PluginSources & { kind: "zip" | "dev"; api: string }, known: PluginZipErrorInfo, warnings: string[], stamp: SourceStamp | null, momentFile: string): Promise<Engine> {
   const g = globalThis as Record<string, unknown>;
   const { Window } = (await import("happy-dom")) as unknown as { Window: new (opt: { url: string }) => Record<string, unknown> };
   const ctx: EngineContext = {
@@ -294,7 +302,7 @@ async function startEngine(src: PluginSources & { kind: "zip" | "dev"; api: stri
       throw new PluginZipError(`計算式プラグインの zip のコード（${entry}）を実行できない: ${e instanceof Error ? e.message : String(e)}`, "engine-unreadable", known);
     }
   };
-  runScript(readFileSync(MOMENT_FILE, "utf8"), MOMENT_FILE);
+  runScript(readFileSync(momentFile, "utf8"), momentFile);
   runScript(src.momentTimezone, `${src.from}!${MOMENT_TZ_ENTRY}`, MOMENT_TZ_ENTRY);
   runScript(src.bignumber, `${src.from}!${BIGNUMBER_ENTRY}`, BIGNUMBER_ENTRY);
   if (src.decimal) runScript(src.decimal, `${src.from}!${DECIMAL_ENTRY}`, DECIMAL_ENTRY);

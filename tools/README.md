@@ -27,9 +27,10 @@ Projects/
 - `src/connections.ts` / `src/workspace.ts` / `src/permission.ts` / `src/commit-file.ts` … kintone の接続のファイル（kSQL の `ksql.config.json` と同じ形。profile、`tokenMap`、`userApiToken`）、`kintone/<profile>/<番号>-<アプリ名>/` のフォルダーと印 `.formula-app.json`、kintone/ の下を変える許可、ファイルの確定とロック（print-craft-authoring tools 2.0.0 の写し）
 - `src/env.ts` / `src/kintone-rest.ts` / `src/kintone-url.ts` … `.env`（kintone 公式 MCP と同じ `KINTONE_*` + `FORMULA_PLUGIN_ZIP` / `FORMULA_KINTONE_CONFIG` / `FORMULA_USER_API_TOKEN`）、GET 専用・許可 API 固定・送信先固定の REST（kintone REST API と User API）
 - `src/meta.ts` … tools の版、扱う計算式プラグイン（プラグイン ID `FORMULA_PLUGIN_ID`、封筒の `FORMULA_CONFIG_PLUGIN_ID`、版の下限 `MIN_PLUGIN_VERSION`）、API の版（`SUPPORTED_API_VERSIONS`）、API の契約（`REQUIRED_API`）
-- `src/core.ts` … 共通の中核の入口（npm の `@rex0220/formula-authoring-tools/core`。MCP が使う予定）。`scripts/build.mjs` が `dist/core.mjs` と `dist/types/` を作る
+- `src/commands/save.ts` … 保存の約束（formula MCP の `fml_save_settings` / `fml_update_fields` の本体。CLI は使わない）。新しい設定は同じ名前があれば保存しない、既存の設定は `fml_summary` の digest を照合して項目の行（`fieldcode`）を複数まとめて差し替える。normalize は Worker で行い、エラーがあれば確定しない。確定はロック付き（`commit-file.ts`）
+- `src/core.ts` … 共通の中核の入口（npm の `@rex0220/formula-authoring-tools/core`。formula MCP が使う。`CORE_API_VERSION` 2）。`scripts/build.mjs` が `dist/core.mjs` と `dist/types/` を作る。MCP が使う名前は `test/core-exports.test.mjs` で固定する
 - `scripts/vendor.mjs` … moment 2.24.0 を CDN から `vendor/` に取る（`vendor/moment.json` の SHA-256 と照合）。`scripts/build.mjs` … esbuild で `dist/cli.mjs` / `dist/eval-worker.mjs` / `dist/core.mjs`。`scripts/gen-docs.mjs` … `docs/`（設定ファイル仕様、関数一覧、functions.json、schema-manifest、既定のテストデータ）と `samples/users.json` を zip から機械生成
-- `pending/` … print-craft から写してまだ計算式用にしていないもの（`save.ts` = MCP の保存の約束）。npm には入らない
+- `pending/` … print-craft から写してまだ計算式用にしていないもの（`diff.ts` / `normalize.ts` は計算式用の `src/commands/` が別にあるので使っていない）。npm には入らない
 - `test/` … `node --test`（src の .ts を直接読む。`test/helpers.mjs` が fixture の zip を読む。`test/fixtures/formula/` はテスト用アプリ 2305 の項目定義と設定）
 
 ## 使い方（開発）
@@ -58,4 +59,5 @@ npm pack --dry-run  # 公開前に中身を確かめる（dist、vendor、LICENS
 
 ## 履歴
 
+- 0.2.0（2026-10）: formula MCP のための中核の入口（`CORE_API_VERSION` 2。CLI の動きは変えない）。`core` に workspace / connections / permission / commit-file / take / users の参照コード / JSON の誤りの文 / 行のキーを追加。`src/commands/save.ts`（`saveNewSettings` / `updateFields`）。`runEval` の `workerFile`（Worker の入口の絶対パス）と `captureOutput`（Worker の標準出力・標準エラーを親に流さず受け取る）、`loadEngine` の `vendorDir`（moment の置き場所）。評価の結果に `findings` と calc のレコードごとの行
 - 0.1.0（2026-10）: 最初の公開。version / fields / record / records / pull / summary / diff / users / normalize / calc / take / edit / files。扱う計算式プラグイン Ver.101 以降、authoring API 1

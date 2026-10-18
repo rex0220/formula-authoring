@@ -6,7 +6,7 @@ import { buildUsersInfo } from "../users/index.ts";
 import type { EvalJob, EvalOutcome } from "./eval-job.ts";
 
 export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
-  const engine = await loadEngine({ pluginZip: job.pluginZip, devPluginDir: job.devPluginDir, mode: job.mode });
+  const engine = await loadEngine({ pluginZip: job.pluginZip, devPluginDir: job.devPluginDir, mode: job.mode, vendorDir: job.vendorDir });
   if (job.baseUrl) engine.setContext({ baseUrl: job.baseUrl });
   const usersInfo = buildUsersInfo(job.usersSource);
   const usersLabel = job.usersOrigin.kind === "file" ? job.usersOrigin.file : "既定のテストデータ（架空）";
@@ -14,7 +14,10 @@ export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
     settingsText: job.settingsText, settingsFile: job.settingsFile, fields: job.fields, engine, policy: job.policy, check: job.check, lang: job.lang, usersInfo, usersLabel, usersOrigin: job.usersOrigin
   });
   const outcome: EvalOutcome = {
-    normalize: { summary: res.summary, hasErrors: res.findings.hasErrors, warnings: res.findings.count("warning"), output: res.output, checkDiffs: res.checkDiffs },
+    normalize: {
+      summary: res.summary, hasErrors: res.findings.hasErrors, warnings: res.findings.count("warning"), findings: [...res.findings.items],
+      output: res.output, checkDiffs: res.checkDiffs, appId: res.appId, size: res.size
+    },
     engineWarnings: [...engine.warnings]
   };
   if (job.kind === "calc" && job.calc && !res.findings.hasErrors) {
@@ -23,7 +26,7 @@ export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
       normalized: res, engine, fields: job.fields, appId: c.appId, records: c.records, evType: c.evType, event: c.event, mobile: c.mobile, user: c.user,
       usersInfo, usersOrigin: job.usersOrigin
     });
-    outcome.calc = { text: r.text, failed: r.records.some((x) => x.errors.length > 0 || x.failed) };
+    outcome.calc = { text: r.text, failed: r.records.some((x) => x.errors.length > 0 || x.failed), records: r.records, contextLine: r.contextLine, notice: r.notice, summary: r.summary };
   }
   return outcome;
 }
