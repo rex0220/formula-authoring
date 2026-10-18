@@ -156,6 +156,22 @@ export const PATTERN_CASES = [
     ]
   },
   {
+    section: "値・文字列・日付", pattern: "選択した値・名前を文字列にする（ユーザー・組織・グループ、チェックボックス・複数選択）",
+    fields: [{ code: "担当者", type: "USER_SELECT" }],
+    data: [{ 担当者: ["demo_user02", "demo_user03"], 組織1: ["demo_hq", "demo_sales"], チェック1: ["A", "C"], 複数選択1: ["B", "C"], 作業者: ["demo_user04"] }, { 担当者: [], チェック1: [] }],
+    formulas: [
+      { formula: "担当者", expect: ["架空 営業部長, 架空 開発部長", ""], note: "名前を「, 」（カンマと空白）で" },
+      { formula: "組織1", expect: ["架空本社, 架空営業部", ""] },
+      { formula: 'SEL_NAME(担当者, "text", "、")', expect: ["架空 営業部長、架空 開発部長", ""] },
+      { formula: 'SEL_NAME(担当者, "text", NEWLINE())', as: "MULTI_LINE_TEXT", expect: ["架空 営業部長\n架空 開発部長", ""], note: "区切りは式として評価される（Ver.101 の 2026-10-18 の直し）" },
+      { formula: 'SEL_CODE(担当者, "text")', expect: ["demo_user02,demo_user03", ""] },
+      { formula: "チェック1", expect: ["A,C", ""], note: "値を「,」で" },
+      { formula: 'JOIN(チェック1, "、")', expect: ["A、C", ""] },
+      { formula: "複数選択1", expect: ["B,C", ""] },
+      { formula: 'SEL_NAME(作業者, "text")', expect: ["架空 営業一郎", ""], note: "作業者をそのまま書くと [object Object]" }
+    ]
+  },
+  {
     section: "値・文字列・日付", pattern: "文字をつなぐ", fields: [TABLE_2305, { code: "金額合計", type: "NUMBER" }], data: [{ テーブル: ROWS_2305, 金額合計: 850 }],
     formulas: [{ formula: '"小計 " & COUNTIF(分類="小計", No) & " 件 / 合計 " & 金額合計', as: "TEXT", expect: ["小計 2 件 / 合計 850"] }]
   },
