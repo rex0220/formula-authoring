@@ -429,6 +429,16 @@ export const PATTERN_CASES = [
     ]
   },
   {
+    section: "ボタン・イベント", pattern: "ボタンでテーブルを空にする・行を置き換える・行数を指定する（BUTTON + FSET）", data: [{ テーブル1: T1_ROWS }, { テーブル1: [] }], policy: { allowFunctions: ["BUTTON", "DIALOG", "FSET"], allowMiscChanges: true },
+    formulas: [
+      { formula: 'DIALOG(ARRAY("クリア", "テーブルの行をすべて消します", "warning"), FSET(テーブル1, "0"))', click: true, show: "T1_数値", expect: [{ テーブル1: [] }, {}], note: "行数は文字列の \"0\"（数の 0 は何もしない）。0 行のテーブルは変わらない。消すと戻せないので DIALOG で確認（Ver.101 で MAX_TABLE_ROWS の未定義を直した）" },
+      { formula: 'BUTTON("クリア", FSET(テーブル1, 0))', click: true, show: "T1_数値", expect: [{}, {}], note: "数の 0 は行数の指定にならず、何も起きない（テーブル自身の計算式の行数の制御と同じ決まり）" },
+      { formula: 'BUTTON("2 行に", FSET(テーブル1, 2))', click: true, show: "T1_数値", expect: [{ テーブル1: ["100", "200"] }, { テーブル1: ["", ""] }], note: "行数の指定。多ければ後ろを消し、少なければ空の行を足す" },
+      { formula: "BUTTON(\"置き換え\", FSET(テーブル1, ARRAY(\"\", \"[{'T1_数値':'7'},{'T1_数値':'8'}]\")))", click: true, show: "T1_数値", expect: [{ テーブル1: ["7", "8"] }, { テーブル1: ["7", "8"] }], note: "ARRAY(行数, 初期データ)。テーブル自身の計算式の行数の制御と同じ書き方。今の行は消えて初期データの行になる。JSON の文字列だけを FSET に渡しても何も起きない（行を足すのは FSET_TADD）" },
+      { formula: 'BUTTON("絞る", FSET(テーブル1, TABLE_SORT(テーブル1, TPFILTER(T1_数値 > 150))))', click: true, show: "T1_数値", expect: [{ テーブル1: ["200", "300"] }, {}], note: "条件に合う行だけ残す（TABLE_SORT の結果をそのまま入れる）。0 行なら変わらない" }
+    ]
+  },
+  {
     section: "ボタン・イベント", pattern: "イベントで結果を変える（既定は allUpdate）", records: [3],
     formulas: [{ formula: 'EV_INFO("type")', as: "TEXT", expect: ["allUpdate"] }]
   }

@@ -215,7 +215,7 @@ git commit -m "テンプレートの更新を取り込む"
 | [samples/](samples/) | 雛形（`settings-source.json`）と項目定義の例 |
 | [CLAUDE.md](CLAUDE.md) | AI への常設指示（常に守ることと、どの手順で作業するか。このリポジトリを開いた Claude Code が自動で読みます） |
 | [docs/AI作業手順.md](docs/AI作業手順.md) | AI の作業手順（読む文書、要約コマンド、仕様の確認、新規と変更の流れ、normalize の規則名と直し方、計算式の制約、反映の 4 段） |
-| [policy/README.md](policy/README.md) | 副作用のある関数と各種設定の変更の承認（利用者が書く） |
+| [policy/README.md](policy/README.md) | 副作用のある関数と各種設定の変更の承認（利用者が書く。既定は BUTTON / DIALOG / FSET / FSET_TADD を承認） |
 
 ## トラブルシュート
 
@@ -249,7 +249,7 @@ git commit -m "テンプレートの更新を取り込む"
 - ログインユーザーで使うときは、そのユーザーが見られるアプリとレコードを AI も見られます。サーバー側からも担保したい場合は、**閲覧権限だけのアカウント**か、**レコード閲覧だけの API トークン**（運用での推奨）を使ってください
 - 認証情報は OS の環境変数、`.env`（コミット対象外）、作業フォルダーの外の接続のファイルのどれかに置き、リポジトリに入れない。AI は `.env` を読まず（`.claude/settings.json` の `Read(.env)` の拒否）、`.env` と `policy/` を編集しません。tools が読む `.env` と `policy/authoring-policy.json` と計算式プラグインの zip の場所はこのフォルダーのものに固定で、AI がオプションで別のファイルを指定することはできません
 - tools は、`FORMULA_PLUGIN_ZIP` の zip のプラグイン ID（zip の公開鍵から）が計算式プラグインのものでなければ、中のコードを**実行せずに止まります**。署名は確かめないので、中身を差し替えた zip は見分けられません。zip の中のコードはこの PC の権限で動くので、配布元から入手した zip だけを使ってください
-- `calc` は計算式を実際に評価します（計算式エンジンは利用者の zip のもの）。kintone への書き込み・クリップボード・画面の操作に当たる関数（FSET / FSET_TADD / BUTTON / DIALOG / CLIPBORD_WRITE）は、利用者が `policy/authoring-policy.json` で承認しない限り評価せず、評価中にそれらが呼ばれた結果は採りません。評価は Worker で動かし、時間の上限（既定 60 秒）で止めます
+- `calc` は計算式を実際に評価します（計算式エンジンは利用者の zip のもの）。kintone への書き込み・クリップボード・画面の操作に当たる関数（FSET / FSET_TADD / BUTTON / DIALOG / CLIPBORD_WRITE）は、利用者が `policy/authoring-policy.json` で承認したものだけ評価し（テンプレートの既定はボタンの中で使う BUTTON / DIALOG / FSET / FSET_TADD。評価は写しのレコードの上で kintone には書きません。CLIPBORD_WRITE は未承認）、評価中にクリップボードや kintone API が呼ばれた結果は採りません。評価は Worker で動かし、時間の上限（既定 60 秒）で止めます
 - `records/` と `users/` にはレコードの値・個人情報が入ります（macOS / Linux では本人だけが読める権限で書きます。Windows はユーザーフォルダーの権限に依るので、共有フォルダーに置かないでください）。`.claude/settings.json` は Claude Code の直接の Read を拒否し、AI は要約コマンドで形だけを見ます。ただし、許可した kintone MCP の取得結果（`kintone-get-records` など）と `calc` の出力（変わる項目の前後の値）は AI が読み、Claude の処理に使われます（git に入らないことと、AI に渡らないことは別です）。Bash で開くことは CLAUDE.md で禁じていますが技術的な遮断ではないので、確認が出たら利用者が拒否してください。作業が終わったら消し、リポジトリは private に。実データを使えない場合は、テスト用のアプリとサンプルのデータで試してください（上の「推奨」）
 - 脆弱性の報告先と、tools が守ること・利用者が守ることの一覧は [tools/SECURITY.md](tools/SECURITY.md)
 

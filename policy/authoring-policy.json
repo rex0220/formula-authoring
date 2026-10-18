@@ -1,4 +1,4 @@
 {
-  "allowFunctions": [],
+  "allowFunctions": ["BUTTON", "DIALOG", "FSET", "FSET_TADD"],
   "allowMiscChanges": false
 }
