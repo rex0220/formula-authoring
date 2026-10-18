@@ -64,6 +64,30 @@ export const PATTERN_CASES = [
     section: "テーブルの行", pattern: "別のテーブルへ転記（項目の対応を変えて）", data: [{ テーブル1: T1_ROWS, テーブル2: [] }],
     formulas: [{ formula: 'TABLE_DATA(TABLE_MAP(テーブル1, TPDIC("T2_文字列", T1_文字列, "T2_数値", T1_数値)))', as: "テーブル2", show: "T2_数値", expect: [["100", "200", "300"]] }]
   },
+  {
+    section: "テーブルの行", pattern: "条件に合う行だけ転記・2 つのテーブルを 1 つに・転記で値を作る（TABLE_DATA）",
+    fields: [{ code: "テーブル3", type: "SUBTABLE", fields: [{ code: "T3_文字列", type: "TEXT" }, { code: "T3_数値", type: "NUMBER" }] }],
+    data: [{ テーブル1: T1_ROWS, テーブル2: [{ T2_文字列: "x", T2_数値: 5 }], テーブル3: [] }],
+    formulas: [
+      { formula: 'TABLE_DATA(TABLE_MAP(テーブル1, TPFILTER(T1_数値>150), TPDIC("T2_文字列", T1_文字列, "T2_数値", T1_数値)))', as: "テーブル2", show: "T2_数値", expect: [["200", "300"]], note: "TPFILTER の条件に合う行だけ" },
+      { formula: 'TABLE_DATA(TABLE_MAP(テーブル1, TPDIC("T3_文字列", T1_文字列, "T3_数値", T1_数値)), TABLE_MAP(テーブル2, TPDIC("T3_文字列", T2_文字列, "T3_数値", T2_数値)))', as: "テーブル3", show: "T3_文字列", expect: [["a", "b", "c", "x"]], note: "テーブル1 の行の後にテーブル2 の行" },
+      { formula: 'TABLE_DATA(TABLE_MAP(テーブル1, TPDIC("T2_文字列", T1_文字列 & "-" & T1_ドロップダウン, "T2_数値", T1_数値 * 2)))', as: "テーブル2", show: "T2_文字列", expect: [["a-B", "b-A", "c-A"]], note: "TPDIC の値に式を書ける" }
+    ]
+  },
+  {
+    section: "テーブルの行", pattern: "別のテーブルからキーで値を引く（表引き）・キーごとの辞書（TABLE_DIC）",
+    data: [{ テーブル1: T1_ROWS, テーブル2: [{ T2_文字列: "c" }, { T2_文字列: "a" }, { T2_文字列: "z" }] }],
+    formulas: [
+      { formula: "LET(k, T2_文字列, FIRSTIF(T1_文字列 = k, T1_数値))", as: "T2_数値", table: "テーブル2", expect: [["300", "100", ""]], note: "テーブル2 の行ごとに、テーブル1 の同じキーの行の値。見つからなければ空" },
+      { formula: "LET(k, T2_文字列, NVL(FIRSTIF(T1_文字列 = k, T1_数値), 0))", as: "T2_数値", table: "テーブル2", expect: [["300", "100", "0"]] },
+      { formula: 'DIC_ITEM(DIC_ITEM(TABLE_DIC(テーブル1, T1_文字列, TPDIC("値", T1_数値)), "b"), "値")', as: "NUMBER", expect: ["200"], note: "キーを決めて引く" },
+      { formula: 'JSON_S(TABLE_DIC(テーブル1, T1_ドロップダウン, TPDIC("値", T1_数値)))', as: "TEXT", expect: ["{'B':{'値':'100'},'A':{'値':'200'}}"], note: "同じキーは最初の行" },
+      { formula: 'JSON_S(TABLE_DIC(テーブル1, T1_ドロップダウン, TPOPT("REPLACE","Y"), TPDIC("値", T1_数値)))', as: "TEXT", expect: ["{'B':{'値':'100'},'A':{'値':'300'}}"], note: "TPOPT(\"REPLACE\",\"Y\") で最後の行" },
+      { formula: 'NVL(DIC_ITEM(DIC_ITEM(TABLE_DIC(テーブル1, T1_文字列, TPDIC("値", T1_数値)), T2_文字列), "値"), "")', as: "T2_数値", table: "テーブル2", expect: [["300", "100", ""]], note: "テーブルの行ごとのキーで引く（Ver.101 の 2026-10-19 の直しから。それより前は TABLE_DIC の後に読む同じ行の項目が最後に回した行の値になり、どの行も空だった）" },
+      { formula: 'LET(k, T2_文字列, d, TABLE_DIC(テーブル1, T1_文字列, TPDIC("値", T1_数値)), NVL(DIC_ITEM(DIC_ITEM(d, k), "値"), ""))', as: "T2_数値", table: "テーブル2", expect: [["300", "100", ""]], note: "行の項目を TABLE_DIC より先に LET で読む形（直す前の zip でも正しい）" },
+      { formula: "LET(d, TABLE_SORT(テーブル1, TPSORT(T1_数値, 0)), T2_文字列)", as: "T2_文字列", table: "テーブル2", expect: [["c", "a", "z"]], note: "TLTABLE / TABLE_SORT / TABLE_MAP / TABLE_DIC の後に同じ行の項目を読んでも、その行の値（2026-10-19 の直し。それより前は最後に回した行の値）" }
+    ]
+  },
   // ---- テーブルの集計 ----
   {
     section: "テーブルの集計", pattern: "合計・件数・最大・最小（テーブルの外）", data: [{ テーブル1: T1_ROWS }, { テーブル1: [] }],
@@ -370,6 +394,26 @@ export const PATTERN_CASES = [
       { formula: 'ARRAY_GET(SPLIT(TRIM(文字列1), "-"), 1) & "/" & ARRAY_COUNT(SPLIT(TRIM(文字列1), "-"))', expect: ["123/3"], note: "SPLIT で配列にして ARRAY_GET（0 から）" }
     ]
   },
+  {
+    section: "文字列の操作", pattern: "正規表現（形の検査・取り出し・位置・置換）",
+    fields: [{ code: "郵便番号", type: "TEXT" }, { code: "電話番号", type: "TEXT" }, { code: "備考", type: "TEXT" }],
+    data: [
+      { 郵便番号: "100-0005", 電話番号: "03-1234-5678", 備考: "注文番号 A-1023 と A-2048、至急" },
+      { 郵便番号: "1000005", 電話番号: "０３－１２３４－５６７８", 備考: "番号なし" },
+      { 郵便番号: "", 電話番号: "", 備考: "" }
+    ],
+    formulas: [
+      { formula: 'IF(郵便番号 = "", "", IF(TESTRE(郵便番号, "^[0-9]{3}-[0-9]{4}$"), "", "郵便番号は 123-4567 の形で"))', as: "TEXT", expect: ["", "郵便番号は 123-4567 の形で", ""], note: "TESTRE は true / false。空も false なので空を先に分ける" },
+      { formula: 'TESTRE(郵便番号, "^\\d{3}-\\d{4}$")', as: "TEXT", expect: ["true", "false", "false"], note: "\\d は式に 1 つの \\ で書く（\\\\d と 2 つにすると合わない）" },
+      { formula: 'MATCH(備考, "A-[0-9]+")', as: "TEXT", expect: ["A-1023", "", ""], note: "最初の 1 つ。無ければ空" },
+      { formula: 'JOIN(MATCH(備考, "A-[0-9]+", "g"), "、")', as: "TEXT", expect: ["A-1023、A-2048", "", ""], note: "\"g\" で全部を配列に" },
+      { formula: 'SEARCH(備考, "[0-9]")', as: "NUMBER", expect: ["7", "-1", "-1"], note: "0 から数えた位置。無ければ -1" },
+      { formula: 'IF(TESTRE(備考, "A-[0-9]+"), REPLACERE(備考, "^.*?(A-[0-9]+).*$", "$1"), "")', as: "TEXT", expect: ["A-1023", "", ""], note: "$1 は括弧の中。合わないと元の文字のままなので TESTRE で分ける。.* だと最後の方（A-2048）、.*? で最初の方" },
+      { formula: 'REPLACERE(ASC(電話番号), "-", "g", "")', as: "TEXT", expect: ["0312345678", "0312345678", ""], note: "\"g\" で全部。全角は ASC で半角に" },
+      { formula: 'REPLACERE(電話番号, "-", "")', as: "TEXT", expect: ["031234-5678", "０３－１２３４－５６７８", ""], note: "\"g\" が無いと最初の 1 つだけ" },
+      { formula: 'TESTRE(備考, "A-1", "番号")', as: "TEXT", expect: ["true", "true", "false"], note: "パターンを並べると、どれか 1 つに合えば true" }
+    ]
+  },
   // ---- テーブルの検査 ----
   {
     section: "テーブルの検査", pattern: "重複・件数・条件に合う行の別項目・最大の行", data: [{ テーブル1: [{ T1_文字列: "a", T1_数値: 10 }, { T1_文字列: "b", T1_数値: 30 }, { T1_文字列: "a", T1_数値: 20 }, { T1_文字列: "", T1_数値: "" }] }],
@@ -441,5 +485,51 @@ export const PATTERN_CASES = [
   {
     section: "ボタン・イベント", pattern: "イベントで結果を変える（既定は allUpdate）", records: [3],
     formulas: [{ formula: 'EV_INFO("type")', as: "TEXT", expect: ["allUpdate"] }]
+  },
+  // ---- 数学・金融（M_ / R_） ----
+  {
+    section: "数学・金融（M_ / R_）", pattern: "距離・成長率・対数・角度（M_）",
+    fields: ["緯度1", "経度1", "緯度2", "経度2", "始値", "終値", "年数", "勾配", "利率"].map((code) => ({ code, type: "NUMBER" })),
+    data: [{ 緯度1: 35.681236, 経度1: 139.767125, 緯度2: 34.702485, 経度2: 135.495951, 始値: 1000000, 終値: 1500000, 年数: 5, 勾配: 10, 利率: 0.03 }, {}],
+    formulas: [
+      { formula: "LET(R, 6371, p1, M_RAD(緯度1), p2, M_RAD(緯度2), dp, M_RAD(緯度2 - 緯度1), dl, M_RAD(経度2 - 経度1), a, M_POW(M_SIN(dp / 2), 2) + M_COS(p1) * M_COS(p2) * M_POW(M_SIN(dl / 2), 2), ROUND(2 * R * M_ATAN2(M_POW(a, 0.5), M_POW(1 - a, 0.5)), 1))", as: "NUMBER", expect: ["403.1", ""], note: "東京駅〜大阪駅の直線の距離（km。地球を半径 6,371 km の球とみなす）。空の値があると空" },
+      { formula: "ROUND((M_POW(終値 / 始値, 1 / 年数) - 1) * 100, 2)", as: "NUMBER", expect: ["8.45", ""], note: "年平均成長率（%）" },
+      { formula: "ROUND((M_NTHROOT(終値 / 始値, 年数) - 1) * 100, 2)", as: "NUMBER", expect: ["8.45", ""], note: "N 乗根でも同じ" },
+      { formula: "ROUND(M_LOG(2) / M_LOG(1 + 利率), 1)", as: "NUMBER", expect: ["23.4", ""], note: "2 倍になる年数（利率は小数）" },
+      { formula: "ROUND(M_DEG(M_ATAN(勾配 / 100)), 2)", as: "NUMBER", expect: ["5.71", ""], note: "勾配 10% の角度（度）。三角関数はラジアン" }
+    ]
+  },
+  {
+    section: "数学・金融（M_ / R_）", pattern: "ローンの返済額・利息・積立（R_PMT / R_CUMIPMT / R_FV）",
+    fields: ["借入額", "年利", "年数", "毎月の積立額"].map((code) => ({ code, type: "NUMBER" })),
+    data: [{ 借入額: 1000000, 年利: 3, 年数: 3, 毎月の積立額: 20000 }, { 借入額: 1000000, 年利: 0, 年数: 3, 毎月の積立額: 20000 }, {}],
+    formulas: [
+      { formula: "ROUND(-R_PMT(年利 / 100 / 12, 年数 * 12, 借入額), 0)", as: "NUMBER", expect: ["29081", "27778", ""], note: "毎月の返済額（元利均等）。返り値は支払いなのでマイナス。利率は 1 回分。0% でも動く" },
+      { formula: "ROUND(-R_PMT(年利 / 100 / 12, 年数 * 12, 借入額) * 年数 * 12 - 借入額, 0)", as: "NUMBER", expect: ["46924", "0", ""], note: "利息の総額" },
+      { formula: "ROUND(-R_CUMIPMT(年利 / 100 / 12, 年数 * 12, 借入額, 1, 12, 0), 0)", as: "NUMBER", expect: ["25577", "", ""], note: "1〜12 回目の利息の合計。利率 0 のときは空" },
+      { formula: "ROUND(R_FV(年利 / 100 / 12, 年数 * 12, -毎月の積立額), 0)", as: "NUMBER", expect: ["752411", "720000", ""], note: "積立の将来の額。積立額はマイナスで渡す" }
+    ]
+  },
+  {
+    section: "数学・金融（M_ / R_）", pattern: "返済予定表（R_IPMT / R_PPMT / R_CUMPRINC）",
+    fields: [{ code: "借入額", type: "NUMBER" }, { code: "年利", type: "NUMBER" }, { code: "回数", type: "NUMBER" }, { code: "返済予定", type: "SUBTABLE", fields: ["回", "利息", "元本", "残高"].map((code) => ({ code, type: "NUMBER" })) }],
+    data: [{ 借入額: 1000000, 年利: 3, 回数: 6, 返済予定: [{}, {}, {}, {}, {}, {}] }],
+    formulas: [
+      { formula: "ROWNO(返済予定) + 1", as: "回", table: "返済予定", expect: [["1", "2", "3", "4", "5", "6"]], note: "行数はテーブル自身の式（回数）で" },
+      { formula: "LET(n, ROWNO(返済予定) + 1, ROUND(-R_IPMT(年利 / 100 / 12, n, 回数, 借入額), 0))", as: "利息", table: "返済予定", expect: [["2500", "2086", "1671", "1255", "837", "419"]] },
+      { formula: "LET(n, ROWNO(返済予定) + 1, ROUND(-R_PPMT(年利 / 100 / 12, n, 回数, 借入額), 0))", as: "元本", table: "返済予定", expect: [["165628", "166042", "166457", "166873", "167291", "167709"]] },
+      { formula: "LET(n, ROWNO(返済予定) + 1, ROUND(借入額 + R_CUMPRINC(年利 / 100 / 12, 回数, 借入額, 1, n, 0), 0))", as: "残高", table: "返済予定", expect: [["834372", "668330", "501873", "334999", "167709", "0"]], note: "R_CUMPRINC（1〜n 回目の元本の合計。マイナス）を借入額に足す" }
+    ]
+  },
+  {
+    section: "数学・金融（M_ / R_）", pattern: "投資の判断（R_NPV / R_IRR / R_XIRR）",
+    fields: [{ code: "割引率", type: "NUMBER" }, { code: "CF", type: "SUBTABLE", fields: [{ code: "日付", type: "DATE" }, { code: "CF金額", type: "NUMBER" }] }],
+    data: [{ 割引率: 5, CF: [{ 日付: "2026-01-01", CF金額: -100000 }, { 日付: "2027-01-01", CF金額: 40000 }, { 日付: "2028-01-01", CF金額: 50000 }, { 日付: "2029-01-01", CF金額: 60000 }] }],
+    formulas: [
+      { formula: "ROUND(FIRSTIF(ROWNO(CF) = 0, CF金額) + R_NPV(割引率 / 100, TARRAYIF(ROWNO(CF) > 0, CF金額)), 0)", as: "NUMBER", expect: ["35277"], note: "正味現在価値。今の投資（1 行目）は割り引かずに足す" },
+      { formula: "ROUND(R_NPV(割引率 / 100, TARRAY(CF金額)), 0)", as: "NUMBER", expect: ["33597"], note: "R_NPV は 1 つ目の値も 1 期割り引く（Excel の NPV と同じ）。全部を渡すと今の投資まで割り引く" },
+      { formula: "ROUND(R_IRR(TARRAY(CF金額)) * 100, 2)", as: "NUMBER", expect: ["21.65"], note: "内部収益率（%）。キャッシュフローは最初がマイナス（投資）" },
+      { formula: "ROUND(R_XIRR(TARRAY(CF金額), TARRAY(日付)) * 100, 2)", as: "NUMBER", expect: ["21.64"], note: "日付つき（不規則な間隔）" }
+    ]
   }
 ];
