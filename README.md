@@ -173,6 +173,15 @@ kintone/
 | `… edit --app N` | 今の設定（一番新しいダウンロード / pull）を `…-edit.json` に写す。直すのはこちら（接続のファイルがあるとき） |
 | `… files --app N` | アプリのフォルダーのファイル（今の設定、直したもの、その他の設定、records）（接続のファイルがあるとき） |
 
+## Claude Code のプラグイン `formula` / Claude Desktop の拡張機能（任意）
+
+[formula MCP](https://github.com/rex0220/formula-authoring-mcp) を入れると、AI は tools の CLI の代わりに、プラグインのツール（`fml_docs` の手順、`fml_save_settings` / `fml_update_fields` の保存、`fml_calc` の模擬の計算、kintone からの読み取り）で同じ作業をします。このフォルダーと、`settings/`・`kintone/` の置き場所はそのまま使えます。Claude Desktop（kintone MCP も Claude Code も無い）でも、同じ拡張機能（`.mcpb`）で設定を作れます。
+
+- **Claude Code**: ターミナルの `claude` で `/plugin install formula --marketplace rex0220/formula-authoring-mcp`（Claude Code 2.1.275 以降）。設定は `/plugin configure formula@rex0220-formula`（か `/config`）で、計算式プラグインの zip（空ならこのフォルダーの `.env` の `FORMULA_PLUGIN_ZIP`）と kintone の接続のファイル（絶対パス。プラグインは `.env` の 1 接続の形を読まないので、kintone を使うには接続のファイルが要ります）。作業フォルダーは、初めてツールを使うときに確認が出て登録されます（登録の後は `/mcp` で formula を再接続）
+- **Claude Desktop**: [リリース](https://github.com/rex0220/formula-authoring-mcp/releases/latest) の `formula-authoring-<版>.mcpb` を入れ、設定で作業フォルダー（このフォルダー）、計算式プラグインの zip、接続のファイルを選びます。テスト用アプリとテストデータの作成（kintone MCP の書き込み）は Desktop ではできないので、利用者が作ります
+- プラグインは中核（tools）を束ねているので、このフォルダーの tools（npm）とは別に版が上がります。計算式プラグインの zip は同じものを使います
+- 使わないときは `/plugin` の Installed で無効にします。AI は [docs/AI作業手順.md](docs/AI作業手順.md) の CLI の手順に戻ります。詳しくは [docs/バージョンアップ手順.md](docs/バージョンアップ手順.md) の 5 章
+
 ## テンプレートの更新を取り込む
 
 計算式プラグインの新しい版に合わせて、このテンプレートの docs/ と tools の版は更新されます。**フォルダーを作り直す必要はありません。** 計算式プラグインを上げただけなら、ふつうは `.env` の zip を入れ替えるだけです。zip の入れ替え、tools だけを上げる方法、Claude Code に頼む方法、作り直すときに写すもの、つまずいたときは [docs/バージョンアップ手順.md](docs/バージョンアップ手順.md) にあります。
