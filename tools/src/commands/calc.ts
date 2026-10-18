@@ -31,6 +31,8 @@ export interface CalcInput {
   user?: string;
   usersInfo: UsersInfoTable | null;
   usersOrigin: UsersOrigin | { kind: "none" };
+  /** APP_URL を使う式でも、接続先が無ければ既定の接続先（例の URL）で評価する（try。サンプルアプリに実在の接続は無い）。既定は名指しで止める */
+  allowDefaultBaseUrl?: boolean;
 }
 
 export interface CalcLine {
@@ -110,7 +112,7 @@ export function calcSettings(input: CalcInput): CalcResult {
   // 文脈が足りなければ名指しで止める（黙って既定にしない。計画 5 章、Codex #6）
   const needs = normalized.contextNeeds;
   const ctx = engine.context();
-  if (needs.appUrl.length && ctx.baseUrl === DEFAULT_CONTEXT_BASE_URL) throw new InputError(`APP_URL を使う項目（${needs.appUrl.join(", ")}）があるが、接続先の URL が無い（.env の KINTONE_BASE_URL）`);
+  if (needs.appUrl.length && ctx.baseUrl === DEFAULT_CONTEXT_BASE_URL && !input.allowDefaultBaseUrl) throw new InputError(`APP_URL を使う項目（${needs.appUrl.join(", ")}）があるが、接続先の URL が無い（.env の KINTONE_BASE_URL）`);
   if (needs.login.length && !loginUser) throw new InputError(`ログインユーザーを使う項目（${needs.login.join(", ")}）があるが、ユーザーが決まらない（--user <code>。既定の authoring が ${input.usersOrigin.kind === "file" ? input.usersOrigin.file : "テストデータ"} に居ない）`);
   for (const l of needs.lookups) if (!(l.arg in targets.lookupTargets)) throw new InputError(`${l.fieldcode} の LOOKUP_GETID(${l.arg}): ${l.arg} はルックアップ項目でないか、参照先のアプリを参照する権限が無い（fields を取り直す）`);
   for (const l of needs.related) if (!(l.arg in targets.relatedTargets)) throw new InputError(`${l.fieldcode} の RELATED_GETID(${l.arg}): ${l.arg} は関連レコード一覧でないか、参照先のアプリを参照する権限が無い`);

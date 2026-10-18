@@ -17,7 +17,9 @@ const NAMES = [
   "readFieldsFile", "readJsonLimited", "readTextLimited", "InputError", "MAX_INPUT_BYTES", "jsonErrorWhere", "jsonErrorText",
   "createRestClient", "RestError", "NotAllowedError", "ALLOWED_APIS", "ALLOWED_USER_APIS", "RECEIVE_LIMITS",
   "resolveRead", "resolveWrite", "isInside", "realResolve", "WRITE_ROOTS", "PathError",
-  "ENVELOPE_KEYS", "ROW_SOURCE_KEYS", "ROW_SCREEN_KEYS", "Findings"
+  "ENVELOPE_KEYS", "ROW_SOURCE_KEYS", "ROW_SCREEN_KEYS", "Findings",
+  // tools 0.3.0（計画 25 章）: サンプルアプリと式の試し計算
+  "SAMPLE_APP", "sampleApp", "describeSampleApp", "trySettings", "resolveTryTarget", "buildTryEnvelope", "TRY_MAX_FORMULAS", "TRY_MAX_FORMULA_CHARS", "TRY_DEFAULT_AS"
 ];
 
 test("core の入口に MCP が使う名前があり、CORE_API_VERSION は 2", () => {

@@ -17,12 +17,13 @@ Projects/
 
 ## 構成
 
-- `src/cli.ts` … `formula-authoring <command>`（version / fields / record / records / pull / summary / diff / users / normalize / calc、接続のファイルがあるときの take / edit / files）。読むのは cwd の中、書くのは fields/ records/ settings/ temp/ users/ kintone/ の下だけ（`src/safe-path.ts`。kintone/ の下は `src/permission.ts` の許可も）。`.env` / policy / zip / 接続のファイルの場所は固定
+- `src/cli.ts` … `formula-authoring <command>`（version / fields / record / records / pull / summary / diff / users / normalize / calc / try、接続のファイルがあるときの take / edit / files）。読むのは cwd の中、書くのは fields/ records/ settings/ temp/ users/ kintone/ の下だけ（`src/safe-path.ts`。kintone/ の下は `src/permission.ts` の許可も）。`.env` / policy / zip / 接続のファイルの場所は固定
 - `src/plugin-zip.ts` … 計算式プラグインの zip（contents.zip の 2 層）を Node の zlib だけで読む。大きさ・entry 数・展開後の上限、CRC-32、名前の一致、重複を検査
 - `src/engine.ts` … zip のエンジン（`KintoneFormula.min.js` → `bignumber` → `rex0220_decimal` → `moment-timezone` → `formula-authoring-api.js` の順）と authoring API を happy-dom + ダミー層（ログインユーザー、アプリ番号、ルックアップ先、ユーザー情報、sink の記録）で動かす。照合（プラグイン ID、版、API の版、API のキーと型）。走査の間は `dq`（評価）を遮断する（`blockDq`）
 - `src/scan.ts` … 計算式の字面の走査（関数、識別子、文字列と、それを引数に持つ関数）。評価しない
 - `src/commands/normalize.ts` … 設定画面と同じ手順の検査（生の JSON の未知のキー → normalizeSource → 走査（副作用 / 文脈 / イベント / ユーザー情報）→ checkFormula / deriveSemantic → 循環 → 大きさ）と既定値を補った封筒。`src/normalize/` … 規則（findings）、policy、型、差分
 - `src/commands/calc.ts` … 取得したレコードに設定を当てる模擬（authoring API の `calcRecord`。イベント、ログインユーザー、ユーザー情報、文脈の fail-closed、sink の拒否）。`src/worker/` … 評価を Worker で動かし時間上限で止める
+- `src/commands/try.ts` / `src/commands/try-data.ts` / `src/sample-app.ts` … 式の試し計算（`try`。formula MCP の `fml_try`）。`try-data.ts` は架空の項目（標本に足す）と簡略形の値（kintone の形に変換・検査）。同梱のサンプルアプリ（`src/sample-app/`。全項目タイプ × 2、テーブル 2 つ、レコード 3 件 = 典型 / 端 / 空。実在の値は無い。`scripts/gen-sample-app.mjs` で取り直す）に式ごとに 1 行だけの設定を組み、normalize → calc で値（型に入れた後の値と、エンジンの生の値）を返す。利用者のアプリ・レコード・接続は使わない
 - `src/users/` … ユーザー情報のテストデータ（既定の架空の 10 人）と `users/*.json` の形。`src/commands/users.ts` … User API からの取得（全部 / `--only-referenced` = 式が参照するコードとその所属だけ）
 - `src/connections.ts` / `src/workspace.ts` / `src/permission.ts` / `src/commit-file.ts` … kintone の接続のファイル（kSQL の `ksql.config.json` と同じ形。profile、`tokenMap`、`userApiToken`）、`kintone/<profile>/<番号>-<アプリ名>/` のフォルダーと印 `.formula-app.json`、kintone/ の下を変える許可、ファイルの確定とロック（print-craft-authoring tools 2.0.0 の写し）
 - `src/env.ts` / `src/kintone-rest.ts` / `src/kintone-url.ts` … `.env`（kintone 公式 MCP と同じ `KINTONE_*` + `FORMULA_PLUGIN_ZIP` / `FORMULA_KINTONE_CONFIG` / `FORMULA_USER_API_TOKEN`）、GET 専用・許可 API 固定・送信先固定の REST（kintone REST API と User API）
@@ -59,6 +60,7 @@ npm pack --dry-run  # 公開前に中身を確かめる（dist、vendor、LICENS
 
 ## 履歴
 
+- 0.3.0（2026-10）: 式の試し計算 `try`（計画 25 章。formula MCP 0.2.0 の `fml_try`）。同梱のサンプルアプリ（`src/sample-app/`）に 1 行だけの設定を組んで normalize → calc。架空の項目と値（`src/commands/try-data.ts`: `--fields` で標本に項目を足す、`--data` で簡略形の値のレコード、`--app` で利用者のアプリの項目定義に架空の値）。`core` に `trySettings` / `SAMPLE_APP` / `describeSampleApp`、評価の仕事の kind `try`（`EvalJob` の `settingsText` / `settingsFile` / `fields` は try では省略できる）、`calcSettings` の `allowDefaultBaseUrl`。`CORE_API_VERSION` は 2 のまま（足しただけ）
 - 0.2.1（2026-10）: formula MCP の Codex レビューへの対応。`updateFields` の `common` を共通の設定のキー（`COMMON_KEYS`）だけに。Worker の中の誤りの種類（`EvalError.kind`）と名前を中核が instanceof で決める（zip のコードの例外の name / constructor.name / 文を応答や標準エラーに出さない。`classifyEvalError` / `builtinErrorName`）。保存の結果の想定外の誤りも種類だけ（`zipCode`）。CLI の想定外の誤りは種類だけ（`FORMULA_DEBUG=1` で文とスタック）。接続の誤りの文の print-craft の名残を直した
 - 0.2.0（2026-10）: formula MCP のための中核の入口（`CORE_API_VERSION` 2。CLI の動きは変えない）。`core` に workspace / connections / permission / commit-file / take / users の参照コード / JSON の誤りの文 / 行のキーを追加。`src/commands/save.ts`（`saveNewSettings` / `updateFields`）。`runEval` の `workerFile`（Worker の入口の絶対パス）と `captureOutput`（Worker の標準出力・標準エラーを親に流さず受け取る）、`loadEngine` の `vendorDir`（moment の置き場所）。評価の結果に `findings` と calc のレコードごとの行
 - 0.1.0（2026-10）: 最初の公開。version / fields / record / records / pull / summary / diff / users / normalize / calc / take / edit / files。扱う計算式プラグイン Ver.101 以降、authoring API 1

@@ -1,0 +1,713 @@
+{
+  "tool": "formula-authoring record",
+  "fetchedAt": "2026-01-15T00:00:00.000Z",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 4329,
+  "id": 1,
+  "record": {
+    "チェック2": {
+      "type": "CHECK_BOX",
+      "value": [
+        "甲"
+      ]
+    },
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "value": "1"
+    },
+    "ドロップダウン2": {
+      "type": "DROP_DOWN",
+      "value": "乙"
+    },
+    "ユーザー2": {
+      "type": "USER_SELECT",
+      "value": [
+        {
+          "code": "demo_user01",
+          "name": "架空 社長"
+        },
+        {
+          "code": "demo_user02",
+          "name": "架空 営業部長"
+        }
+      ]
+    },
+    "組織1": {
+      "type": "ORGANIZATION_SELECT",
+      "value": [
+        {
+          "code": "demo_hq",
+          "name": "架空本社"
+        }
+      ]
+    },
+    "ドロップダウン1": {
+      "type": "DROP_DOWN",
+      "value": "A"
+    },
+    "更新者": {
+      "type": "MODIFIER",
+      "value": {
+        "code": "demo_user02",
+        "name": "架空 営業部長"
+      }
+    },
+    "ユーザー1": {
+      "type": "USER_SELECT",
+      "value": [
+        {
+          "code": "demo_user01",
+          "name": "架空 社長"
+        }
+      ]
+    },
+    "組織2": {
+      "type": "ORGANIZATION_SELECT",
+      "value": [
+        {
+          "code": "demo_sales",
+          "name": "架空営業部"
+        }
+      ]
+    },
+    "テーブル2": {
+      "type": "SUBTABLE",
+      "value": [
+        {
+          "id": "7727389",
+          "value": {
+            "T2_複数選択": {
+              "type": "MULTI_SELECT",
+              "value": [
+                "B"
+              ]
+            },
+            "T2_文字列複数行": {
+              "type": "MULTI_LINE_TEXT",
+              "value": "T2 行 1\n2 行目"
+            },
+            "T2_リンク": {
+              "type": "LINK",
+              "value": "https://example.com/"
+            },
+            "T2_リッチ": {
+              "type": "RICH_TEXT",
+              "value": "<div>T2 行 1</div>"
+            },
+            "T2_文字列": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "T2 行 1"
+            },
+            "T2_チェック": {
+              "type": "CHECK_BOX",
+              "value": [
+                "A"
+              ]
+            },
+            "T2_ユーザー": {
+              "type": "USER_SELECT",
+              "value": [
+                {
+                  "code": "demo_user01",
+                  "name": "架空 社長"
+                }
+              ]
+            },
+            "T2_グループ": {
+              "type": "GROUP_SELECT",
+              "value": [
+                {
+                  "code": "demo_managers",
+                  "name": "架空管理職"
+                }
+              ]
+            },
+            "T2_日付": {
+              "type": "DATE",
+              "value": "2026-02-01"
+            },
+            "T2_数値": {
+              "type": "NUMBER",
+              "value": "10"
+            },
+            "T2_ドロップダウン": {
+              "type": "DROP_DOWN",
+              "value": "C"
+            },
+            "T2_組織": {
+              "type": "ORGANIZATION_SELECT",
+              "value": [
+                {
+                  "code": "demo_hq",
+                  "name": "架空本社"
+                }
+              ]
+            },
+            "T2_計算": {
+              "type": "CALC",
+              "value": "20"
+            },
+            "T2_ラジオ": {
+              "type": "RADIO_BUTTON",
+              "value": "A"
+            },
+            "T2_日時": {
+              "type": "DATETIME",
+              "value": "2026-02-01T00:30:00Z"
+            },
+            "T2_添付": {
+              "type": "FILE",
+              "value": []
+            },
+            "T2_時刻": {
+              "type": "TIME",
+              "value": "09:30"
+            }
+          }
+        },
+        {
+          "id": "7727392",
+          "value": {
+            "T2_複数選択": {
+              "type": "MULTI_SELECT",
+              "value": [
+                "B"
+              ]
+            },
+            "T2_文字列複数行": {
+              "type": "MULTI_LINE_TEXT",
+              "value": "T2 行 2\n2 行目"
+            },
+            "T2_リンク": {
+              "type": "LINK",
+              "value": "https://example.com/"
+            },
+            "T2_リッチ": {
+              "type": "RICH_TEXT",
+              "value": "<div>T2 行 2</div>"
+            },
+            "T2_文字列": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "T2 行 2"
+            },
+            "T2_チェック": {
+              "type": "CHECK_BOX",
+              "value": [
+                "A"
+              ]
+            },
+            "T2_ユーザー": {
+              "type": "USER_SELECT",
+              "value": [
+                {
+                  "code": "demo_user01",
+                  "name": "架空 社長"
+                }
+              ]
+            },
+            "T2_グループ": {
+              "type": "GROUP_SELECT",
+              "value": [
+                {
+                  "code": "demo_managers",
+                  "name": "架空管理職"
+                }
+              ]
+            },
+            "T2_日付": {
+              "type": "DATE",
+              "value": "2026-02-02"
+            },
+            "T2_数値": {
+              "type": "NUMBER",
+              "value": "20"
+            },
+            "T2_ドロップダウン": {
+              "type": "DROP_DOWN",
+              "value": "B"
+            },
+            "T2_組織": {
+              "type": "ORGANIZATION_SELECT",
+              "value": [
+                {
+                  "code": "demo_hq",
+                  "name": "架空本社"
+                }
+              ]
+            },
+            "T2_計算": {
+              "type": "CALC",
+              "value": "40"
+            },
+            "T2_ラジオ": {
+              "type": "RADIO_BUTTON",
+              "value": "A"
+            },
+            "T2_日時": {
+              "type": "DATETIME",
+              "value": "2026-02-02T00:30:00Z"
+            },
+            "T2_添付": {
+              "type": "FILE",
+              "value": []
+            },
+            "T2_時刻": {
+              "type": "TIME",
+              "value": "09:30"
+            }
+          }
+        }
+      ]
+    },
+    "ステータス": {
+      "type": "STATUS",
+      "value": "未処理"
+    },
+    "グループ1": {
+      "type": "GROUP_SELECT",
+      "value": [
+        {
+          "code": "demo_managers",
+          "name": "架空管理職"
+        }
+      ]
+    },
+    "テーブル1": {
+      "type": "SUBTABLE",
+      "value": [
+        {
+          "id": "7727380",
+          "value": {
+            "T1_ユーザー": {
+              "type": "USER_SELECT",
+              "value": [
+                {
+                  "code": "demo_user01",
+                  "name": "架空 社長"
+                }
+              ]
+            },
+            "T1_文字列複数行": {
+              "type": "MULTI_LINE_TEXT",
+              "value": "行 1\n2 行目"
+            },
+            "T1_ラジオ": {
+              "type": "RADIO_BUTTON",
+              "value": "A"
+            },
+            "T1_複数選択": {
+              "type": "MULTI_SELECT",
+              "value": [
+                "B"
+              ]
+            },
+            "T1_日付": {
+              "type": "DATE",
+              "value": "2026-01-10"
+            },
+            "T1_ドロップダウン": {
+              "type": "DROP_DOWN",
+              "value": "A"
+            },
+            "T1_リッチ": {
+              "type": "RICH_TEXT",
+              "value": "<div>行 1</div>"
+            },
+            "T1_数値": {
+              "type": "NUMBER",
+              "value": "100"
+            },
+            "T1_組織": {
+              "type": "ORGANIZATION_SELECT",
+              "value": [
+                {
+                  "code": "demo_hq",
+                  "name": "架空本社"
+                }
+              ]
+            },
+            "T1_リンク": {
+              "type": "LINK",
+              "value": "https://example.com/"
+            },
+            "T1_文字列": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "行 1"
+            },
+            "T1_計算": {
+              "type": "CALC",
+              "value": "200"
+            },
+            "T1_添付": {
+              "type": "FILE",
+              "value": []
+            },
+            "T1_日時": {
+              "type": "DATETIME",
+              "value": "2026-01-10T00:30:00Z"
+            },
+            "T1_グループ": {
+              "type": "GROUP_SELECT",
+              "value": [
+                {
+                  "code": "demo_managers",
+                  "name": "架空管理職"
+                }
+              ]
+            },
+            "T1_チェック": {
+              "type": "CHECK_BOX",
+              "value": [
+                "A"
+              ]
+            },
+            "T1_時刻": {
+              "type": "TIME",
+              "value": "09:30"
+            }
+          }
+        },
+        {
+          "id": "7727383",
+          "value": {
+            "T1_ユーザー": {
+              "type": "USER_SELECT",
+              "value": [
+                {
+                  "code": "demo_user01",
+                  "name": "架空 社長"
+                }
+              ]
+            },
+            "T1_文字列複数行": {
+              "type": "MULTI_LINE_TEXT",
+              "value": "行 2\n2 行目"
+            },
+            "T1_ラジオ": {
+              "type": "RADIO_BUTTON",
+              "value": "A"
+            },
+            "T1_複数選択": {
+              "type": "MULTI_SELECT",
+              "value": [
+                "B"
+              ]
+            },
+            "T1_日付": {
+              "type": "DATE",
+              "value": "2026-01-20"
+            },
+            "T1_ドロップダウン": {
+              "type": "DROP_DOWN",
+              "value": "B"
+            },
+            "T1_リッチ": {
+              "type": "RICH_TEXT",
+              "value": "<div>行 2</div>"
+            },
+            "T1_数値": {
+              "type": "NUMBER",
+              "value": "200"
+            },
+            "T1_組織": {
+              "type": "ORGANIZATION_SELECT",
+              "value": [
+                {
+                  "code": "demo_hq",
+                  "name": "架空本社"
+                }
+              ]
+            },
+            "T1_リンク": {
+              "type": "LINK",
+              "value": "https://example.com/"
+            },
+            "T1_文字列": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "行 2"
+            },
+            "T1_計算": {
+              "type": "CALC",
+              "value": "400"
+            },
+            "T1_添付": {
+              "type": "FILE",
+              "value": []
+            },
+            "T1_日時": {
+              "type": "DATETIME",
+              "value": "2026-01-20T00:30:00Z"
+            },
+            "T1_グループ": {
+              "type": "GROUP_SELECT",
+              "value": [
+                {
+                  "code": "demo_managers",
+                  "name": "架空管理職"
+                }
+              ]
+            },
+            "T1_チェック": {
+              "type": "CHECK_BOX",
+              "value": [
+                "A"
+              ]
+            },
+            "T1_時刻": {
+              "type": "TIME",
+              "value": "09:30"
+            }
+          }
+        },
+        {
+          "id": "7727386",
+          "value": {
+            "T1_ユーザー": {
+              "type": "USER_SELECT",
+              "value": [
+                {
+                  "code": "demo_user01",
+                  "name": "架空 社長"
+                }
+              ]
+            },
+            "T1_文字列複数行": {
+              "type": "MULTI_LINE_TEXT",
+              "value": "行 3\n2 行目"
+            },
+            "T1_ラジオ": {
+              "type": "RADIO_BUTTON",
+              "value": "A"
+            },
+            "T1_複数選択": {
+              "type": "MULTI_SELECT",
+              "value": [
+                "B"
+              ]
+            },
+            "T1_日付": {
+              "type": "DATE",
+              "value": "2026-01-30"
+            },
+            "T1_ドロップダウン": {
+              "type": "DROP_DOWN",
+              "value": "A"
+            },
+            "T1_リッチ": {
+              "type": "RICH_TEXT",
+              "value": "<div>行 3</div>"
+            },
+            "T1_数値": {
+              "type": "NUMBER",
+              "value": "300"
+            },
+            "T1_組織": {
+              "type": "ORGANIZATION_SELECT",
+              "value": [
+                {
+                  "code": "demo_hq",
+                  "name": "架空本社"
+                }
+              ]
+            },
+            "T1_リンク": {
+              "type": "LINK",
+              "value": "https://example.com/"
+            },
+            "T1_文字列": {
+              "type": "SINGLE_LINE_TEXT",
+              "value": "行 3"
+            },
+            "T1_計算": {
+              "type": "CALC",
+              "value": "600"
+            },
+            "T1_添付": {
+              "type": "FILE",
+              "value": []
+            },
+            "T1_日時": {
+              "type": "DATETIME",
+              "value": "2026-01-30T00:30:00Z"
+            },
+            "T1_グループ": {
+              "type": "GROUP_SELECT",
+              "value": [
+                {
+                  "code": "demo_managers",
+                  "name": "架空管理職"
+                }
+              ]
+            },
+            "T1_チェック": {
+              "type": "CHECK_BOX",
+              "value": [
+                "A"
+              ]
+            },
+            "T1_時刻": {
+              "type": "TIME",
+              "value": "09:30"
+            }
+          }
+        }
+      ]
+    },
+    "ラジオ1": {
+      "type": "RADIO_BUTTON",
+      "value": "B"
+    },
+    "グループ2": {
+      "type": "GROUP_SELECT",
+      "value": [
+        {
+          "code": "demo_approvers",
+          "name": "架空承認者"
+        }
+      ]
+    },
+    "ラジオ2": {
+      "type": "RADIO_BUTTON",
+      "value": "乙"
+    },
+    "リッチ1": {
+      "type": "RICH_TEXT",
+      "value": "<div><b>太字</b>と<i>斜体</i></div>"
+    },
+    "時刻2": {
+      "type": "TIME",
+      "value": "17:45"
+    },
+    "カテゴリー": {
+      "type": "CATEGORY",
+      "value": []
+    },
+    "時刻1": {
+      "type": "TIME",
+      "value": "09:30"
+    },
+    "リンク1": {
+      "type": "LINK",
+      "value": "https://example.com/sample"
+    },
+    "リッチ2": {
+      "type": "RICH_TEXT",
+      "value": "<div>リッチ 2</div>"
+    },
+    "リンク2": {
+      "type": "LINK",
+      "value": "sample@example.com"
+    },
+    "計算2": {
+      "type": "CALC",
+      "value": "-75"
+    },
+    "計算1": {
+      "type": "CALC",
+      "value": "1290.78"
+    },
+    "複数選択2": {
+      "type": "MULTI_SELECT",
+      "value": [
+        "丙"
+      ]
+    },
+    "日時1": {
+      "type": "DATETIME",
+      "value": "2026-01-15T00:30:00Z"
+    },
+    "複数選択1": {
+      "type": "MULTI_SELECT",
+      "value": [
+        "A",
+        "B"
+      ]
+    },
+    "日時2": {
+      "type": "DATETIME",
+      "value": "2026-03-31T08:45:00Z"
+    },
+    "枠内数値1": {
+      "type": "NUMBER",
+      "value": "42"
+    },
+    "作業者": {
+      "type": "STATUS_ASSIGNEE",
+      "value": []
+    },
+    "作成者": {
+      "type": "CREATOR",
+      "value": {
+        "code": "demo_user01",
+        "name": "架空 社長"
+      }
+    },
+    "$revision": {
+      "type": "__REVISION__",
+      "value": "2"
+    },
+    "文字列2": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "サンプル文字列 2"
+    },
+    "文字列1": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "サンプル文字列 1"
+    },
+    "更新日時": {
+      "type": "UPDATED_TIME",
+      "value": "2026-01-15T00:00:00Z"
+    },
+    "添付1": {
+      "type": "FILE",
+      "value": []
+    },
+    "添付2": {
+      "type": "FILE",
+      "value": []
+    },
+    "文字列複数行2": {
+      "type": "MULTI_LINE_TEXT",
+      "value": "複数行 2"
+    },
+    "日付1": {
+      "type": "DATE",
+      "value": "2026-01-15"
+    },
+    "枠内文字列1": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "枠の中の文字列"
+    },
+    "文字列複数行1": {
+      "type": "MULTI_LINE_TEXT",
+      "value": "1 行目\n2 行目\n3 行目"
+    },
+    "日付2": {
+      "type": "DATE",
+      "value": "2026-03-31"
+    },
+    "数値2": {
+      "type": "NUMBER",
+      "value": "56.78"
+    },
+    "数値1": {
+      "type": "NUMBER",
+      "value": "1234"
+    },
+    "チェック1": {
+      "type": "CHECK_BOX",
+      "value": [
+        "A",
+        "C"
+      ]
+    },
+    "作成日時": {
+      "type": "CREATED_TIME",
+      "value": "2026-01-15T00:00:00Z"
+    },
+    "$id": {
+      "type": "__ID__",
+      "value": "1"
+    }
+  }
+}

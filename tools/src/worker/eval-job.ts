@@ -2,6 +2,7 @@
  * Worker に渡す仕事と返す結果（構造化クローンで渡せる形だけ。関数やクラスは渡さない）。
  * normalize / calc の評価（zip のコードの実行）は Worker の中で行い、主スレッドは時間上限で terminate する（計画 7 章・11 章、Codex レビュー BLOCKER 1）。
  * tools 0.2.0（MCP。計画 24 章）: 結果に findings と calc のレコードごとの行を足した（MCP が構造のまま返す。CLI は summary / text を使う）。vendorDir（moment の置き場所）
+ * tools 0.3.0（計画 25 章）: kind "try"（同梱のサンプルアプリで式の試し計算。設定ファイル・項目定義は要らない）。結果の try
  */
 import type { FieldsFile } from "../commands/fields.ts";
 import type { KintoneRecord } from "../commands/record.ts";
@@ -10,9 +11,11 @@ import type { Finding } from "../normalize/findings.ts";
 import type { Policy } from "../normalize/policy.ts";
 import type { UsersOrigin, UsersSource } from "../users/index.ts";
 import type { CalcEvent } from "../engine.ts";
+import type { TryFormula, TryResult } from "../commands/try.ts";
+import type { TryData, TryFieldDef } from "../commands/try-data.ts";
 
 export interface EvalJob {
-  kind: "normalize" | "calc";
+  kind: "normalize" | "calc" | "try";
   /** 読み込み元（絶対パス。CLI が .env から決める） */
   pluginZip?: string;
   devPluginDir?: string;
@@ -21,9 +24,10 @@ export interface EvalJob {
   vendorDir?: string;
   /** 接続先（検証済み。APP_URL などの元。無ければ既定） */
   baseUrl?: string;
-  settingsText: string;
-  settingsFile: string;
-  fields: FieldsFile;
+  /** 設定と項目定義（normalize / calc。try では要らない） */
+  settingsText?: string;
+  settingsFile?: string;
+  fields?: FieldsFile;
   usersSource: UsersSource;
   usersOrigin: UsersOrigin;
   policy: Policy;
@@ -37,9 +41,25 @@ export interface EvalJob {
     mobile?: boolean;
     user?: string;
   };
+  /** 式の試し計算（kind "try"。サンプルアプリに 1 行だけの設定を組んで normalize + calc） */
+  try?: {
+    formulas: TryFormula[];
+    /** 標本のレコードの番号（1〜3。省略は全部。data があるときの省略は無し） */
+    records?: number[];
+    /** 標本に足す項目（案 2）、架空の値のレコード（案 1）、その土台（1〜3）、利用者のアプリの項目定義（案 3） */
+    fields?: TryFieldDef[];
+    data?: TryData[];
+    base?: number;
+    appFields?: FieldsFile;
+    evType?: string;
+    event?: CalcEvent;
+    mobile?: boolean;
+    user?: string;
+  };
 }
 
 export interface EvalOutcome {
+  /** normalize の結果（try では式ごとの結果の集計: summary は試し計算の要約、hasErrors は ok でない式があるか、findings は空（式ごとの findings は try.results）） */
   normalize: {
     summary: string;
     hasErrors: boolean;
@@ -62,6 +82,8 @@ export interface EvalOutcome {
     notice: string;
     summary: string;
   };
+  /** 式の試し計算の結果（kind "try"） */
+  try?: TryResult;
   /** エンジンの読み込みの注意 */
   engineWarnings: string[];
 }

@@ -6,6 +6,7 @@
  * 工程 1（2026-10-17）: version / fields / record / records / pull / summary / diff / users。工程 2: normalize / calc。
  * 工程 1 の後半（2026-10-17）: 接続のファイル（複数の profile。FORMULA_KINTONE_CONFIG。workspace.ts / connections.ts）、kintone/ のフォルダー（take / edit / files）、
  * users --pull --only-referenced、User API の cybozu.com 共通の API トークン。print-craft-authoring tools 2.0.0 の CLI と同じ形。
+ * tools 0.3.0（計画 25 章）: try（同梱のサンプルアプリで式の試し計算。利用者のアプリ・レコードは使わない）。
  * 終了コード: 0 成功、1 検査のエラー・認証・kintone・zip・入力・接続の誤り、2 使い方の誤り（パスの制限を含む）。
  */
 import { chmodSync, existsSync, mkdirSync, realpathSync, writeFileSync } from "node:fs";
@@ -34,6 +35,7 @@ import { summarizeSettings } from "./commands/summary.ts";
 import { diffSettings } from "./commands/diff.ts";
 import { UsersPullError, pullReferencedUsers, pullUsers, referencedCodesOf, usersFileNameOf } from "./commands/users.ts";
 import { takeInbox } from "./commands/take.ts";
+import { describeSampleApp } from "./sample-app.ts";
 import { PolicyError, loadPolicy } from "./normalize/policy.ts";
 import { DEFAULT_TIMEOUT_SEC, EvalError, EvalTimeoutError, MAX_TIMEOUT_SEC, runEval } from "./worker/run.ts";
 import { builtinErrorName } from "./worker/eval-run.ts";
@@ -63,6 +65,16 @@ const USAGE = `使い方: npx @rex0220/formula-authoring-tools <command> [option
   calc <settings.json> --app N (--id R | --records R1,R2,…) [--fields fields/N.json] [--users <f>] [--user <code>]
        [--event <種別>] [--action A --status S --next-status T] [--mobile] [--timeout 秒]
                                             取得済みのレコード（records/）に設定を当てた模擬（更新しない）。評価は Worker で動かし、既定 60 秒で止める
+  try "<式>" [--as <型 | 項目コード>] [--table <テーブル>] [--records 1,2,3] [--users <f>] [--user <code>]
+      [--event <種別>] [--action A --status S --next-status T] [--mobile] [--timeout 秒]
+      [--fields '<JSON>'] [--data '<JSON>'] [--base 3] [--app N]
+                                            同梱のサンプルアプリ（全項目タイプ × 2、テーブル 2 つ、レコード 3 件 = 典型 / 端 / 空）に 1 行だけの設定を組んで
+                                            検査と模擬の計算（関数の使い方や式の断片を確かめる。利用者のアプリは使わない）。--as は型（NUMBER / TEXT / DATE …。
+                                            既定 TEXT = 文字列 1 行）か項目コード、テーブルの中で計算するなら --table テーブル1。
+                                            --fields '[{"code":"単価","type":"NUMBER"},{"code":"分類","type":"DROP_DOWN","options":["明細","小計"]}]' で項目を足す、
+                                            --data '[{"単価":100,"テーブル1":[{"T1_数値":1}]}]' で架空の値のレコード（土台は --base の標本。既定 3 = 空）、
+                                            --app N で利用者のアプリの項目定義（fields/N.json かアプリのフォルダー）に --data の架空の値を当てる
+  try --describe                            サンプルアプリの項目（1 項目 1 行。○ = 計算式を設定できる型）とレコード 3 件の形
   help
 
 kintone の接続のファイル（FORMULA_KINTONE_CONFIG があるとき。kSQL の ksql.config.json と同じ形。複数のドメイン・アプリ）:
@@ -521,6 +533,70 @@ async function cmdCalc(positional: string[], flags: Flags): Promise<number> {
   return outcome.calc.failed ? 1 : 0;
 }
 
+async function cmdTry(positional: string[], flags: Flags): Promise<number> {
+  if (has(flags, "describe")) {
+    let targetTypes: ReadonlySet<string> | undefined;
+    try {
+      targetTypes = new Set((await engineOf()).api.TARGET_TYPES as readonly string[]);
+    } catch {
+      targetTypes = undefined; // zip が無くても項目は出す（○ / － の印なし）
+    }
+    console.log(describeSampleApp(targetTypes));
+    return 0;
+  }
+  const formula = positional[1];
+  if (!formula) throw new UsageError('try "<式>" [--as <型 | 項目コード>] [--table <テーブル>]（または try --describe）');
+  let records: number[] | undefined;
+  const recordsFlag = str(flags, "records");
+  if (recordsFlag) {
+    records = recordsFlag.split(",").map((x) => x.trim()).filter(Boolean).map((x) => {
+      if (!/^[1-9]$/.test(x)) throw new UsageError(`--records はサンプルレコードの番号（1〜3。カンマ区切り）: ${x}`);
+      return Number(x);
+    });
+  }
+  const { src, origin } = usersSourceOf(str(flags, "users"));
+  const jsonFlag = (k: string): unknown => {
+    const v = str(flags, k);
+    if (v === undefined) return undefined;
+    if (Buffer.byteLength(v, "utf8") > 64 * 1024) throw new UsageError(`--${k} は 64 KiB まで`);
+    try {
+      return JSON.parse(v);
+    } catch (e) {
+      throw new UsageError(`--${k} が JSON として読めない: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+  const fieldsDef = jsonFlag("fields") as TryFieldDef[] | undefined;
+  const data = jsonFlag("data") as TryData[] | undefined;
+  const base = intFlag(flags, "base", false);
+  // --app: 利用者のアプリの項目定義（fields --summary と同じ場所）に架空の値（--data）を当てる。接続先はその profile（無ければ .env）
+  let appFields: FieldsFile | undefined;
+  let baseUrl: string | undefined;
+  const app = intFlag(flags, "app", false);
+  if (app !== undefined) {
+    const ctx = context(flags);
+    const rel = ctx.def ? path.join(existingAppDir(ctx as Ctx & { def: ProfileDef }, app), "fields.json") : path.join("fields", `${app}.json`);
+    appFields = readFieldsFile(existingFile(rel, `fields --app ${app}${profileFlag(ctx)}`));
+    baseUrl = trustedBaseUrl(ctx.def ? { profile: ctx.def.profile } : null, flags);
+  } else if (has(flags, "profile")) throw new UsageError("--profile は --app（利用者のアプリの項目定義）と一緒に使う");
+  const job: EvalJob = {
+    kind: "try", pluginZip: pluginZipPath(authOpt()), devPluginDir: W.env.FORMULA_ALLOW_DEV_PLUGIN === "1" ? formulaProdDir(W.env) : undefined, baseUrl,
+    usersSource: src, usersOrigin: origin, policy: loadPolicy(W.root), lang: str(flags, "lang") as "ja" | "en" | "zh" | undefined,
+    try: {
+      formulas: [{ formula, as: str(flags, "as"), table: str(flags, "table") }], records, fields: fieldsDef, data, base, appFields, evType: str(flags, "event"),
+      event: has(flags, "action") || has(flags, "status") || has(flags, "next-status") ? { action: { value: str(flags, "action") ?? "" }, status: { value: str(flags, "status") ?? "" }, nextStatus: { value: str(flags, "next-status") ?? "" } } : undefined,
+      mobile: has(flags, "mobile"), user: str(flags, "user")
+    }
+  };
+  const outcome = await runEval(job, { timeoutSec: timeoutOf(flags), inline: inline() });
+  for (const w of outcome.engineWarnings) console.log(`注意: ${w}`);
+  if (!outcome.try) throw new Error("try の結果が無い（tools の誤り）");
+  console.log(outcome.try.text);
+  return outcome.try.results.every((r) => r.status === "ok") ? 0 : 1;
+}
+type TryFieldDef = import("./commands/try-data.ts").TryFieldDef;
+type TryData = import("./commands/try-data.ts").TryData;
+type FieldsFile = import("./commands/fields.ts").FieldsFile;
+
 async function cmdUsers(flags: Flags): Promise<number> {
   if (has(flags, "summary")) {
     const { src, origin } = usersSourceOf(str(flags, "users"));
@@ -641,6 +717,7 @@ export async function main(argv: string[]): Promise<number> {
       case "users": return await cmdUsers(flags);
       case "normalize": return await cmdNormalize(positional, flags);
       case "calc": return await cmdCalc(positional, flags);
+      case "try": return await cmdTry(positional, flags);
       case "take": return await cmdTake(flags);
       case "edit": return await cmdEdit(positional, flags);
       case "files": return await cmdFiles(flags);

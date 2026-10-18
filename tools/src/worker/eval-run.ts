@@ -2,6 +2,7 @@
 import { loadEngine } from "../engine.ts";
 import { normalizeSettings } from "../commands/normalize.ts";
 import { calcSettings } from "../commands/calc.ts";
+import { trySettings } from "../commands/try.ts";
 import { buildUsersInfo, UsersDataError } from "../users/index.ts";
 import { InputError } from "../input.ts";
 import { PluginZipError } from "../plugin-zip.ts";
@@ -37,6 +38,17 @@ export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
   if (job.baseUrl) engine.setContext({ baseUrl: job.baseUrl });
   const usersInfo = buildUsersInfo(job.usersSource);
   const usersLabel = job.usersOrigin.kind === "file" ? job.usersOrigin.file : "既定のテストデータ（架空）";
+  if (job.kind === "try") {
+    if (!job.try) throw new InputError("try の仕事に式が無い（try.formulas）");
+    const t = job.try;
+    const r = await trySettings({
+      engine, formulas: t.formulas, records: t.records, fields: t.fields, data: t.data, base: t.base, appFields: t.appFields, evType: t.evType, event: t.event, mobile: t.mobile, user: t.user,
+      usersInfo, usersOrigin: job.usersOrigin, usersLabel, policy: job.policy, lang: job.lang
+    });
+    const warnings = r.results.reduce((n, x) => n + x.findings.filter((f) => f.level === "warning").length, 0);
+    return { normalize: { summary: r.summary, hasErrors: r.results.some((x) => x.status !== "ok"), warnings, findings: [] }, try: r, engineWarnings: [...engine.warnings] };
+  }
+  if (job.settingsText === undefined || job.settingsFile === undefined || !job.fields) throw new InputError(`${job.kind} の仕事に設定か項目定義が無い（settingsText / settingsFile / fields）`);
   const res = await normalizeSettings({
     settingsText: job.settingsText, settingsFile: job.settingsFile, fields: job.fields, engine, policy: job.policy, check: job.check, lang: job.lang, usersInfo, usersLabel, usersOrigin: job.usersOrigin
   });

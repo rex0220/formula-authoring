@@ -1,0 +1,207 @@
+{
+  "tool": "formula-authoring record",
+  "fetchedAt": "2026-01-15T00:00:00.000Z",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 4329,
+  "id": 3,
+  "record": {
+    "チェック2": {
+      "type": "CHECK_BOX",
+      "value": []
+    },
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "value": "3"
+    },
+    "ドロップダウン2": {
+      "type": "DROP_DOWN",
+      "value": null
+    },
+    "ユーザー2": {
+      "type": "USER_SELECT",
+      "value": []
+    },
+    "組織1": {
+      "type": "ORGANIZATION_SELECT",
+      "value": []
+    },
+    "ドロップダウン1": {
+      "type": "DROP_DOWN",
+      "value": null
+    },
+    "更新者": {
+      "type": "MODIFIER",
+      "value": {
+        "code": "demo_user02",
+        "name": "架空 営業部長"
+      }
+    },
+    "ユーザー1": {
+      "type": "USER_SELECT",
+      "value": []
+    },
+    "組織2": {
+      "type": "ORGANIZATION_SELECT",
+      "value": []
+    },
+    "テーブル2": {
+      "type": "SUBTABLE",
+      "value": []
+    },
+    "ステータス": {
+      "type": "STATUS",
+      "value": "未処理"
+    },
+    "グループ1": {
+      "type": "GROUP_SELECT",
+      "value": []
+    },
+    "テーブル1": {
+      "type": "SUBTABLE",
+      "value": []
+    },
+    "ラジオ1": {
+      "type": "RADIO_BUTTON",
+      "value": "A"
+    },
+    "グループ2": {
+      "type": "GROUP_SELECT",
+      "value": []
+    },
+    "ラジオ2": {
+      "type": "RADIO_BUTTON",
+      "value": "甲"
+    },
+    "リッチ1": {
+      "type": "RICH_TEXT",
+      "value": ""
+    },
+    "時刻2": {
+      "type": "TIME",
+      "value": null
+    },
+    "カテゴリー": {
+      "type": "CATEGORY",
+      "value": []
+    },
+    "時刻1": {
+      "type": "TIME",
+      "value": null
+    },
+    "リンク1": {
+      "type": "LINK",
+      "value": ""
+    },
+    "リッチ2": {
+      "type": "RICH_TEXT",
+      "value": ""
+    },
+    "リンク2": {
+      "type": "LINK",
+      "value": ""
+    },
+    "計算2": {
+      "type": "CALC",
+      "value": "0"
+    },
+    "計算1": {
+      "type": "CALC",
+      "value": "0"
+    },
+    "複数選択2": {
+      "type": "MULTI_SELECT",
+      "value": []
+    },
+    "日時1": {
+      "type": "DATETIME",
+      "value": ""
+    },
+    "複数選択1": {
+      "type": "MULTI_SELECT",
+      "value": []
+    },
+    "日時2": {
+      "type": "DATETIME",
+      "value": ""
+    },
+    "枠内数値1": {
+      "type": "NUMBER",
+      "value": ""
+    },
+    "作業者": {
+      "type": "STATUS_ASSIGNEE",
+      "value": []
+    },
+    "作成者": {
+      "type": "CREATOR",
+      "value": {
+        "code": "demo_user01",
+        "name": "架空 社長"
+      }
+    },
+    "$revision": {
+      "type": "__REVISION__",
+      "value": "2"
+    },
+    "文字列2": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "文字列1": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": "空のレコード"
+    },
+    "更新日時": {
+      "type": "UPDATED_TIME",
+      "value": "2026-01-15T00:00:00Z"
+    },
+    "添付1": {
+      "type": "FILE",
+      "value": []
+    },
+    "添付2": {
+      "type": "FILE",
+      "value": []
+    },
+    "文字列複数行2": {
+      "type": "MULTI_LINE_TEXT",
+      "value": ""
+    },
+    "日付1": {
+      "type": "DATE",
+      "value": null
+    },
+    "枠内文字列1": {
+      "type": "SINGLE_LINE_TEXT",
+      "value": ""
+    },
+    "文字列複数行1": {
+      "type": "MULTI_LINE_TEXT",
+      "value": ""
+    },
+    "日付2": {
+      "type": "DATE",
+      "value": null
+    },
+    "数値2": {
+      "type": "NUMBER",
+      "value": ""
+    },
+    "数値1": {
+      "type": "NUMBER",
+      "value": ""
+    },
+    "チェック1": {
+      "type": "CHECK_BOX",
+      "value": []
+    },
+    "作成日時": {
+      "type": "CREATED_TIME",
+      "value": "2026-01-15T00:00:00Z"
+    },
+    "$id": {
+      "type": "__ID__",
+      "value": "3"
+    }
+  }
+}

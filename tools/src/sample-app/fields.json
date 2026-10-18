@@ -1,0 +1,1751 @@
+{
+  "tool": "formula-authoring fields",
+  "fetchedAt": "2026-01-15T00:00:00.000Z",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 4329,
+  "appName": "計算式サンプル",
+  "preview": false,
+  "lang": "ja",
+  "revision": "1",
+  "properties": {
+    "チェック2": {
+      "type": "CHECK_BOX",
+      "code": "チェック2",
+      "label": "チェック2",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "甲": {
+          "label": "甲",
+          "index": "0"
+        },
+        "乙": {
+          "label": "乙",
+          "index": "1"
+        },
+        "丙": {
+          "label": "丙",
+          "index": "2"
+        }
+      },
+      "defaultValue": [],
+      "align": "HORIZONTAL"
+    },
+    "レコード番号": {
+      "type": "RECORD_NUMBER",
+      "code": "レコード番号",
+      "label": "レコード番号",
+      "noLabel": false
+    },
+    "ドロップダウン2": {
+      "type": "DROP_DOWN",
+      "code": "ドロップダウン2",
+      "label": "ドロップダウン2",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "甲": {
+          "label": "甲",
+          "index": "0"
+        },
+        "乙": {
+          "label": "乙",
+          "index": "1"
+        },
+        "丙": {
+          "label": "丙",
+          "index": "2"
+        }
+      },
+      "defaultValue": ""
+    },
+    "ユーザー2": {
+      "type": "USER_SELECT",
+      "code": "ユーザー2",
+      "label": "ユーザー2",
+      "noLabel": false,
+      "required": false,
+      "entities": [],
+      "defaultValue": []
+    },
+    "組織1": {
+      "type": "ORGANIZATION_SELECT",
+      "code": "組織1",
+      "label": "組織1",
+      "noLabel": false,
+      "required": false,
+      "entities": [],
+      "defaultValue": []
+    },
+    "ドロップダウン1": {
+      "type": "DROP_DOWN",
+      "code": "ドロップダウン1",
+      "label": "ドロップダウン1",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "A": {
+          "label": "A",
+          "index": "0"
+        },
+        "B": {
+          "label": "B",
+          "index": "1"
+        },
+        "C": {
+          "label": "C",
+          "index": "2"
+        }
+      },
+      "defaultValue": ""
+    },
+    "更新者": {
+      "type": "MODIFIER",
+      "code": "更新者",
+      "label": "更新者",
+      "noLabel": false
+    },
+    "ユーザー1": {
+      "type": "USER_SELECT",
+      "code": "ユーザー1",
+      "label": "ユーザー1",
+      "noLabel": false,
+      "required": false,
+      "entities": [],
+      "defaultValue": []
+    },
+    "組織2": {
+      "type": "ORGANIZATION_SELECT",
+      "code": "組織2",
+      "label": "組織2",
+      "noLabel": false,
+      "required": false,
+      "entities": [],
+      "defaultValue": []
+    },
+    "テーブル2": {
+      "type": "SUBTABLE",
+      "code": "テーブル2",
+      "noLabel": false,
+      "label": "テーブル2",
+      "fields": {
+        "T2_複数選択": {
+          "type": "MULTI_SELECT",
+          "code": "T2_複数選択",
+          "label": "T2_複数選択",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "A": {
+              "label": "A",
+              "index": "0"
+            },
+            "B": {
+              "label": "B",
+              "index": "1"
+            },
+            "C": {
+              "label": "C",
+              "index": "2"
+            }
+          },
+          "defaultValue": []
+        },
+        "T2_文字列複数行": {
+          "type": "MULTI_LINE_TEXT",
+          "code": "T2_文字列複数行",
+          "label": "T2_文字列複数行",
+          "noLabel": false,
+          "required": false,
+          "defaultValue": ""
+        },
+        "T2_リンク": {
+          "type": "LINK",
+          "code": "T2_リンク",
+          "label": "T2_リンク",
+          "noLabel": false,
+          "required": false,
+          "protocol": "WEB",
+          "minLength": "",
+          "maxLength": "",
+          "unique": false,
+          "defaultValue": ""
+        },
+        "T2_リッチ": {
+          "type": "RICH_TEXT",
+          "code": "T2_リッチ",
+          "label": "T2_リッチ",
+          "noLabel": false,
+          "required": false,
+          "defaultValue": ""
+        },
+        "T2_文字列": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "T2_文字列",
+          "label": "T2_文字列",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "T2_チェック": {
+          "type": "CHECK_BOX",
+          "code": "T2_チェック",
+          "label": "T2_チェック",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "A": {
+              "label": "A",
+              "index": "0"
+            },
+            "B": {
+              "label": "B",
+              "index": "1"
+            },
+            "C": {
+              "label": "C",
+              "index": "2"
+            }
+          },
+          "defaultValue": [],
+          "align": "HORIZONTAL"
+        },
+        "T2_ユーザー": {
+          "type": "USER_SELECT",
+          "code": "T2_ユーザー",
+          "label": "T2_ユーザー",
+          "noLabel": false,
+          "required": false,
+          "entities": [],
+          "defaultValue": []
+        },
+        "T2_グループ": {
+          "type": "GROUP_SELECT",
+          "code": "T2_グループ",
+          "label": "T2_グループ",
+          "noLabel": false,
+          "required": false,
+          "entities": [],
+          "defaultValue": []
+        },
+        "T2_日付": {
+          "type": "DATE",
+          "code": "T2_日付",
+          "label": "T2_日付",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "T2_数値": {
+          "type": "NUMBER",
+          "code": "T2_数値",
+          "label": "T2_数値",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": false,
+          "unique": false,
+          "defaultValue": "",
+          "displayScale": "",
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "T2_ドロップダウン": {
+          "type": "DROP_DOWN",
+          "code": "T2_ドロップダウン",
+          "label": "T2_ドロップダウン",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "A": {
+              "label": "A",
+              "index": "0"
+            },
+            "B": {
+              "label": "B",
+              "index": "1"
+            },
+            "C": {
+              "label": "C",
+              "index": "2"
+            }
+          },
+          "defaultValue": ""
+        },
+        "T2_組織": {
+          "type": "ORGANIZATION_SELECT",
+          "code": "T2_組織",
+          "label": "T2_組織",
+          "noLabel": false,
+          "required": false,
+          "entities": [],
+          "defaultValue": []
+        },
+        "T2_計算": {
+          "type": "CALC",
+          "code": "T2_計算",
+          "label": "T2_計算",
+          "noLabel": false,
+          "required": false,
+          "expression": "T2_数値 * 2",
+          "format": "NUMBER",
+          "displayScale": "",
+          "hideExpression": false,
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "T2_ラジオ": {
+          "type": "RADIO_BUTTON",
+          "code": "T2_ラジオ",
+          "label": "T2_ラジオ",
+          "noLabel": false,
+          "required": true,
+          "options": {
+            "A": {
+              "label": "A",
+              "index": "0"
+            },
+            "B": {
+              "label": "B",
+              "index": "1"
+            },
+            "C": {
+              "label": "C",
+              "index": "2"
+            }
+          },
+          "defaultValue": "A",
+          "align": "HORIZONTAL"
+        },
+        "T2_日時": {
+          "type": "DATETIME",
+          "code": "T2_日時",
+          "label": "T2_日時",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "T2_添付": {
+          "type": "FILE",
+          "code": "T2_添付",
+          "label": "T2_添付",
+          "noLabel": false,
+          "required": false,
+          "thumbnailSize": "50"
+        },
+        "T2_時刻": {
+          "type": "TIME",
+          "code": "T2_時刻",
+          "label": "T2_時刻",
+          "noLabel": false,
+          "required": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        }
+      }
+    },
+    "ステータス": {
+      "type": "STATUS",
+      "code": "ステータス",
+      "label": "ステータス",
+      "enabled": true
+    },
+    "グループ1": {
+      "type": "GROUP_SELECT",
+      "code": "グループ1",
+      "label": "グループ1",
+      "noLabel": false,
+      "required": false,
+      "entities": [],
+      "defaultValue": []
+    },
+    "テーブル1": {
+      "type": "SUBTABLE",
+      "code": "テーブル1",
+      "noLabel": false,
+      "label": "テーブル1",
+      "fields": {
+        "T1_ユーザー": {
+          "type": "USER_SELECT",
+          "code": "T1_ユーザー",
+          "label": "T1_ユーザー",
+          "noLabel": false,
+          "required": false,
+          "entities": [],
+          "defaultValue": []
+        },
+        "T1_文字列複数行": {
+          "type": "MULTI_LINE_TEXT",
+          "code": "T1_文字列複数行",
+          "label": "T1_文字列複数行",
+          "noLabel": false,
+          "required": false,
+          "defaultValue": ""
+        },
+        "T1_ラジオ": {
+          "type": "RADIO_BUTTON",
+          "code": "T1_ラジオ",
+          "label": "T1_ラジオ",
+          "noLabel": false,
+          "required": true,
+          "options": {
+            "A": {
+              "label": "A",
+              "index": "0"
+            },
+            "B": {
+              "label": "B",
+              "index": "1"
+            },
+            "C": {
+              "label": "C",
+              "index": "2"
+            }
+          },
+          "defaultValue": "A",
+          "align": "HORIZONTAL"
+        },
+        "T1_複数選択": {
+          "type": "MULTI_SELECT",
+          "code": "T1_複数選択",
+          "label": "T1_複数選択",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "A": {
+              "label": "A",
+              "index": "0"
+            },
+            "B": {
+              "label": "B",
+              "index": "1"
+            },
+            "C": {
+              "label": "C",
+              "index": "2"
+            }
+          },
+          "defaultValue": []
+        },
+        "T1_日付": {
+          "type": "DATE",
+          "code": "T1_日付",
+          "label": "T1_日付",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "T1_ドロップダウン": {
+          "type": "DROP_DOWN",
+          "code": "T1_ドロップダウン",
+          "label": "T1_ドロップダウン",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "A": {
+              "label": "A",
+              "index": "0"
+            },
+            "B": {
+              "label": "B",
+              "index": "1"
+            },
+            "C": {
+              "label": "C",
+              "index": "2"
+            }
+          },
+          "defaultValue": ""
+        },
+        "T1_リッチ": {
+          "type": "RICH_TEXT",
+          "code": "T1_リッチ",
+          "label": "T1_リッチ",
+          "noLabel": false,
+          "required": false,
+          "defaultValue": ""
+        },
+        "T1_数値": {
+          "type": "NUMBER",
+          "code": "T1_数値",
+          "label": "T1_数値",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "digit": false,
+          "unique": false,
+          "defaultValue": "",
+          "displayScale": "",
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "T1_組織": {
+          "type": "ORGANIZATION_SELECT",
+          "code": "T1_組織",
+          "label": "T1_組織",
+          "noLabel": false,
+          "required": false,
+          "entities": [],
+          "defaultValue": []
+        },
+        "T1_リンク": {
+          "type": "LINK",
+          "code": "T1_リンク",
+          "label": "T1_リンク",
+          "noLabel": false,
+          "required": false,
+          "protocol": "WEB",
+          "minLength": "",
+          "maxLength": "",
+          "unique": false,
+          "defaultValue": ""
+        },
+        "T1_文字列": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "T1_文字列",
+          "label": "T1_文字列",
+          "noLabel": false,
+          "required": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false,
+          "unique": false,
+          "defaultValue": ""
+        },
+        "T1_計算": {
+          "type": "CALC",
+          "code": "T1_計算",
+          "label": "T1_計算",
+          "noLabel": false,
+          "required": false,
+          "expression": "T1_数値 * 2",
+          "format": "NUMBER",
+          "displayScale": "",
+          "hideExpression": false,
+          "unit": "",
+          "unitPosition": "BEFORE"
+        },
+        "T1_添付": {
+          "type": "FILE",
+          "code": "T1_添付",
+          "label": "T1_添付",
+          "noLabel": false,
+          "required": false,
+          "thumbnailSize": "50"
+        },
+        "T1_日時": {
+          "type": "DATETIME",
+          "code": "T1_日時",
+          "label": "T1_日時",
+          "noLabel": false,
+          "required": false,
+          "unique": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "T1_グループ": {
+          "type": "GROUP_SELECT",
+          "code": "T1_グループ",
+          "label": "T1_グループ",
+          "noLabel": false,
+          "required": false,
+          "entities": [],
+          "defaultValue": []
+        },
+        "T1_チェック": {
+          "type": "CHECK_BOX",
+          "code": "T1_チェック",
+          "label": "T1_チェック",
+          "noLabel": false,
+          "required": false,
+          "options": {
+            "A": {
+              "label": "A",
+              "index": "0"
+            },
+            "B": {
+              "label": "B",
+              "index": "1"
+            },
+            "C": {
+              "label": "C",
+              "index": "2"
+            }
+          },
+          "defaultValue": [],
+          "align": "HORIZONTAL"
+        },
+        "T1_時刻": {
+          "type": "TIME",
+          "code": "T1_時刻",
+          "label": "T1_時刻",
+          "noLabel": false,
+          "required": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        }
+      }
+    },
+    "ラジオ1": {
+      "type": "RADIO_BUTTON",
+      "code": "ラジオ1",
+      "label": "ラジオ1",
+      "noLabel": false,
+      "required": true,
+      "options": {
+        "A": {
+          "label": "A",
+          "index": "0"
+        },
+        "B": {
+          "label": "B",
+          "index": "1"
+        },
+        "C": {
+          "label": "C",
+          "index": "2"
+        }
+      },
+      "defaultValue": "A",
+      "align": "HORIZONTAL"
+    },
+    "グループ2": {
+      "type": "GROUP_SELECT",
+      "code": "グループ2",
+      "label": "グループ2",
+      "noLabel": false,
+      "required": false,
+      "entities": [],
+      "defaultValue": []
+    },
+    "ラジオ2": {
+      "type": "RADIO_BUTTON",
+      "code": "ラジオ2",
+      "label": "ラジオ2",
+      "noLabel": false,
+      "required": true,
+      "options": {
+        "甲": {
+          "label": "甲",
+          "index": "0"
+        },
+        "乙": {
+          "label": "乙",
+          "index": "1"
+        },
+        "丙": {
+          "label": "丙",
+          "index": "2"
+        }
+      },
+      "defaultValue": "甲",
+      "align": "HORIZONTAL"
+    },
+    "リッチ1": {
+      "type": "RICH_TEXT",
+      "code": "リッチ1",
+      "label": "リッチ1",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": ""
+    },
+    "時刻2": {
+      "type": "TIME",
+      "code": "時刻2",
+      "label": "時刻2",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": "",
+      "defaultNowValue": false
+    },
+    "カテゴリー": {
+      "type": "CATEGORY",
+      "code": "カテゴリー",
+      "label": "カテゴリー",
+      "enabled": true
+    },
+    "時刻1": {
+      "type": "TIME",
+      "code": "時刻1",
+      "label": "時刻1",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": "",
+      "defaultNowValue": false
+    },
+    "リンク1": {
+      "type": "LINK",
+      "code": "リンク1",
+      "label": "リンク1（Web）",
+      "noLabel": false,
+      "required": false,
+      "protocol": "WEB",
+      "minLength": "",
+      "maxLength": "",
+      "unique": false,
+      "defaultValue": ""
+    },
+    "リッチ2": {
+      "type": "RICH_TEXT",
+      "code": "リッチ2",
+      "label": "リッチ2",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": ""
+    },
+    "リンク2": {
+      "type": "LINK",
+      "code": "リンク2",
+      "label": "リンク2（メール）",
+      "noLabel": false,
+      "required": false,
+      "protocol": "MAIL",
+      "minLength": "",
+      "maxLength": "",
+      "unique": false,
+      "defaultValue": ""
+    },
+    "計算2": {
+      "type": "CALC",
+      "code": "計算2",
+      "label": "計算2（日付の差の日数）",
+      "noLabel": false,
+      "required": false,
+      "expression": "(日付1 - 日付2) / 86400",
+      "format": "NUMBER",
+      "displayScale": "",
+      "hideExpression": false,
+      "unit": "",
+      "unitPosition": "BEFORE"
+    },
+    "計算1": {
+      "type": "CALC",
+      "code": "計算1",
+      "label": "計算1",
+      "noLabel": false,
+      "required": false,
+      "expression": "数値1 + 数値2",
+      "format": "NUMBER",
+      "displayScale": "",
+      "hideExpression": false,
+      "unit": "",
+      "unitPosition": "BEFORE"
+    },
+    "複数選択2": {
+      "type": "MULTI_SELECT",
+      "code": "複数選択2",
+      "label": "複数選択2",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "甲": {
+          "label": "甲",
+          "index": "0"
+        },
+        "乙": {
+          "label": "乙",
+          "index": "1"
+        },
+        "丙": {
+          "label": "丙",
+          "index": "2"
+        }
+      },
+      "defaultValue": []
+    },
+    "日時1": {
+      "type": "DATETIME",
+      "code": "日時1",
+      "label": "日時1",
+      "noLabel": false,
+      "required": false,
+      "unique": false,
+      "defaultValue": "",
+      "defaultNowValue": false
+    },
+    "複数選択1": {
+      "type": "MULTI_SELECT",
+      "code": "複数選択1",
+      "label": "複数選択1",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "A": {
+          "label": "A",
+          "index": "0"
+        },
+        "B": {
+          "label": "B",
+          "index": "1"
+        },
+        "C": {
+          "label": "C",
+          "index": "2"
+        }
+      },
+      "defaultValue": []
+    },
+    "日時2": {
+      "type": "DATETIME",
+      "code": "日時2",
+      "label": "日時2",
+      "noLabel": false,
+      "required": false,
+      "unique": false,
+      "defaultValue": "",
+      "defaultNowValue": false
+    },
+    "枠内数値1": {
+      "type": "NUMBER",
+      "code": "枠内数値1",
+      "label": "枠内数値1",
+      "noLabel": false,
+      "required": false,
+      "minValue": "",
+      "maxValue": "",
+      "digit": false,
+      "unique": false,
+      "defaultValue": "",
+      "displayScale": "",
+      "unit": "",
+      "unitPosition": "BEFORE"
+    },
+    "作業者": {
+      "type": "STATUS_ASSIGNEE",
+      "code": "作業者",
+      "label": "作業者",
+      "enabled": true
+    },
+    "作成者": {
+      "type": "CREATOR",
+      "code": "作成者",
+      "label": "作成者",
+      "noLabel": false
+    },
+    "文字列2": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "文字列2",
+      "label": "文字列2",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "文字列1": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "文字列1",
+      "label": "文字列1",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "更新日時": {
+      "type": "UPDATED_TIME",
+      "code": "更新日時",
+      "label": "更新日時",
+      "noLabel": false
+    },
+    "添付1": {
+      "type": "FILE",
+      "code": "添付1",
+      "label": "添付1",
+      "noLabel": false,
+      "required": false,
+      "thumbnailSize": "50"
+    },
+    "添付2": {
+      "type": "FILE",
+      "code": "添付2",
+      "label": "添付2",
+      "noLabel": false,
+      "required": false,
+      "thumbnailSize": "50"
+    },
+    "文字列複数行2": {
+      "type": "MULTI_LINE_TEXT",
+      "code": "文字列複数行2",
+      "label": "文字列複数行2",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": ""
+    },
+    "グループ枠1": {
+      "type": "GROUP",
+      "code": "グループ枠1",
+      "label": "グループ枠1",
+      "noLabel": false,
+      "openGroup": true
+    },
+    "日付1": {
+      "type": "DATE",
+      "code": "日付1",
+      "label": "日付1",
+      "noLabel": false,
+      "required": false,
+      "unique": false,
+      "defaultValue": "",
+      "defaultNowValue": false
+    },
+    "枠内文字列1": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "枠内文字列1",
+      "label": "枠内文字列1",
+      "noLabel": false,
+      "required": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "unique": false,
+      "defaultValue": ""
+    },
+    "文字列複数行1": {
+      "type": "MULTI_LINE_TEXT",
+      "code": "文字列複数行1",
+      "label": "文字列複数行1",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": ""
+    },
+    "日付2": {
+      "type": "DATE",
+      "code": "日付2",
+      "label": "日付2",
+      "noLabel": false,
+      "required": false,
+      "unique": false,
+      "defaultValue": "",
+      "defaultNowValue": false
+    },
+    "数値2": {
+      "type": "NUMBER",
+      "code": "数値2",
+      "label": "数値2",
+      "noLabel": false,
+      "required": false,
+      "minValue": "",
+      "maxValue": "",
+      "digit": true,
+      "unique": false,
+      "defaultValue": "",
+      "displayScale": "2",
+      "unit": "",
+      "unitPosition": "BEFORE"
+    },
+    "数値1": {
+      "type": "NUMBER",
+      "code": "数値1",
+      "label": "数値1",
+      "noLabel": false,
+      "required": false,
+      "minValue": "",
+      "maxValue": "",
+      "digit": false,
+      "unique": false,
+      "defaultValue": "",
+      "displayScale": "",
+      "unit": "",
+      "unitPosition": "BEFORE"
+    },
+    "チェック1": {
+      "type": "CHECK_BOX",
+      "code": "チェック1",
+      "label": "チェック1",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "A": {
+          "label": "A",
+          "index": "0"
+        },
+        "B": {
+          "label": "B",
+          "index": "1"
+        },
+        "C": {
+          "label": "C",
+          "index": "2"
+        }
+      },
+      "defaultValue": [],
+      "align": "HORIZONTAL"
+    },
+    "作成日時": {
+      "type": "CREATED_TIME",
+      "code": "作成日時",
+      "label": "作成日時",
+      "noLabel": false
+    }
+  },
+  "layout": [
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "LABEL",
+          "label": "計算式プラグインのサンプルアプリ&#xff08;全項目タイプ × 2、テーブル 2 つ&#xff09;",
+          "elementId": "",
+          "size": {
+            "width": "600"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "文字列1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "文字列2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "MULTI_LINE_TEXT",
+          "code": "文字列複数行1",
+          "size": {
+            "width": "250",
+            "innerHeight": "125"
+          }
+        },
+        {
+          "type": "MULTI_LINE_TEXT",
+          "code": "文字列複数行2",
+          "size": {
+            "width": "250",
+            "innerHeight": "125"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "RICH_TEXT",
+          "code": "リッチ1",
+          "size": {
+            "width": "250",
+            "innerHeight": "125"
+          }
+        },
+        {
+          "type": "RICH_TEXT",
+          "code": "リッチ2",
+          "size": {
+            "width": "250",
+            "innerHeight": "125"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "NUMBER",
+          "code": "数値1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "NUMBER",
+          "code": "数値2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "CALC",
+          "code": "計算1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "CALC",
+          "code": "計算2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "RADIO_BUTTON",
+          "code": "ラジオ1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "RADIO_BUTTON",
+          "code": "ラジオ2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "CHECK_BOX",
+          "code": "チェック1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "CHECK_BOX",
+          "code": "チェック2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "MULTI_SELECT",
+          "code": "複数選択1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "MULTI_SELECT",
+          "code": "複数選択2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "DROP_DOWN",
+          "code": "ドロップダウン1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "DROP_DOWN",
+          "code": "ドロップダウン2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "DATE",
+          "code": "日付1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "DATE",
+          "code": "日付2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "TIME",
+          "code": "時刻1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "TIME",
+          "code": "時刻2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "DATETIME",
+          "code": "日時1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "DATETIME",
+          "code": "日時2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "HR",
+          "elementId": "",
+          "size": {
+            "width": "600"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "FILE",
+          "code": "添付1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "FILE",
+          "code": "添付2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "LINK",
+          "code": "リンク1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "LINK",
+          "code": "リンク2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "USER_SELECT",
+          "code": "ユーザー1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "USER_SELECT",
+          "code": "ユーザー2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "ORGANIZATION_SELECT",
+          "code": "組織1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "ORGANIZATION_SELECT",
+          "code": "組織2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "GROUP_SELECT",
+          "code": "グループ1",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "GROUP_SELECT",
+          "code": "グループ2",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "GROUP",
+      "code": "グループ枠1",
+      "layout": [
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "SINGLE_LINE_TEXT",
+              "code": "枠内文字列1",
+              "size": {
+                "width": "250"
+              }
+            },
+            {
+              "type": "NUMBER",
+              "code": "枠内数値1",
+              "size": {
+                "width": "250"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "SPACER",
+          "elementId": "",
+          "size": {
+            "width": "600",
+            "height": "20"
+          }
+        }
+      ]
+    },
+    {
+      "type": "SUBTABLE",
+      "code": "テーブル1",
+      "fields": [
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "T1_文字列",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "MULTI_LINE_TEXT",
+          "code": "T1_文字列複数行",
+          "size": {
+            "width": "150",
+            "innerHeight": "125"
+          }
+        },
+        {
+          "type": "RICH_TEXT",
+          "code": "T1_リッチ",
+          "size": {
+            "width": "150",
+            "innerHeight": "125"
+          }
+        },
+        {
+          "type": "NUMBER",
+          "code": "T1_数値",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "CALC",
+          "code": "T1_計算",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "RADIO_BUTTON",
+          "code": "T1_ラジオ",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "CHECK_BOX",
+          "code": "T1_チェック",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "MULTI_SELECT",
+          "code": "T1_複数選択",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "DROP_DOWN",
+          "code": "T1_ドロップダウン",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "DATE",
+          "code": "T1_日付",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "TIME",
+          "code": "T1_時刻",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "DATETIME",
+          "code": "T1_日時",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "FILE",
+          "code": "T1_添付",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "LINK",
+          "code": "T1_リンク",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "USER_SELECT",
+          "code": "T1_ユーザー",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "ORGANIZATION_SELECT",
+          "code": "T1_組織",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "GROUP_SELECT",
+          "code": "T1_グループ",
+          "size": {
+            "width": "150"
+          }
+        }
+      ]
+    },
+    {
+      "type": "SUBTABLE",
+      "code": "テーブル2",
+      "fields": [
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "T2_文字列",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "MULTI_LINE_TEXT",
+          "code": "T2_文字列複数行",
+          "size": {
+            "width": "150",
+            "innerHeight": "125"
+          }
+        },
+        {
+          "type": "RICH_TEXT",
+          "code": "T2_リッチ",
+          "size": {
+            "width": "150",
+            "innerHeight": "125"
+          }
+        },
+        {
+          "type": "NUMBER",
+          "code": "T2_数値",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "CALC",
+          "code": "T2_計算",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "RADIO_BUTTON",
+          "code": "T2_ラジオ",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "CHECK_BOX",
+          "code": "T2_チェック",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "MULTI_SELECT",
+          "code": "T2_複数選択",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "DROP_DOWN",
+          "code": "T2_ドロップダウン",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "DATE",
+          "code": "T2_日付",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "TIME",
+          "code": "T2_時刻",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "DATETIME",
+          "code": "T2_日時",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "FILE",
+          "code": "T2_添付",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "LINK",
+          "code": "T2_リンク",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "USER_SELECT",
+          "code": "T2_ユーザー",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "ORGANIZATION_SELECT",
+          "code": "T2_組織",
+          "size": {
+            "width": "150"
+          }
+        },
+        {
+          "type": "GROUP_SELECT",
+          "code": "T2_グループ",
+          "size": {
+            "width": "150"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "RECORD_NUMBER",
+          "code": "レコード番号",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "CREATOR",
+          "code": "作成者",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "CREATED_TIME",
+          "code": "作成日時",
+          "size": {
+            "width": "250"
+          }
+        },
+        {
+          "type": "MODIFIER",
+          "code": "更新者",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "UPDATED_TIME",
+          "code": "更新日時",
+          "size": {
+            "width": "250"
+          }
+        }
+      ]
+    }
+  ],
+  "views": {
+    "（作業者が自分）": {
+      "type": "LIST",
+      "name": "（作業者が自分）",
+      "id": "16550400",
+      "filterCond": "作業者 in (LOGINUSER())",
+      "sort": "レコード番号 desc",
+      "index": "0",
+      "fields": [
+        "レコード番号",
+        "文字列1",
+        "文字列2",
+        "文字列複数行1",
+        "文字列複数行2",
+        "リッチ1",
+        "リッチ2",
+        "数値1",
+        "数値2",
+        "計算1",
+        "計算2",
+        "ラジオ1",
+        "ラジオ2",
+        "チェック1",
+        "チェック2",
+        "複数選択1",
+        "複数選択2",
+        "ドロップダウン1",
+        "ドロップダウン2",
+        "日付1",
+        "日付2",
+        "時刻1",
+        "時刻2",
+        "日時1",
+        "日時2",
+        "添付1",
+        "添付2",
+        "リンク1",
+        "リンク2",
+        "ユーザー1",
+        "ユーザー2",
+        "組織1",
+        "組織2",
+        "グループ1",
+        "グループ2",
+        "枠内文字列1",
+        "枠内数値1",
+        "ステータス",
+        "作業者"
+      ],
+      "builtinType": "ASSIGNEE"
+    }
+  }
+}

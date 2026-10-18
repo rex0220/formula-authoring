@@ -3,6 +3,7 @@
  * 工程 0（2026-10-17）: 読み込み（engine）、ダミー層（context）、ユーザー情報のテストデータ、zip の読み込み、安全なパス、接続。
  * tools 0.2.0（計画 24.4。CORE_API_VERSION 2）: 作業フォルダーとアプリのフォルダー（workspace）、接続のファイル（connections）、kintone/ の下の許可（permission）、
  * ファイルの確定とロック（commit-file）、take、保存の約束（save: saveNewSettings / updateFields）、users の参照するコードの取得、JSON の誤りの文、行のキー
+ * tools 0.3.0（計画 25 章。CORE_API_VERSION は 2 のまま = 足しただけ）: 同梱のサンプルアプリ（sample-app）と式の試し計算（try: trySettings。評価の仕事の kind "try"）
  */
 export const CORE_API_VERSION = 2;
 
@@ -33,6 +34,12 @@ export {
 export { normalizeSettings, findCycles, stronglyConnected, type ContextNeeds, type NormalizeInput, type NormalizeResult } from "./commands/normalize.ts";
 export { DEFAULT_EVENT, EVENT_RE, RECORDS_MAX, calcSettings, validateEvent, type CalcInput, type CalcLine, type CalcRecordResult, type CalcResult } from "./commands/calc.ts";
 export { takeInbox, type TakeResult } from "./commands/take.ts";
+// tools 0.3.0（計画 25 章）: 同梱のサンプルアプリと式の試し計算（try / fml_try）
+export { SAMPLE_APP, describeSampleApp, sampleApp, type SampleApp, type SampleRecord } from "./sample-app.ts";
+export { TRY_DEFAULT_AS, TRY_MAX_FORMULAS, TRY_MAX_FORMULA_CHARS, buildTryEnvelope, resolveTryTarget, trySettings, type TryFormula, type TryFormulaResult, type TryInput, type TryResult, type TryTarget, type TryValue } from "./commands/try.ts";
+export {
+  EXTRA_TYPES, TRY_MAX_DATA, TRY_MAX_EXTRA_FIELDS, TRY_MAX_OPTIONS, TRY_MAX_TABLE_ROWS, TRY_MAX_VALUE_CHARS, TYPE_ALIASES, applyData, canonicalType, checkDataList, convertValue, emptyRecordOf, extendFields, normalizeDefaults, type TryData, type TryFieldDef
+} from "./commands/try-data.ts";
 export {
   COMMON_KEYS, MAX_SAVE_INPUT_BYTES, MAX_UPDATE_ROWS, connectionStatusOf, digestOf, saveNewSettings, updateFields, type EvalSource, type SaveContext, type SaveResult, type SaveStatus
 } from "./commands/save.ts";

@@ -6,7 +6,7 @@
 
 ## どの手順で作業するか
 
-- **Claude Code のプラグイン `formula` が使えるとき**（名前に `fml_` を含むツールがある）: 最初に `fml_docs` を呼び、その手順とツールで作業する。保存と差し替えは `fml_save_settings` / `fml_update_fields` で行い、`settings/` と `kintone/` の JSON を Write / Edit で直接書かない（プラグインのフックが止める）。計算の確認は `fml_calc`
+- **Claude Code のプラグイン `formula` が使えるとき**（名前に `fml_` を含むツールがある）: 最初に `fml_docs` を呼び、その手順とツールで作業する。保存と差し替えは `fml_save_settings` / `fml_update_fields` で行い、`settings/` と `kintone/` の JSON を Write / Edit で直接書かない（プラグインのフックが止める）。計算の確認は `fml_calc`、関数の使い方や式の断片の確認は `fml_try`（同梱のサンプルアプリ。推し量らずに確かめる）
 - **無ければ**: 設定を作る・直す前に [docs/AI作業手順.md](docs/AI作業手順.md) を読み、そのとおりに tools の CLI で作業する（読まずに作業しない）。読む資料、要約コマンド、新しい設定の作り方と既存の設定の変え方、normalize の結果の規則名と直し方、計算式の制約、反映の 4 段は、すべてそこにある
 
 ## 常に守ること
