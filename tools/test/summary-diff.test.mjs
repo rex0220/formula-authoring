@@ -38,3 +38,18 @@ test("diff: 項目の追加・削除・変更と共通の設定の差。計算�
   assert.ok(r.lines.some((l) => l.startsWith("★ = 既存レコードの値に影響する項目（2）")));
   assert.deepEqual(diffSettings(a, a, { before: "a", after: "b" }).fields, []);
 });
+
+test("diff: ボタン・表示の行（ヘッダー ($HEADER1)、スペース項目 (sp1)、displayCodes のグループ）は値を計算しないので ★ にしない。★ が無ければ「既存レコードを変更は要らない」", () => {
+  const a = EXPORT();
+  const b = JSON.parse(JSON.stringify(a));
+  b.pluginInfos.push({ fieldcode: "($HEADER1)", state: true, formulaSet: 'BUTTON("x", FSET(No, 1))', edit: false, hide: false, rank: "" });
+  b.pluginInfos.push({ fieldcode: "(sp1)", state: true, formulaSet: '"表示"', edit: false, hide: false, rank: "" });
+  b.pluginInfos.push({ fieldcode: "グループ1", state: true, formulaSet: "1", edit: false, hide: false, rank: "" });
+  const r = diffSettings(a, b, { before: "a", after: "b" }, { displayCodes: new Set(["グループ1"]) });
+  assert.deepEqual(r.fields.map((f) => [f.fieldcode, f.kind, f.affectsRecords, f.display]), [["($HEADER1)", "added", false, true], ["(sp1)", "added", false, true], ["グループ1", "added", false, true]]);
+  assert.ok(r.lines.some((l) => /\(\$HEADER1\): 追加（ボタン・表示の行。値は計算しない）/.test(l)), r.lines.join("\n"));
+  assert.ok(r.lines.some((l) => l.startsWith("既存レコードの値に影響する項目は無い")), r.lines.join("\n"));
+  assert.ok(!r.lines.some((l) => l.startsWith("★ =")));
+  const noGroups = diffSettings(a, b, { before: "a", after: "b" });
+  assert.equal(noGroups.fields.find((f) => f.fieldcode === "グループ1").affectsRecords, true, "項目定義が無ければグループは分からない（括弧の形だけ）");
+});

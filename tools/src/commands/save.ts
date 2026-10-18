@@ -298,7 +298,11 @@ export async function saveNewSettings(ctx: SaveContext, opt: { path: string; con
 }
 
 /** updateFields の rows を読む（行の元の値だけ。fieldcode は設定にあるものだけ） */
-function parseRows(text: string, current: Array<Record<string, unknown>>): Map<string, Record<string, unknown>> {
+/**
+ * rows を読む。設定のファイルにある fieldcode の行は差し替え（replace）、無い fieldcode の行は足す（added。2026-10-18: ヘッダーのボタンや、計算式の無かった項目に式を足せなかった。
+ * 足した行がアプリに無い項目なら normalize が field.missing で止める）。足す行の省いた値は既定（state は formulaSet があれば true、edit / hide は false、rank は ""）
+ */
+function parseRows(text: string, current: Array<Record<string, unknown>>): { replace: Map<string, Record<string, unknown>>; added: Array<Record<string, unknown>> } {
   const v = parseInput(text, "rows");
   if (!Array.isArray(v)) throw new InputError("rows は行（fieldcode を持つオブジェクト）の配列");
   if (v.length === 0) throw new InputError("rows が空");
@@ -306,17 +310,21 @@ function parseRows(text: string, current: Array<Record<string, unknown>>): Map<s
   const known = new Set<string>(ROW_SOURCE_KEYS);
   const codes = new Set(current.map((r) => (isPlainObject(r) ? String(r.fieldcode ?? "") : "")));
   const out = new Map<string, Record<string, unknown>>();
+  const added: Array<Record<string, unknown>> = [];
+  const seen = new Set<string>();
   v.forEach((row, i) => {
     if (!isPlainObject(row)) throw new InputError(`rows[${i}] はオブジェクト`);
     const code = row.fieldcode;
     if (typeof code !== "string" || !code) throw new InputError(`rows[${i}] に fieldcode（文字列）が要る`);
     const unknown = Object.keys(row).filter((k) => !known.has(k));
     if (unknown.length) throw new InputError(`rows[${i}]（${code}）に行の元の値でないキーがある: ${unknown.join(", ")}（使えるのは ${ROW_SOURCE_KEYS.join(", ")}。画面の値（type、fieldlabel など）は normalize が項目定義から補う）`);
-    if (out.has(code)) throw new InputError(`rows の fieldcode が重複: ${code}`);
-    if (!codes.has(code)) throw new InputError(`設定に無い fieldcode: ${code}（項目はアプリの項目定義で決まる。fml_fields で項目定義を取り直し、fml_summary で設定の項目を確かめる）`);
-    out.set(code, row);
+    if (seen.has(code)) throw new InputError(`rows の fieldcode が重複: ${code}`);
+    seen.add(code);
+    if (codes.has(code)) { out.set(code, row); return; }
+    const formulaSet = row.formulaSet ?? "";
+    added.push({ fieldcode: code, state: row.state ?? String(formulaSet).trim() !== "", formulaSet, edit: row.edit ?? false, hide: row.hide ?? false, rank: row.rank ?? "" });
   });
-  return out;
+  return { replace: out, added };
 }
 
 /** updateFields の common を読む（共通の設定のキー COMMON_KEYS だけ。封筒・pluginInfos・知らないキーは invalid） */
@@ -364,14 +372,14 @@ export async function updateFields(ctx: SaveContext, opt: { path: string; expect
   const rows = settings.pluginInfos as Array<Record<string, unknown>>;
   let next: Record<string, unknown>;
   try {
-    const replace = parseRows(opt.rows, rows);
+    const { replace, added } = parseRows(opt.rows, rows);
     const common = opt.common !== undefined ? parseCommon(opt.common) : {};
     const merged = rows.map((r) => {
       const code = isPlainObject(r) ? String(r.fieldcode ?? "") : "";
       const rep = replace.get(code);
       return rep ? { ...r, ...rep } : r;
     });
-    next = { ...settings, ...common, pluginInfos: merged };
+    next = { ...settings, ...common, pluginInfos: [...merged, ...added] };
   } catch (e) {
     return errorResult(ctx.root, target, e);
   }
@@ -385,7 +393,15 @@ export async function updateFields(ctx: SaveContext, opt: { path: string; expect
   const output = outcome.normalize.output;
   const text = JSON.stringify(output, null, 2) + "\n";
   const name = rel(ctx.root, target);
-  const d = diffSettings(settings, output, { before: `${name}（前）`, after: name });
+  // グループの行（値を計算しない）は項目定義から。読めなければ括弧の形（ヘッダー・スペース項目）だけで決める
+  let displayCodes: Set<string> | undefined;
+  try {
+    const f = readFieldsFile(fieldsFileFor(ctx, target, opt.fields, settings));
+    displayCodes = new Set(Object.values(f.properties).filter((p) => p.type === "GROUP").map((p) => p.code));
+  } catch {
+    displayCodes = undefined;
+  }
+  const d = diffSettings(settings, output, { before: `${name}（前）`, after: name }, { displayCodes });
   return finish(
     ctx, target, outcome,
     () =>

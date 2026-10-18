@@ -102,7 +102,7 @@ export function generateDocs(engine, { DEFAULT_USERS, schemaRevisionOf }) {
   spec.push("");
   spec.push("| キー | 意味 |");
   spec.push("| --- | --- |");
-  spec.push("| `fieldcode` | 項目のフィールドコード（ラベルではない。`fields --summary` の ○ の型だけ） |");
+  spec.push("| `fieldcode` | 項目のフィールドコード（ラベルではない。`fields --summary` の ○ の型だけ）。ボタンや HTML の表示を置く行は、ヘッダーが `($HEADER1)` / `($HEADER2)` / `($HEADER3)`、スペース項目（要素 ID のあるもの）が `(要素ID)`（括弧ごと。`fields --summary` の最後の行） |");
   spec.push("| `state` | 計算する（true）。false なら計算式があっても計算しない |");
   spec.push("| `formulaSet` | 計算式（`//` から行末まではコメント。改行は実行時に無視。文字列の中の `//` もコメントになる） |");
   spec.push("| `edit` | 画面で編集できる（既定 false。計算式が入れた値を利用者が直せる） |");
@@ -154,19 +154,33 @@ export function generateDocs(engine, { DEFAULT_USERS, schemaRevisionOf }) {
     fl.push(`| \`${name}\` | ${esc(args)} | ${esc(summary)} | ${d.type.join(", ")} | ${tagsOf(name).map((t) => tagLabel[t]).join("、")} |`);
   }
   fl.push("");
-  fl.push("## 使用例（説明文の ex:）");
+  // 説明と使用例: 表の要約（1 行）の後の説明の行（引数の意味、置き場所、既定の返り方など）と ex: の後の使用例。
+  // 2026-10-18 まで説明の行を落としていた（BUTTON の置き場所、FSET のテーブルの書き方、SEL_NAME の既定の返り方が AI に届いていなかった）
+  fl.push("## 説明と使用例（説明文の全文）");
   fl.push("");
   for (const name of Object.keys(docs).sort()) {
     const d = docs[name];
-    const i = d.ja.indexOf("ex:");
-    if (i < 0) continue;
-    const ex = d.ja.slice(i + 3).split("\n").map((l) => l.replace(/^ /, "")).filter((l) => l.trim());
-    if (!ex.length) continue;
+    const all = d.ja.split("\n");
+    const i = all.findIndex((l, k) => k > 0 && /^ ?ex:/.test(l));
+    const body = (i < 0 ? all.slice(1) : all.slice(1, i)).map((l) => l.trim()).filter(Boolean);
+    const summary = body[0] ?? "";
+    // 行頭の # や - は見出し・箇条書きにならないよう全角の空白を前に置く（資料の検索は見出し・箇条書きで区切る）
+    const detail = body.slice(1).map((l) => (/^(#|- |\| |```)/.test(l) ? `　${l}` : l));
+    const ex = i < 0 ? [] : all.slice(i + 1).map((l) => l.replace(/^ /, "")).filter((l) => l.trim());
+    if (!detail.length && !ex.length) continue;
     fl.push(`### ${name}`);
     fl.push("");
-    fl.push("```");
-    for (const l of ex) fl.push(l);
-    fl.push("```");
+    fl.push(`${all[0] ?? ""} — ${summary}`.replace(/^ — /, ""));
+    if (detail.length) {
+      fl.push("");
+      for (const l of detail) fl.push(`${l}  `);
+    }
+    if (ex.length) {
+      fl.push("");
+      fl.push("```");
+      for (const l of ex) fl.push(l);
+      fl.push("```");
+    }
     fl.push("");
   }
   files.set("docs/関数一覧.md", fl.join("\n"));

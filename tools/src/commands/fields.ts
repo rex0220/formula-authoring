@@ -211,9 +211,19 @@ export function listFields(file: FieldsFile, opt: { targetTypes?: ReadonlySet<st
     if (p.type === "SUBTABLE") for (const c of orderedChildren(p, tableChildren.get(code))) lines.push(line(c, "  ", true));
   }
   const rest = Object.values(props).filter((p) => !shown.has(p.code));
+  // ボタン・HTML の表示を置ける行（項目ではないので properties に無い）。fieldcode は括弧ごと（設定画面の行と同じ。2026-10-18 Desktop の試用で AI がヘッダーの行の書き方を見つけられなかった）
+  const spacers: string[] = [];
+  const walk = (rows: LayoutRow[]): void => {
+    for (const row of rows ?? []) {
+      if (row.type === "GROUP" && Array.isArray(row.layout)) { walk(row.layout); continue; }
+      for (const f of row.fields ?? []) if (f.type === "SPACER" && typeof f.elementId === "string" && f.elementId) spacers.push(`(${f.elementId})`);
+    }
+  };
+  walk(file.layout);
+  const display = `ボタン・表示の行（計算式を置ける。fieldcode は括弧ごと）: ヘッダー ($HEADER1) / ($HEADER2) / ($HEADER3)${spacers.length ? `、スペース項目 ${spacers.join(" / ")}` : "、スペース項目なし（要素 ID を付けたスペースがあれば (要素ID)）"}`;
   const header = `アプリ ${file.appId} ${file.appName}（${file.preview ? "preview" : "運用中"}、lang=${file.lang}、取得 ${file.fetchedAt}）項目 ${Object.keys(props).length}。レイアウトの順、テーブルの子は字下げ${opt.targetTypes ? "。○ = 計算式を設定できる型、－ = できない型" : ""}${file.views ? `。一覧 ${Object.keys(file.views).length}` : file.viewsNote ? `。${file.viewsNote}` : ""}`;
   const tail = rest.length ? [`レイアウトに無い項目: ${rest.map((p) => `${p.code} ${p.type}`).join(", ")}`] : [];
-  return [header, ...lines, ...tail].join("\n");
+  return [header, ...lines, ...tail, display].join("\n");
 }
 
 /** 画面に出す要約（項目の数と型。値は無い） */

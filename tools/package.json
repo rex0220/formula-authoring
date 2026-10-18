@@ -1,6 +1,6 @@
 {
   "name": "@rex0220/formula-authoring-tools",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "rex0220 計算式プラグイン（kintone）の設定を AI で作るための CLI。利用者のプラグインの zip から authoring API と計算式エンジンを読んで Node で動く",
   "license": "MIT",
   "type": "module",

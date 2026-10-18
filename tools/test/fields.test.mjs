@@ -32,3 +32,13 @@ test("contextTargetsOf: ルックアップ先と関連レコード一覧の先",
   };
   assert.deepEqual(contextTargetsOf(props), { lookupTargets: { 顧客: 77, 品: 99 }, relatedTargets: { 関連: 88 } });
 });
+
+test("fields --summary の最後の行: ボタン・表示を置ける行の fieldcode（ヘッダー ($HEADER1)〜($HEADER3)、要素 ID のあるスペース項目 (要素ID)。2026-10-18 Desktop の試用で AI がヘッダーの行の書き方を見つけられなかった）", async () => {
+  const { listFields } = await import("../src/commands/fields.ts");
+  const { sampleApp } = await import("../src/sample-app.ts");
+  const f = sampleApp().fields;
+  const last = (file) => listFields(file).split("\n").slice(-1)[0];
+  assert.equal(last(f), "ボタン・表示の行（計算式を置ける。fieldcode は括弧ごと）: ヘッダー ($HEADER1) / ($HEADER2) / ($HEADER3)、スペース項目 (sp1)");
+  const noSpacer = { ...f, layout: f.layout.map((r) => ({ ...r, fields: (r.fields ?? []).filter((x) => x.type !== "SPACER") })) };
+  assert.match(last(noSpacer), /スペース項目なし/);
+});

@@ -28,7 +28,7 @@ export { describeRecord, fetchRecord, narrowRecord, shapeLines, summarizeRecord,
 export { LIST_LIMIT, QUERY_MAX, QueryError, SHAPE_TEXT_MAX, listQueryOf, listRecordShapes, type RecordShape, type RecordShapes } from "./commands/records.ts";
 export { defaultPullName, pullSettings, type PullOptions, type PullResult } from "./commands/pull.ts";
 export { bodyOf, rowsOf, summarizeSettings, type Envelope, type SourceRow } from "./commands/summary.ts";
-export { diffSettings, type DiffResult, type FieldChange } from "./commands/diff.ts";
+export { diffSettings, isDisplayRow, type DiffResult, type FieldChange } from "./commands/diff.ts";
 export {
   DEFAULT_MAX_CALLS, USER_INFO_FUNCTIONS, UsersPullError, pullReferencedUsers, pullUsers, referencedCodesOf, scanUserInfoCalls, usersFileNameOf, type PullUsersOptions, type ReferencedCodes
 } from "./commands/users.ts";

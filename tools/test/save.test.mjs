@@ -153,7 +153,6 @@ test("項目の行の差し替えの invalid: rows の形（配列でない、�
       [rowsJson({ state: true }), undefined, /fieldcode/],
       [rowsJson({ fieldcode: "金額合計", type: "NUMBER", fieldlabel: "x" }), undefined, /type, fieldlabel/],
       [rowsJson({ fieldcode: "金額合計", rank: 1 }, { fieldcode: "金額合計", rank: 2 }), undefined, /重複/],
-      [rowsJson({ fieldcode: "存在しない", rank: 1 }), undefined, /設定に無い fieldcode: 存在しない/],
       [rowsJson({ fieldcode: "金額合計", rank: 1 }), JSON.stringify({ appId: 1 }), /変えられないキー: appId/],
       [rowsJson({ fieldcode: "金額合計", rank: 1 }), JSON.stringify({ pluginInfos: [] }), /変えられないキー: pluginInfos/],
       [rowsJson({ fieldcode: "金額合計", rank: 1 }), "{}", /空/],
@@ -169,6 +168,10 @@ test("項目の行の差し替えの invalid: rows の形（配列でない、�
     const unknownKey = await up(rowsJson({ fieldcode: "金額合計", rank: 1 }), JSON.stringify({ pluginFoo: 1 }));
     assert.deepEqual([unknownKey.status, unknownKey.code], ["invalid", "InputError"], "共通の設定でないキーは入力の誤り（COMMON_KEYS）");
     assert.match(unknownKey.message, /pluginFoo/);
+    // 設定に無い fieldcode は足す行になり、アプリに無い項目なら normalize が field.missing で止める（2026-10-18 から。それまでは InputError）
+    const notInApp = await up(rowsJson({ fieldcode: "存在しない", formulaSet: "1" }));
+    assert.deepEqual([notInApp.status, notInApp.code], ["invalid", "NormalizeError"], notInApp.message);
+    assert.ok(notInApp.findings.some((f) => f.rule === "field.missing"));
     const badFormula = await up(rowsJson({ fieldcode: "金額合計", formulaSet: "不明な項目 + 1" }));
     assert.deepEqual([badFormula.status, badFormula.code], ["invalid", "NormalizeError"]);
     assert.ok(badFormula.findings.some((f) => f.rule === "formula.ref"));
@@ -257,6 +260,31 @@ test("確定の途中の想定外の例外（name / constructor.name を偽装�
     const r = await saveNewSettings(ctx, { path: "settings/a.json", content: content(), expectedAbsent: true });
     assert.deepEqual([r.status, r.code], ["failed", "RangeError"]);
     assert.ok(!JSON.stringify(r).includes("SECRET") && !JSON.stringify(r).includes("RECORD-VALUE"), JSON.stringify(r));
+  } finally {
+    ws.cleanup();
+  }
+});
+
+test("項目の行の追加（2026-10-18）: 設定に無い行（ヘッダーの行、計算式の無かった項目）を rows で足す。省いた値は既定。ボタン・表示の行は差分の ★ にしない", { skip }, async () => {
+  const ws = makeSingle();
+  try {
+    const saved = await saveNewSettings(ws.ctx, { path: "settings/a.json", content: content(), expectedAbsent: true });
+    assert.equal(saved.status, "ok", saved.message);
+    const file = path.join(ws.root, "settings", "a.json");
+    const before = JSON.parse(readFileSync(file, "utf8")).pluginInfos.map((r) => r.fieldcode);
+    assert.ok(!before.includes("($HEADER1)"), "最初の設定にヘッダーの行は無い");
+    const r = await updateFields(ws.ctx, {
+      path: "settings/a.json", expectedDigest: saved.digest,
+      rows: rowsJson({ fieldcode: "($HEADER1)", formulaSet: '"合計 " & 金額合計' }, { fieldcode: "金額合計", rank: 3 })
+    });
+    assert.equal(r.status, "ok", `${r.message} ${JSON.stringify(r.findings)}`);
+    const after = JSON.parse(readFileSync(file, "utf8")).pluginInfos;
+    const header = after.find((x) => x.fieldcode === "($HEADER1)");
+    assert.deepEqual(header, { fieldcode: "($HEADER1)", state: true, formulaSet: '"合計 " & 金額合計', edit: false, hide: false, rank: "" }, "省いた値は既定（state は計算式があれば true）");
+    assert.equal(after.length, before.length + 1, "1 行増える");
+    const by = Object.fromEntries(r.diff.fields.map((f) => [f.fieldcode, f]));
+    assert.deepEqual([by["($HEADER1)"].kind, by["($HEADER1)"].affectsRecords, by["($HEADER1)"].display], ["added", false, true], "ボタン・表示の行は値を計算しない");
+    assert.deepEqual([by["金額合計"].kind, by["金額合計"].affectsRecords], ["changed", true]);
   } finally {
     ws.cleanup();
   }
