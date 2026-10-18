@@ -167,8 +167,8 @@ test("項目の行の差し替えの invalid: rows の形（配列でない、�
       assert.doesNotMatch(r.message, /SECRET/);
     }
     const unknownKey = await up(rowsJson({ fieldcode: "金額合計", rank: 1 }), JSON.stringify({ pluginFoo: 1 }));
-    assert.deepEqual([unknownKey.status, unknownKey.code], ["invalid", "NormalizeError"]);
-    assert.ok(unknownKey.findings.some((f) => f.rule === "schema.unknown-key"));
+    assert.deepEqual([unknownKey.status, unknownKey.code], ["invalid", "InputError"], "共通の設定でないキーは入力の誤り（COMMON_KEYS）");
+    assert.match(unknownKey.message, /pluginFoo/);
     const badFormula = await up(rowsJson({ fieldcode: "金額合計", formulaSet: "不明な項目 + 1" }));
     assert.deepEqual([badFormula.status, badFormula.code], ["invalid", "NormalizeError"]);
     assert.ok(badFormula.findings.some((f) => f.rule === "formula.ref"));
@@ -244,5 +244,20 @@ test("アプリのフォルダー（接続のファイルの形）: 同じフォ
     assert.deepEqual(edit.diff.fields.map((f) => f.fieldcode), ["金額合計"]);
   } finally {
     cws.cleanup();
+  }
+});
+
+test("確定の途中の想定外の例外（name / constructor.name を偽装したもの）: 結果の code と message は組み込みの名前だけ（Codex の r6 レビュー）", { skip }, async () => {
+  const ws = makeSingle();
+  try {
+    class Evil extends RangeError {}
+    Object.defineProperty(Evil, "name", { value: "SECRET-CTOR" });
+    // 検査の仕事を組むときに想定外の例外（読み込み元の getter が投げる。zip のコードの例外の代わり）
+    const ctx = { ...ws.ctx, source: { get pluginZip() { throw Object.assign(new Evil("RECORD-VALUE"), { name: "SECRET-NAME" }); }, mode: "dev" } };
+    const r = await saveNewSettings(ctx, { path: "settings/a.json", content: content(), expectedAbsent: true });
+    assert.deepEqual([r.status, r.code], ["failed", "RangeError"]);
+    assert.ok(!JSON.stringify(r).includes("SECRET") && !JSON.stringify(r).includes("RECORD-VALUE"), JSON.stringify(r));
+  } finally {
+    ws.cleanup();
   }
 });

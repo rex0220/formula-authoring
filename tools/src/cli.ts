@@ -36,6 +36,7 @@ import { UsersPullError, pullReferencedUsers, pullUsers, referencedCodesOf, user
 import { takeInbox } from "./commands/take.ts";
 import { PolicyError, loadPolicy } from "./normalize/policy.ts";
 import { DEFAULT_TIMEOUT_SEC, EvalError, EvalTimeoutError, MAX_TIMEOUT_SEC, runEval } from "./worker/run.ts";
+import { builtinErrorName } from "./worker/eval-run.ts";
 import type { EvalJob } from "./worker/eval-job.ts";
 
 const USAGE = `使い方: npx @rex0220/formula-authoring-tools <command> [options]
@@ -661,14 +662,21 @@ export async function main(argv: string[]): Promise<number> {
       return 1;
     }
     if (e instanceof EvalError) {
-      // Worker の中の誤り（zip、入力、ユーザー情報 …）は文言だけ出して 1。tools の誤り（それ以外の名前）はそのまま
-      if (["PluginZipError", "InputError", "UsersDataError", "PolicyError", "AuthError"].includes(e.innerName)) {
+      // Worker の中の誤り: 中核の誤り（zip、入力、ユーザー情報、policy。kind は中核が instanceof で決める）は文言だけ出して 1。
+      // それ以外（zip のコードが投げた例外など。kind other）は種類だけ（文はレコードの値を含みうるので出さない。Codex の r4 レビュー B1）
+      if (e.kind !== "other") {
         console.error(e.message);
         return 1;
       }
-      throw new Error(`${e.innerName}: ${e.message}`);
+      console.error(`評価の途中で想定外の誤り（${e.innerName}）。誤りの文は値を含みうるので表示しない（FORMULA_DEBUG=1 で表示）。normalize で設定を、version で zip を確かめる`);
+      if (W.env.FORMULA_DEBUG === "1") console.error(e.message);
+      return 1;
     }
-    throw e;
+    // tools 自身の想定外の誤り（主スレッド。pull や summary では zip のコードも動く）: 種類だけ（instanceof で決めた組み込みの名前。constructor.name は使わない。FORMULA_DEBUG=1 で文とスタック）
+    const name = builtinErrorName(e);
+    console.error(`想定外の誤り（${name}）。誤りの文は値を含みうるので表示しない（FORMULA_DEBUG=1 で表示）`);
+    if (W.env.FORMULA_DEBUG === "1") console.error(e instanceof Error ? e.stack ?? e.message : String(e));
+    return 1;
   }
 }
 
@@ -687,5 +695,9 @@ try {
   self = fileURLToPath(import.meta.url);
 }
 if (invoked && (invoked === self || /[\\/]dist[\\/]cli\.mjs$/.test(invoked))) {
-  main(process.argv.slice(2)).then((code) => { process.exitCode = code; });
+  main(process.argv.slice(2)).then((code) => { process.exitCode = code; }, (e: unknown) => {
+    // main の外の失敗（起動の前）: 種類だけ（組み込みの名前）
+    console.error(`想定外の誤り（${builtinErrorName(e)}）`);
+    process.exitCode = 1;
+  });
 }

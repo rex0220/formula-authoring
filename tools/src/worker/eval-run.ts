@@ -2,8 +2,35 @@
 import { loadEngine } from "../engine.ts";
 import { normalizeSettings } from "../commands/normalize.ts";
 import { calcSettings } from "../commands/calc.ts";
-import { buildUsersInfo } from "../users/index.ts";
-import type { EvalJob, EvalOutcome } from "./eval-job.ts";
+import { buildUsersInfo, UsersDataError } from "../users/index.ts";
+import { InputError } from "../input.ts";
+import { PluginZipError } from "../plugin-zip.ts";
+import { PolicyError } from "../normalize/policy.ts";
+import type { EvalErrorKind, EvalJob, EvalMessage, EvalOutcome } from "./eval-job.ts";
+
+/**
+ * Worker の中の誤りを種類に分ける（instanceof で。中核のクラスは zip のコードから届かないので、name の偽装では input / zip にならない）。
+ * name も instanceof で決めた固定の名前（中核のクラスの名前か、JavaScript の組み込みの Error の名前。例外の name / constructor.name は使わない =
+ * zip のコードが name に値やパスを入れても出ない。Codex の r3 レビュー N1）。文は other のときは信用しない（呼ぶ側が決まった文にする）
+ */
+export function classifyEvalError(e: unknown): Extract<EvalMessage, { ok: false }>["error"] {
+  const message = String((e as { message?: unknown } | undefined)?.message ?? e);
+  if (e instanceof InputError) return { kind: "input", name: "InputError", message };
+  if (e instanceof PluginZipError) return { kind: "zip", name: "PluginZipError", message, code: e.code };
+  if (e instanceof UsersDataError) return { kind: "users", name: "UsersDataError", message };
+  if (e instanceof PolicyError) return { kind: "policy", name: "PolicyError", message };
+  return { kind: "other", name: builtinErrorName(e), message };
+}
+
+/** JavaScript の組み込みの Error の種類（instanceof。同じ realm で動く zip のコードの例外も、この判定は偽装できない）。それ以外は Error */
+export function builtinErrorName(e: unknown): string {
+  if (e instanceof TypeError) return "TypeError";
+  if (e instanceof RangeError) return "RangeError";
+  if (e instanceof ReferenceError) return "ReferenceError";
+  if (e instanceof SyntaxError) return "SyntaxError";
+  if (e instanceof URIError) return "URIError";
+  return "Error";
+}
 
 export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
   const engine = await loadEngine({ pluginZip: job.pluginZip, devPluginDir: job.devPluginDir, mode: job.mode, vendorDir: job.vendorDir });

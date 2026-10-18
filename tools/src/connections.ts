@@ -438,7 +438,7 @@ export function authFor(set: ConnectionSet, profile: ProfileDef, appId: number):
   if (value === undefined) throw new ConnectionError(`profile「${profile.profile}」の tokenMap に APP${appId} が無い（そのアプリの API トークンを足す）`, "no-token");
   if (value.startsWith("env:")) {
     const token = nonblank(held.env[value.slice(4)]);
-    if (!token) throw new ConnectionError(`profile「${profile.profile}」の APP${appId} のトークンの環境変数が無い（設定した後、print-craft を再接続する。Desktop は起動し直す）`, "env-missing");
+    if (!token) throw new ConnectionError(`profile「${profile.profile}」の APP${appId} のトークンの環境変数が無い（環境変数を置いてから実行し直す。MCP なら再接続する: Claude Code は /mcp、Desktop は起動し直す）`, "env-missing");
     return { baseUrl: profile.baseUrl, token };
   }
   return { baseUrl: profile.baseUrl, token: value };

@@ -29,7 +29,7 @@ test("Worker: 重い式は時間上限で止まる（terminate）", { skip }, as
 });
 
 test("Worker: zip が無いなどの誤りは EvalError（元の名前つき）で戻り、normalize の検査の誤りは結果の findings で戻る", { skip }, async () => {
-  await assert.rejects(runEval(job(EXPORT(), { pluginZip: PLUGIN_ZIP + ".missing" }), { timeoutSec: 30 }), (e) => e instanceof EvalError && e.innerName === "PluginZipError" && e.code === "missing");
+  await assert.rejects(runEval(job(EXPORT(), { pluginZip: PLUGIN_ZIP + ".missing" }), { timeoutSec: 30 }), (e) => e instanceof EvalError && e.innerName === "PluginZipError" && e.code === "missing" && e.kind === "zip");
   const out = await runEval(job({ not: "settings" }, { kind: "calc", calc: { appId: 2305, records: [] } }), { timeoutSec: 30 });
   assert.equal(out.normalize.hasErrors, true);
   assert.equal(out.calc, undefined);
@@ -89,4 +89,24 @@ test("Worker: 本物の入口でも captureOutput を付けて結果が戻る。
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
+});
+
+test("Worker の中の誤りの種類（kind）は instanceof で決まる: name を偽装した Error は other、中核の InputError は input（Codex の r2 レビュー R1）", async () => {
+  const { classifyEvalError } = await import("../src/worker/eval-run.ts");
+  const { InputError } = await import("../src/input.ts");
+  const { PluginZipError } = await import("../src/plugin-zip.ts");
+  const forged = Object.assign(new Error("RECORD-VALUE in message"), { name: "InputError" });
+  assert.deepEqual(classifyEvalError(forged), { kind: "other", name: "Error", message: "RECORD-VALUE in message" }, "name は使わない（固定の名前）");
+  // name と constructor.name に値を入れた例外（zip のコードができること）も、名前は組み込みの種類だけ（Codex の r3 レビュー N1）
+  const t = Object.assign(new TypeError("x"), { name: "SECRET-IN-NAME" });
+  assert.deepEqual(classifyEvalError(t), { kind: "other", name: "TypeError", message: "x" });
+  class Evil extends RangeError {}
+  Object.defineProperty(Evil, "name", { value: "SECRET-CTOR" });
+  assert.deepEqual(classifyEvalError(new Evil("y")), { kind: "other", name: "RangeError", message: "y" });
+  assert.equal(classifyEvalError({ name: "SECRET", message: "z", constructor: { name: "SECRET" } }).name, "Error");
+  assert.deepEqual(classifyEvalError(new InputError("fields が要る")), { kind: "input", name: "InputError", message: "fields が要る" });
+  assert.deepEqual(classifyEvalError(new PluginZipError("zip が無い", "missing")), { kind: "zip", name: "PluginZipError", message: "zip が無い", code: "missing" });
+  assert.equal(classifyEvalError("x").kind, "other");
+  // inline でも同じ形（kind 付きの EvalError）
+  await assert.rejects(runEval(job({ not: "settings" }, { pluginZip: PLUGIN_ZIP + ".missing" }), { inline: true, timeoutSec: 5 }), (e) => e instanceof EvalError && e.kind === "zip");
 });

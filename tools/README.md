@@ -59,5 +59,6 @@ npm pack --dry-run  # 公開前に中身を確かめる（dist、vendor、LICENS
 
 ## 履歴
 
+- 0.2.1（2026-10）: formula MCP の Codex レビューへの対応。`updateFields` の `common` を共通の設定のキー（`COMMON_KEYS`）だけに。Worker の中の誤りの種類（`EvalError.kind`）と名前を中核が instanceof で決める（zip のコードの例外の name / constructor.name / 文を応答や標準エラーに出さない。`classifyEvalError` / `builtinErrorName`）。保存の結果の想定外の誤りも種類だけ（`zipCode`）。CLI の想定外の誤りは種類だけ（`FORMULA_DEBUG=1` で文とスタック）。接続の誤りの文の print-craft の名残を直した
 - 0.2.0（2026-10）: formula MCP のための中核の入口（`CORE_API_VERSION` 2。CLI の動きは変えない）。`core` に workspace / connections / permission / commit-file / take / users の参照コード / JSON の誤りの文 / 行のキーを追加。`src/commands/save.ts`（`saveNewSettings` / `updateFields`）。`runEval` の `workerFile`（Worker の入口の絶対パス）と `captureOutput`（Worker の標準出力・標準エラーを親に流さず受け取る）、`loadEngine` の `vendorDir`（moment の置き場所）。評価の結果に `findings` と calc のレコードごとの行
 - 0.1.0（2026-10）: 最初の公開。version / fields / record / records / pull / summary / diff / users / normalize / calc / take / edit / files。扱う計算式プラグイン Ver.101 以降、authoring API 1

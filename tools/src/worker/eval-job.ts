@@ -66,4 +66,10 @@ export interface EvalOutcome {
   engineWarnings: string[];
 }
 
-export type EvalMessage = { ok: true; outcome: EvalOutcome } | { ok: false; error: { name: string; message: string; code?: string } };
+/**
+ * Worker の中の誤りの種類（信頼できる境界 = 中核の eval-run.ts が instanceof で決める。zip のコードが name を偽装しても変わらない。Codex の r2 レビュー R1）:
+ * input（中核の InputError）、zip（PluginZipError。code 付き）、users（UsersDataError）、policy（PolicyError）、other（zip のコードの例外など。文は信用しない）
+ */
+export type EvalErrorKind = "input" | "zip" | "users" | "policy" | "other";
+
+export type EvalMessage = { ok: true; outcome: EvalOutcome } | { ok: false; error: { kind: EvalErrorKind; name: string; message: string; code?: string } };

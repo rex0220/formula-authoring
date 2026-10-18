@@ -12,21 +12,26 @@ import { existsSync } from "node:fs";
 import { Worker } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { runEvalJob } from "./eval-run.ts";
-import type { EvalJob, EvalMessage, EvalOutcome } from "./eval-job.ts";
+import { builtinErrorName, classifyEvalError, runEvalJob } from "./eval-run.ts";
+import type { EvalErrorKind, EvalJob, EvalMessage, EvalOutcome } from "./eval-job.ts";
 
 export const DEFAULT_TIMEOUT_SEC = 60;
 export const MAX_TIMEOUT_SEC = 600;
 
 export class EvalTimeoutError extends Error {}
-/** Worker の中の誤り（name / code を持って主スレッドに戻す） */
+/**
+ * Worker の中の誤り（kind / name / code を持って主スレッドに戻す）。kind は中核が instanceof で決めた信頼できる種類（input / zip / users / policy / other）。
+ * innerName は参考の名前（other のときは zip のコードが付けた名前かもしれない）。other のときの文は値やパスを含みうる（MCP は返さない）
+ */
 export class EvalError extends Error {
   readonly innerName: string;
   readonly code?: string;
-  constructor(message: string, innerName: string, code?: string) {
+  readonly kind: EvalErrorKind;
+  constructor(message: string, innerName: string, code?: string, kind: EvalErrorKind = "other") {
     super(message);
     this.innerName = innerName;
     this.code = code;
+    this.kind = kind;
   }
 }
 
@@ -53,7 +58,15 @@ export interface RunOptions {
 
 export async function runEval(job: EvalJob, opt: RunOptions = {}): Promise<EvalOutcome> {
   const timeoutSec = Math.min(Math.max(opt.timeoutSec ?? DEFAULT_TIMEOUT_SEC, 1), MAX_TIMEOUT_SEC);
-  if (opt.inline) return runEvalJob(job);
+  if (opt.inline) {
+    // 主スレッドで動かすときも、誤りは Worker と同じ形（kind 付きの EvalError）にする
+    try {
+      return await runEvalJob(job);
+    } catch (e) {
+      const c = classifyEvalError(e);
+      throw new EvalError(c.message, c.name, c.code, c.kind);
+    }
+  }
   let entry: string;
   if (opt.workerFile !== undefined) {
     if (!path.isAbsolute(opt.workerFile) || !existsSync(opt.workerFile)) throw new Error(`Worker の入口が無い（絶対パスで指定する）: ${opt.workerFile}`);
@@ -82,10 +95,11 @@ export async function runEval(job: EvalJob, opt: RunOptions = {}): Promise<EvalO
     worker.on("message", (m: EvalMessage) => {
       finish(() => {
         if (m.ok) resolve(m.outcome);
-        else reject(new EvalError(m.error.message, m.error.name, m.error.code));
+        else reject(new EvalError(m.error.message, m.error.name, m.error.code, m.error.kind ?? "other"));
       });
     });
-    worker.on("error", (e) => finish(() => reject(e)));
+    // Worker の中で捕まえられなかった例外（読み込みの失敗など）。種類は other（文も name も信用しない）
+    worker.on("error", (e) => finish(() => reject(new EvalError(e?.message ?? String(e), builtinErrorName(e), undefined, "other"))));
     worker.on("exit", (code) => finish(() => reject(new Error(`評価の Worker が結果を返さずに終わった（exit ${code}）`))));
   });
 }

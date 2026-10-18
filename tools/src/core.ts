@@ -34,14 +34,14 @@ export { normalizeSettings, findCycles, stronglyConnected, type ContextNeeds, ty
 export { DEFAULT_EVENT, EVENT_RE, RECORDS_MAX, calcSettings, validateEvent, type CalcInput, type CalcLine, type CalcRecordResult, type CalcResult } from "./commands/calc.ts";
 export { takeInbox, type TakeResult } from "./commands/take.ts";
 export {
-  MAX_SAVE_INPUT_BYTES, MAX_UPDATE_ROWS, connectionStatusOf, digestOf, saveNewSettings, updateFields, type EvalSource, type SaveContext, type SaveResult, type SaveStatus
+  COMMON_KEYS, MAX_SAVE_INPUT_BYTES, MAX_UPDATE_ROWS, connectionStatusOf, digestOf, saveNewSettings, updateFields, type EvalSource, type SaveContext, type SaveResult, type SaveStatus
 } from "./commands/save.ts";
 export { DEFAULT_POLICY, POLICY_FILE, PolicyError, loadPolicy, parsePolicy, type Policy } from "./normalize/policy.ts";
 export { Findings, type Finding, type Level } from "./normalize/findings.ts";
 export { ENVELOPE_KEYS, OUTER_KEYS, ROW_SCREEN_KEYS, ROW_SOURCE_KEYS, materialsOf, viewsOf, type FormulaSaved, type FormulaSource, type Lang } from "./normalize/model.ts";
 export { DEFAULT_TIMEOUT_SEC, EvalError, EvalTimeoutError, MAX_TIMEOUT_SEC, runEval, type RunOptions } from "./worker/run.ts";
-export { runEvalJob } from "./worker/eval-run.ts";
-export type { EvalJob, EvalMessage, EvalOutcome } from "./worker/eval-job.ts";
+export { builtinErrorName, classifyEvalError, runEvalJob } from "./worker/eval-run.ts";
+export type { EvalErrorKind, EvalJob, EvalMessage, EvalOutcome } from "./worker/eval-job.ts";
 // 作業フォルダーとアプリのフォルダー（workspace）、接続のファイル（connections）、kintone/ の下の許可（permission）、ファイルの確定とロック（commit-file）
 export {
   APP_MARKER, EDIT_RE, INBOX, KINTONE_ROOT, LEGACY_WORKSPACE_FILE, SNAPSHOT_PREFIX, SNAPSHOT_RE, WorkspaceError,

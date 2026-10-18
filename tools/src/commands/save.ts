@@ -36,6 +36,7 @@ import { DEFAULT_USERS, type UsersOrigin, type UsersSource } from "../users/inde
 import { diffSettings, type FieldChange } from "./diff.ts";
 import { FileExistsError, LockBusyError, acquireLock, cleanupAll, placeNew, tempPathFor, withRetry, type Lock } from "../commit-file.ts";
 import { EvalError, EvalTimeoutError, runEval, type RunOptions } from "../worker/run.ts";
+import { builtinErrorName } from "../worker/eval-run.ts";
 import type { EvalJob, EvalOutcome } from "../worker/eval-job.ts";
 
 export type SaveStatus = "ok" | "invalid" | "conflict" | "denied" | "failed";
@@ -55,6 +56,8 @@ export interface SaveResult {
   message?: string;
   /** status が ok でないときの誤りの種類（ConflictError、PermissionError、PathError、InputError、NormalizeError、接続の誤りの code など。想定外の失敗は Error） */
   code?: string;
+  /** code が PluginZipError のときの、zip の誤りの種類（MCP が種類ごとの決まった文にする） */
+  zipCode?: string;
   /** ok だが、確定の後に一時ファイルかロックを消せなかった（確定はしている。利用者に伝えて消してもらう） */
   cleanup?: string[];
 }
@@ -91,6 +94,8 @@ export interface SaveContext {
 export const MAX_SAVE_INPUT_BYTES = 256 * 1024;
 /** updateFields の rows の行数の上限 */
 export const MAX_UPDATE_ROWS = 50;
+/** updateFields の common で置き換えられる共通の設定のキー（封筒と pluginInfos 以外の最上位のキー。設定ファイル仕様の順。Codex のレビュー MAJOR 4） */
+export const COMMON_KEYS: readonly string[] = ["pluginEnable", "pluginProductEnv", "toolEnable", "pluginComment", "pluginDescription", "pluginBtnInfo", "pluginListInfo", "authority", "pluginMiscInfo"];
 
 /** ファイルの digest（sha256。fml_summary が返し、fml_update_fields が照合する） */
 export function digestOf(text: string | Buffer): string {
@@ -194,7 +199,7 @@ function statusOf(e: unknown): Exclude<SaveStatus, "ok"> {
   if (e instanceof ConflictError || e instanceof FileExistsError || e instanceof LockBusyError) return "conflict";
   if (e instanceof SaveDenied || e instanceof PermissionError || e instanceof PathError) return "denied";
   if (e instanceof InputError || e instanceof SyntaxError) return "invalid";
-  if (e instanceof EvalError && e.innerName === "InputError") return "invalid";
+  if (e instanceof EvalError && e.kind === "input") return "invalid";
   return "failed";
 }
 
@@ -220,13 +225,27 @@ function codeOf(e: unknown): string {
   if (e instanceof ConnectionError) return e.code;
   if (e instanceof ConflictError || e instanceof FileExistsError || e instanceof LockBusyError) return "ConflictError";
   if (e instanceof SaveDenied || e instanceof PermissionError) return "PermissionError";
-  if (e instanceof EvalError) return e.innerName;
+  if (e instanceof EvalError) return { input: "InputError", zip: "PluginZipError", users: "UsersDataError", policy: "PolicyError", other: e.innerName }[e.kind];
   if (e instanceof EvalTimeoutError) return "EvalTimeoutError";
-  return e instanceof Error ? e.constructor.name : "Error";
+  if (e instanceof InputError) return "InputError";
+  if (e instanceof PathError) return "PathError";
+  // それ以外（想定外）は組み込みの名前だけ（name / constructor.name は使わない）
+  return builtinErrorName(e);
+}
+
+/**
+ * 結果に入れる誤りの文: 中核の決まった文（接続、競合、権限、パス、入力、時間切れ、Worker の input / zip / users / policy）はそのまま。
+ * Worker の中のそれ以外の例外（zip のコードが投げたもの。値を含みうる）と想定外の誤りは種類だけ（Codex の r2 レビュー R1）
+ */
+function safeMessageOf(e: unknown): string {
+  if (e instanceof ConnectionError || e instanceof ConflictError || e instanceof FileExistsError || e instanceof LockBusyError || e instanceof SaveDenied || e instanceof PermissionError || e instanceof PathError || e instanceof InputError || e instanceof EvalTimeoutError) return e.message;
+  if (e instanceof EvalError) return e.kind === "other" ? `評価の途中で想定外の誤り（${e.innerName}）。誤りの文は値やパスを含みうるので返さない` : e.message;
+  if (e instanceof SyntaxError) return "JSON の構文の誤り（中身は返さない）";
+  return `想定外の誤り（${builtinErrorName(e)}）。誤りの文は値やパスを含みうるので返さない`;
 }
 
 function errorResult(root: string, target: string, e: unknown, findings: Finding[] = []): SaveResult {
-  return { status: statusOf(e), code: codeOf(e), path: rel(root, target), findings, message: e instanceof Error ? e.message : String(e) };
+  return { status: statusOf(e), code: codeOf(e), path: rel(root, target), findings, message: safeMessageOf(e), ...(e instanceof EvalError && e.kind === "zip" && e.code ? { zipCode: e.code } : {}) };
 }
 
 function invalid(root: string, target: string, message: string, code = "InputError"): SaveResult {
@@ -300,12 +319,14 @@ function parseRows(text: string, current: Array<Record<string, unknown>>): Map<s
   return out;
 }
 
-/** updateFields の common を読む（pluginInfos と封筒のキー以外の最上位のキー。知らないキーは normalize が止める） */
+/** updateFields の common を読む（共通の設定のキー COMMON_KEYS だけ。封筒・pluginInfos・知らないキーは invalid） */
 function parseCommon(text: string): Record<string, unknown> {
   const v = parseInput(text, "common");
-  if (!isPlainObject(v)) throw new InputError("common は最上位のキー（pluginMiscInfo、pluginListInfo、authority、pluginEnable など）を持つオブジェクト");
-  const bad = Object.keys(v).filter((k) => k === "pluginInfos" || (ENVELOPE_KEYS as readonly string[]).includes(k));
-  if (bad.length) throw new InputError(`common で変えられないキー: ${bad.join(", ")}（項目の行は rows、封筒（appId など）は変えない）`);
+  if (!isPlainObject(v)) throw new InputError(`common は共通の設定のキー（${COMMON_KEYS.join("、")}）を持つオブジェクト`);
+  const fixed = Object.keys(v).filter((k) => k === "pluginInfos" || (ENVELOPE_KEYS as readonly string[]).includes(k));
+  if (fixed.length) throw new InputError(`common で変えられないキー: ${fixed.join(", ")}（項目の行は rows、封筒（appId など）は変えない）`);
+  const unknown = Object.keys(v).filter((k) => !COMMON_KEYS.includes(k));
+  if (unknown.length) throw new InputError(`common に共通の設定でないキーがある: ${unknown.join(", ")}（使えるのは ${COMMON_KEYS.join("、")}）`);
   if (!Object.keys(v).length) throw new InputError("common が空（変えないなら渡さない）");
   return v;
 }

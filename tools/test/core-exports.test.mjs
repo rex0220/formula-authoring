@@ -5,8 +5,8 @@ import * as core from "../src/core.ts";
 
 const NAMES = [
   "CORE_API_VERSION", "loadEngine", "momentFileOf", "toolsMeta", "FORMULA_PLUGIN_ID", "FORMULA_CONFIG_PLUGIN_ID",
-  "runEval", "runEvalJob", "EvalError", "EvalTimeoutError", "DEFAULT_TIMEOUT_SEC", "MAX_TIMEOUT_SEC",
-  "saveNewSettings", "updateFields", "digestOf", "connectionStatusOf", "MAX_SAVE_INPUT_BYTES", "MAX_UPDATE_ROWS",
+  "runEval", "runEvalJob", "classifyEvalError", "builtinErrorName", "EvalError", "EvalTimeoutError", "DEFAULT_TIMEOUT_SEC", "MAX_TIMEOUT_SEC",
+  "saveNewSettings", "updateFields", "digestOf", "connectionStatusOf", "MAX_SAVE_INPUT_BYTES", "MAX_UPDATE_ROWS", "COMMON_KEYS",
   "modeOf", "requireProfiles", "findAppDir", "appDirFor", "appFolderOfFile", "editNameOf", "ensureAppFolder", "assertAppMark", "assertUsableInKintone", "listAppFolder", "appFoldersOf", "unusedProfileDirs", "hasLegacyConfig", "profileDirOf", "readAppMark", "legacyBlockedError",
   "KINTONE_ROOT", "INBOX", "APP_MARKER", "SNAPSHOT_RE", "EDIT_RE", "LEGACY_WORKSPACE_FILE", "WorkspaceError",
   "loadConnections", "pickProfile", "authFor", "userApiAuthFor", "assertSameConnection", "snapshotOf", "ConnectionError", "PROFILE_NAME_RE",
