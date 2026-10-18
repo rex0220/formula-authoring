@@ -86,7 +86,7 @@ AI に頼めること:
    - ユーザー情報（UINFO / OUSERS などの関数）を実データで確かめる `users --pull` は、cybozu.com 共通管理の API トークン（`FORMULA_USER_API_TOKEN`）かログインユーザーで呼びます（アプリの API トークンでは呼べません）。要るときだけ
 4. **VSCode で開いて Claude Code を起動** — 手順 2・3 の**後に**起動します（kintone MCP は `node_modules` と `.env` を使って起動します。先に起動したならセッションを始め直す）。Claude Code の `/mcp` で、Project の欄に `kintone` が **Connected** と出れば MCP は使えます（登録内容は `.mcp.json`）。kintone の読み取りや `npx @rex0220/formula-authoring-tools` の実行で確認が出たら、**「2 Yes, allow … for this session」**を選ぶと、そのセッションの間は同じ操作で聞かれません。kintone への**書き込みツールは拒否**しています（同梱の `.claude/settings.json`。拒否の規則はいつでも効きます）
    - 毎回の確認を無くしたいときは、下の「補足: 確認を出さないようにする」（任意）
-5. **疎通確認** — ターミナルで `npx @rex0220/formula-authoring-tools version`（tools の版と、zip から読んだ計算式プラグインの版・authoring API の版・計算式エンジンの SHA-256 が出る。zip が読めない・版が合わないとここで止まる）。Claude Code に「kintone-get-app でアプリ 2305 を見て」（番号は自分のアプリ）と頼んでアプリ名が返れば準備完了です
+5. **疎通確認** — ターミナルで `npx @rex0220/formula-authoring-tools version`（tools の版と、zip から読んだ計算式プラグインの版・authoring API の版・計算式エンジンの SHA-256 が出る。zip が読めない・版が合わないとここで止まる）。「Need to install the following packages」と聞かれたら、手順 2 の `npm ci` をしていません（`n` で止めて `npm ci` をしてから実行し直す）。Claude Code に「kintone-get-app でアプリ 2305 を見て」（番号は自分のアプリ）と頼んでアプリ名が返れば準備完了です
 6. **作る** — `requirements/` に要件を書くか（例: [requirements/example.md](requirements/example.md)）、そのままチャットで伝えます:
    ```
    アプリ 2305（テーブル内集計）で、テーブルの明細の金額（数量 × 単価）と小計の行の金額、テーブルの外の金額合計を計算して
