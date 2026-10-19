@@ -154,5 +154,5 @@ SET_CODE(SUBTABLE(SEL_CODE(対応者,"array"),COUNTROW(table_対応履歴)-1))
 - 解説の中の気になる点は**推測**です。「試しアプリで計算して確かめて」と続けると、拡張機能が計算式エンジンで計算し、推測を確かめるか訂正します（今回は「0 行のテーブルが危ない」が訂正され、「重複は 1 人にまとまる」「最終行が未選択なら空」がわかりました）
 - 最初の記事: [AI(Claude Desktop)にチャットで計算式を作らせる](https://qiita.com/rex0220/items/36b77265b178baf754ef)
 - 実践編: [AI(Claude Desktop)に計算式を聞く・作らせる 実践編](https://qiita.com/rex0220/items/dca414a52918fa102c01)
-- 拡張機能: https://github.com/rex0220/formula-authoring-mcp（[最新のリリース](https://github.com/rex0220/formula-authoring-mcp/releases/latest)）
+- 拡張機能: [https://github.com/rex0220/formula-authoring-mcp](https://github.com/rex0220/formula-authoring-mcp)（[最新のリリース](https://github.com/rex0220/formula-authoring-mcp/releases/latest)）
 - プラグインの機能と関数の一覧: [rex0220 計算式プラグイン](https://qiita.com/rex0220/items/ae83c6d5ce50ff7a9a73)

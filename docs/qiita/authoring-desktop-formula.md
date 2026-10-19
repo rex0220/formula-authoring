@@ -476,6 +476,6 @@ AI が作った計算式も、設定画面からダウンロードした既存�
 - kintone には読み取りだけ。既存のレコードを変えるのは、設定画面の「既存レコードを変更」か一覧の「一括計算」で、人が行います
 - 続編: [AI(Claude Desktop)に計算式を聞く・作らせる 実践編](https://qiita.com/rex0220/items/dca414a52918fa102c01)（アプリを使わずに、関数の Q&A、要件とテストデータから計算式を作る）
 - 解説編: [AI(Claude Desktop)に既存の計算式を解説させる](https://qiita.com/rex0220/items/20e782175507fbc941a6)（設定のファイルや仕様書を渡して解説させ、気になる点を試し計算で確かめる）
-- 拡張機能: https://github.com/rex0220/formula-authoring-mcp（[最新のリリース](https://github.com/rex0220/formula-authoring-mcp/releases/latest)）
+- 拡張機能: [https://github.com/rex0220/formula-authoring-mcp](https://github.com/rex0220/formula-authoring-mcp)（[最新のリリース](https://github.com/rex0220/formula-authoring-mcp/releases/latest)）
 - テンプレート（作業フォルダー、CLI）: https://github.com/rex0220/formula-authoring
 - プラグインの機能と関数の一覧: [rex0220 計算式プラグイン](https://qiita.com/rex0220/items/ae83c6d5ce50ff7a9a73)

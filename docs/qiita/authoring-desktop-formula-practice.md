@@ -416,5 +416,5 @@ IF(AND(出勤, 退勤),
 - 要件は「項目・要件・テストデータ」に分けて書き、**テストデータには端の値（空・0・月末・日をまたぐ時刻など）を入れる**。AI がその扱いを確かめ、決まっていない点は聞いてきます
 - 作った計算式を実際のアプリの設定にするときは、[前回の記事](https://qiita.com/rex0220/items/36b77265b178baf754ef)のとおり、アプリ番号を伝えて設定のファイルを作らせます
 - すでにある計算式を解説させるときは、[解説編](https://qiita.com/rex0220/items/20e782175507fbc941a6)のとおり、設定のファイルか仕様書を渡して「解説して」と頼みます
-- 拡張機能: https://github.com/rex0220/formula-authoring-mcp（[最新のリリース](https://github.com/rex0220/formula-authoring-mcp/releases/latest)）
+- 拡張機能: [https://github.com/rex0220/formula-authoring-mcp](https://github.com/rex0220/formula-authoring-mcp)（[最新のリリース](https://github.com/rex0220/formula-authoring-mcp/releases/latest)）
 - プラグインの機能と関数の一覧: [rex0220 計算式プラグイン](https://qiita.com/rex0220/items/ae83c6d5ce50ff7a9a73)
