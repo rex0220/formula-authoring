@@ -317,6 +317,7 @@ export const PATTERN_CASES = [
       { formula: 'IF(数値1 = "", "空", "空でない")', expect: ["空", "空でない"] },
       { formula: 'ISBLANK(数値1) & "/" & NOT(数値1)', expect: ["true/true", "false/false"], note: "ISBLANK は複数の項目をまとめて判定できる" },
       { formula: 'IF(数値2, "値あり", "空か 0")', expect: ["値あり", "空か 0"], note: "IF(項目, …) は 0 も偽" },
+      { formula: 'IF(数値2 = "", "空", "空でない") & "/" & IF(ISBLANK(数値2), "空", "空でない")', expect: ["空でない/空でない", "空/空でない"], note: "数値の 0 も = \"\" で真になる（空も 0 として数で比べる）。空だけを見分けるなら ISBLANK（2026-10-19）" },
       { formula: "1 / 数値2", as: "NUMBER", expect: ["0.1", ""], note: "ゼロ除算は空（エラーにならない）" }
     ]
   },
@@ -507,7 +508,8 @@ export const PATTERN_CASES = [
       { formula: "ROUND(-R_PMT(年利 / 100 / 12, 年数 * 12, 借入額), 0)", as: "NUMBER", expect: ["29081", "27778", ""], note: "毎月の返済額（元利均等）。返り値は支払いなのでマイナス。利率は 1 回分。0% でも動く" },
       { formula: "ROUND(-R_PMT(年利 / 100 / 12, 年数 * 12, 借入額) * 年数 * 12 - 借入額, 0)", as: "NUMBER", expect: ["46924", "0", ""], note: "利息の総額" },
       { formula: "ROUND(-R_CUMIPMT(年利 / 100 / 12, 年数 * 12, 借入額, 1, 12, 0), 0)", as: "NUMBER", expect: ["25577", "", ""], note: "1〜12 回目の利息の合計。利率 0 のときは空" },
-      { formula: "ROUND(R_FV(年利 / 100 / 12, 年数 * 12, -毎月の積立額), 0)", as: "NUMBER", expect: ["752411", "720000", ""], note: "積立の将来の額。積立額はマイナスで渡す" }
+      { formula: "ROUND(R_FV(年利 / 100 / 12, 年数 * 12, -毎月の積立額), 0)", as: "NUMBER", expect: ["752411", "720000", ""], note: "積立の将来の額。積立額はマイナスで渡す" },
+      { formula: 'R_IPMT(0, 1, 12, 600000) & "/" & R_PPMT(0, 1, 12, 600000)', as: "TEXT", expect: ["0/-50000", "0/-50000", "0/-50000"], note: "利率 0 でも利息 0・元本 −借入額 ÷ 回数（Ver.101 の 2026-10-19 の直しから。それより前は空）" }
     ]
   },
   {
