@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { PLUGIN_ZIP } from "./helpers.mjs";
+import { PLUGIN_VERSION, PLUGIN_ZIP } from "./helpers.mjs";
 import { EXPORT, FIELDS_FILE } from "./fixtures.mjs";
 import { makeConnWorkspace } from "./conn-helper.mjs";
 import { MAX_SAVE_INPUT_BYTES, MAX_UPDATE_ROWS, digestOf, saveNewSettings, updateFields } from "../src/commands/save.ts";
@@ -41,7 +41,7 @@ test("新しい設定: ok（digest は確定したファイル。settings/ が�
     assert.equal(r.digest, fileDigest(file));
     const saved = JSON.parse(readFileSync(file, "utf8"));
     assert.equal(saved.pluginID, "rex0220 formula plugin");
-    assert.equal(saved.PluginVersion, "101", "normalize が zip の版にする");
+    assert.equal(saved.PluginVersion, PLUGIN_VERSION, "normalize が zip の版にする");
     assert.ok(!("pluginFields" in saved), "派生値は書かない");
     assert.ok(Array.isArray(r.findings) && r.findings.length > 0, "findings（Ver.100 の情報、misc の警告など）");
     assert.match(r.summary, /エラー 0/);

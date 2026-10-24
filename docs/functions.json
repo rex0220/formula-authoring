@@ -1,5 +1,5 @@
 {
-  "pluginVersion": "101",
+  "pluginVersion": "102",
   "functions": {
     "ABS": {
       "type": [
