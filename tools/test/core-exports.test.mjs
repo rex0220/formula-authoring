@@ -19,7 +19,11 @@ const NAMES = [
   "resolveRead", "resolveWrite", "isInside", "realResolve", "WRITE_ROOTS", "PathError",
   "ENVELOPE_KEYS", "ROW_SOURCE_KEYS", "ROW_SCREEN_KEYS", "Findings",
   // tools 0.3.0（計画 25 章）: サンプルアプリと式の試し計算
-  "SAMPLE_APP", "sampleApp", "describeSampleApp", "trySettings", "resolveTryTarget", "buildTryEnvelope", "TRY_MAX_FORMULAS", "TRY_MAX_FORMULA_CHARS", "TRY_DEFAULT_AS"
+  "SAMPLE_APP", "sampleApp", "describeSampleApp", "trySettings", "resolveTryTarget", "buildTryEnvelope", "TRY_MAX_FORMULAS", "TRY_MAX_FORMULA_CHARS", "TRY_DEFAULT_AS",
+  // tools 0.5.0 / 0.6.0（項目検証）: fv のコマンドと保存（formula MCP 0.4.0 の fv_*）
+  "FV_CONFIG_PLUGIN_ID", "FV_PLUGIN_ID", "FV_MIN_VERSION", "FV_ENGINES", "engineOfFv", "FV_ROW_KEYS", "FV_COMMON_KEYS", "fvSourceOf",
+  "fvNormalizeSettings", "fvCheckSettings", "validateFvEvents", "FV_CHECK_RECORDS_MAX", "FV_CHECK_EVENTS_MAX", "FV_EVENT_RE", "fvSummarizeSettings", "fvDiffSettings", "fvPullSettings", "fvDefaultPullName",
+  "fvSaveNewSettings", "fvUpdateRows", "isSnapshotName", "isEditName", "snapshotKindOf", "editKindOf"
 ];
 
 test("core の入口に MCP が使う名前があり、CORE_API_VERSION は 2", () => {

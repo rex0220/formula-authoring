@@ -12,7 +12,7 @@ import { jsonDiff, quiet } from "../input.ts";
 import { scanFormula, type ScanResult } from "../scan.ts";
 import { defaultUsersInfo, type UsersInfoTable, type UsersOrigin } from "../users/index.ts";
 import { FV_CONFIG_PLUGIN_ID, FV_ENGINES, FV_MIN_FORMULA_VERSION, FV_MIN_VERSION, engineOfFv, fvUpdateFunctions } from "./meta.ts";
-import { FV_COLUMN_DENY, FV_DERIVED_KEYS, FV_SOURCE_KEYS, fvSourceOf, type FvSource, type FvSourceInfo } from "./model.ts";
+import { FV_COLUMN_DENY, FV_DERIVED_KEYS, FV_ROW_KEYS, FV_SOURCE_KEYS, fvSourceOf, type FvSource, type FvSourceInfo } from "./model.ts";
 import { fvApplySource, fvHasSetting, fvPropsOf, fvRowsOf, type FvProp, type FvRow } from "./rows.ts";
 import { fvBuildSaved, fvDerive, fvStrip } from "./derive.ts";
 
@@ -23,7 +23,7 @@ const ENVELOPE_KEYS = ["date", "pluginName", "pluginID", "PluginVersion", "appId
 /** 設定画面の保存が外枠に足すキー */
 const OUTER_KEYS = ["pluginLastUpdate", "pluginUpdater", "startDate", "name", "version", "ldate", "error", "compress"];
 /** 行・検証条件・テーブル内非表示のキー（元の値と、ダウンロード（保存値）にある派生・画面のキー。pqGrid の pq_* は旧い画面の残り） */
-const ROW_SOURCE = ["fieldcode", "state", "formulaSet", "disabledSet", "hideSet", "init", "condInfos", "tblfields"];
+const ROW_SOURCE: readonly string[] = FV_ROW_KEYS;
 const ROW_OTHER = ["formula", "disabled", "hide", "id", "row_type", "type", "type2", "fieldlabel", "constrain", "condDesc", "ptcode", "usedFields", "usedFieldsDisabled", "usedFieldsHide",
   "usedFieldsCond", "usedFieldsDuplicate", "usedFieldsTable", "dupInfos", "dupDesc", "check", "lookup", "message", "fieldno", "ptno"];
 const COND_SOURCE = ["state", "condSet", "jaSet", "enSet", "zhSet"];

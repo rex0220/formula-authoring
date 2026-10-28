@@ -18,6 +18,7 @@
  *     denied（書けない場所、ダウンロードのファイル、作業フォルダーの外、接続のファイルに無い profile）/ failed（接続のファイルの誤り、移行で止まっている、zip が読めない、
  *     時間切れ、読み書きの失敗など想定外）。code に誤りの種類（接続の誤りは ConnectionError の code。print-craft MCP の 5.2、15.10 の約束）
  * パスは作業フォルダーからの相対で受け取る（..・絶対パス・ドライブ名は safe-path.ts が止める）。応答の文に設定・レコードの中身を入れない
+ * 項目検証の保存（fv/save.ts。tools 0.6.0）も、ここの部品（入力の読み方、項目定義の決め方、検査、確定、誤りの分け方）を使う
  */
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
@@ -52,6 +53,8 @@ export interface SaveResult {
   summary?: string;
   /** updateFields: 前の内容と確定した内容の差（項目ごと。affectsRecords = 既存レコードの値に影響する） */
   diff?: { fields: FieldChange[]; common: string[] };
+  /** fvUpdateRows: 前の内容と確定した内容の差（fv diff と同じ行の文と、変わった行の項目コード） */
+  fvDiff?: { lines: string[]; changed: string[] };
   /** status が ok でないときの理由（決まった文） */
   message?: string;
   /** status が ok でないときの誤りの種類（ConflictError、PermissionError、PathError、InputError、NormalizeError、接続の誤りの code など。想定外の失敗は Error） */
@@ -102,15 +105,15 @@ export function digestOf(text: string | Buffer): string {
   return createHash("sha256").update(text).digest("hex");
 }
 
-const rel = (root: string, abs: string): string => path.relative(root, abs).replace(/\\/g, "/");
+export const rel = (root: string, abs: string): string => path.relative(root, abs).replace(/\\/g, "/");
 
-class SaveDenied extends Error {}
-class ConflictError extends Error {}
+export class SaveDenied extends Error {}
+export class ConflictError extends Error {}
 
-const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+export const isPlainObject = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
 /** AI の入力の JSON を読む（読めないときは位置だけ。中身は返さない） */
-function parseInput(text: string, what: string): unknown {
+export function parseInput(text: string, what: string): unknown {
   try {
     return JSON.parse(text);
   } catch (e) {
@@ -118,14 +121,14 @@ function parseInput(text: string, what: string): unknown {
   }
 }
 
-function tooLarge(text: string): boolean {
+export function tooLarge(text: string): boolean {
   return Buffer.byteLength(text, "utf8") > MAX_SAVE_INPUT_BYTES;
 }
 
 /**
  * 項目定義: アプリのフォルダーの中なら同じフォルダーの fields.json だけ。それ以外は引数の fields、無ければ封筒の appId の fields/<appId>.json（CLI の既定と同じ）
  */
-function fieldsFileFor(ctx: SaveContext, target: string, fields: string | undefined, envelope: Record<string, unknown>): string {
+export function fieldsFileFor(ctx: SaveContext, target: string, fields: string | undefined, envelope: Record<string, unknown>): string {
   const folder = appFolderOfFile(ctx.root, target);
   if (folder) {
     const own = resolveRead(path.join(folder.dir, "fields.json"), ctx.root);
@@ -143,10 +146,10 @@ function fieldsFileFor(ctx: SaveContext, target: string, fields: string | undefi
   return file;
 }
 
-/** 検査（Worker で normalize）。zip が読めない・時間切れは EvalError / EvalTimeoutError のまま投げる（failed） */
-async function normalizeText(ctx: SaveContext, target: string, text: string, fieldsFile: string): Promise<EvalOutcome> {
+/** 検査（Worker で normalize。項目検証は kind "fv-normalize"）。zip が読めない・時間切れは EvalError / EvalTimeoutError のまま投げる（failed） */
+export async function normalizeText(ctx: SaveContext, target: string, text: string, fieldsFile: string, kind: "normalize" | "fv-normalize" = "normalize"): Promise<EvalOutcome> {
   const job: EvalJob = {
-    kind: "normalize",
+    kind,
     pluginZip: ctx.source.pluginZip, devPluginDir: ctx.source.devPluginDir, mode: ctx.source.mode, vendorDir: ctx.source.vendorDir,
     baseUrl: ctx.baseUrl, settingsText: text, settingsFile: rel(ctx.root, target), fields: readFieldsFile(fieldsFile),
     usersSource: ctx.usersSource ?? DEFAULT_USERS, usersOrigin: ctx.usersOrigin ?? { kind: "default" }, policy: ctx.policy, lang: ctx.lang
@@ -154,8 +157,8 @@ async function normalizeText(ctx: SaveContext, target: string, text: string, fie
   return runEval(job, ctx.run);
 }
 
-/** 一時ファイルを書き、ロックを取って確かめ直してから確定する。確定したら digest と片付けの失敗の文を返す */
-function commit(ctx: SaveContext, target: string, text: string, mode: "new" | "replace", recheck: () => void): { digest: string; cleanup: string[] } {
+/** 一時ファイルを書き、ロックを取って確かめ直してから確定する。確定したら digest と片付けの失敗の文を返す（readAgain = 読み直しに案内するツール） */
+export function commit(ctx: SaveContext, target: string, text: string, mode: "new" | "replace", recheck: () => void, readAgain = "fml_summary"): { digest: string; cleanup: string[] } {
   const tmp = tempPathFor(target);
   let lock: Lock | undefined;
   let digest: string | undefined;
@@ -177,7 +180,7 @@ function commit(ctx: SaveContext, target: string, text: string, mode: "new" | "r
     checkTarget();
     recheck();
     // 長く止まっている間に、古いとみなされて他の保存にロックを取られていたら確定しない
-    if (!lock.owned()) throw new ConflictError("ロックを失った（保存が 60 秒より長く止まった）。fml_summary で読み直してやり直す");
+    if (!lock.owned()) throw new ConflictError(`ロックを失った（保存が 60 秒より長く止まった）。 で読み直してやり直す`);
     if (mode === "new") withRetry(() => placeNew(tmp, target));
     else withRetry(() => renameSync(tmp, target));
     digest = digestOf(text);
@@ -244,7 +247,7 @@ function safeMessageOf(e: unknown): string {
   return `想定外の誤り（${builtinErrorName(e)}）。誤りの文は値やパスを含みうるので返さない`;
 }
 
-function errorResult(root: string, target: string, e: unknown, findings: Finding[] = []): SaveResult {
+export function errorResult(root: string, target: string, e: unknown, findings: Finding[] = []): SaveResult {
   return { status: statusOf(e), code: codeOf(e), path: rel(root, target), findings, message: safeMessageOf(e), ...(e instanceof EvalError && e.kind === "zip" && e.code ? { zipCode: e.code } : {}) };
 }
 
@@ -252,7 +255,7 @@ function invalid(root: string, target: string, message: string, code = "InputErr
   return { status: "invalid", code, path: rel(root, target), findings: [], message };
 }
 
-function finish(ctx: SaveContext, target: string, outcome: EvalOutcome, run: () => { digest: string; cleanup: string[] }, extra: Partial<SaveResult> = {}): SaveResult {
+export function finish(ctx: SaveContext, target: string, outcome: EvalOutcome, run: () => { digest: string; cleanup: string[] }, extra: Partial<SaveResult> = {}): SaveResult {
   const findings = outcome.normalize.findings;
   try {
     const { digest, cleanup } = run();
