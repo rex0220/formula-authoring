@@ -17,13 +17,14 @@ Projects/
 
 ## 構成
 
-- `src/cli.ts` … `formula-authoring <command>`（version / fields / record / records / pull / summary / diff / users / normalize / calc / try、接続のファイルがあるときの take / edit / files）。読むのは cwd の中、書くのは fields/ records/ settings/ temp/ users/ kintone/ の下だけ（`src/safe-path.ts`。kintone/ の下は `src/permission.ts` の許可も）。`.env` / policy / zip / 接続のファイルの場所は固定
+- `src/cli.ts` … `formula-authoring <command>`（version / fields / record / records / pull / summary / diff / users / normalize / calc / try、接続のファイルがあるときの take / edit / files、項目検証の fv normalize / check / summary / diff / pull）。読むのは cwd の中、書くのは fields/ records/ settings/ temp/ users/ kintone/ の下だけ（`src/safe-path.ts`。kintone/ の下は `src/permission.ts` の許可も）。`.env` / policy / zip / 接続のファイルの場所は固定
 - `src/plugin-zip.ts` … 計算式プラグインの zip（contents.zip の 2 層）を Node の zlib だけで読む。大きさ・entry 数・展開後の上限、CRC-32、名前の一致、重複を検査
 - `src/engine.ts` … zip のエンジン（`KintoneFormula.min.js` → `bignumber` → `rex0220_decimal` → `moment-timezone` → `formula-authoring-api.js` の順）と authoring API を happy-dom + ダミー層（ログインユーザー、アプリ番号、ルックアップ先、ユーザー情報、sink の記録）で動かす。照合（プラグイン ID、版、API の版、API のキーと型）。走査の間は `dq`（評価）を遮断する（`blockDq`）
 - `src/scan.ts` … 計算式の字面の走査（関数、識別子、文字列と、それを引数に持つ関数）。評価しない
 - `src/commands/normalize.ts` … 設定画面と同じ手順の検査（生の JSON の未知のキー → normalizeSource → 走査（副作用 / 文脈 / イベント / ユーザー情報）→ checkFormula / deriveSemantic → 循環 → 大きさ）と既定値を補った封筒。`src/normalize/` … 規則（findings）、policy、型、差分
 - `src/commands/calc.ts` … 取得したレコードに設定を当てる模擬（authoring API の `calcRecord`。イベント、ログインユーザー、ユーザー情報、文脈の fail-closed、sink の拒否）。`src/worker/` … 評価を Worker で動かし時間上限で止める
 - `src/commands/click.ts` … ボタン（BUTTON / DIALOG）のクリックの模擬（`clickFormula`。calc の `click` と try の式の `click`。0.4.0）
+- `src/fv/` … 項目検証プラグイン（rex0220 field validation）Ver.72 以降の設定（0.5.0）。meta（プラグイン ID、版の下限、同梱のエンジンの表、更新系の関数）・model（元の値の形、旧い形のキー）・rows（項目定義とレイアウトから行）・derive（式の検査、派生値、保存値）・judge（判定の模擬）・normalize / check / summary / pull（`fv` のコマンドの本体）。式は計算式の zip のエンジンで評価し、項目検証の zip は読まない。規則の正本は項目検証のコード（非公開）で、照合は plugin-config-kit の `test/plugins/fv-authoring-compare.test.mjs`。計画は field-validation（非公開）の `docs/オーサリングツール_実装計画.md`
 - `src/commands/try.ts` / `src/commands/try-data.ts` / `src/sample-app.ts` … 式の試し計算（`try`。formula MCP の `fml_try`）。`try-data.ts` は架空の項目（標本に足す）と簡略形の値（kintone の形に変換・検査）。同梱のサンプルアプリ（`src/sample-app/`。全項目タイプ × 2、テーブル 2 つ、レコード 3 件 = 典型 / 端 / 空。実在の値は無い。`scripts/gen-sample-app.mjs` で取り直す）に式ごとに 1 行だけの設定を組み、normalize → calc で値（型に入れた後の値と、エンジンの生の値）を返す。利用者のアプリ・レコード・接続は使わない
 - `src/users/` … ユーザー情報のテストデータ（既定の架空の 10 人）と `users/*.json` の形。`src/commands/users.ts` … User API からの取得（全部 / `--only-referenced` = 式が参照するコードとその所属だけ）
 - `src/connections.ts` / `src/workspace.ts` / `src/permission.ts` / `src/commit-file.ts` … kintone の接続のファイル（kSQL の `ksql.config.json` と同じ形。profile、`tokenMap`、`userApiToken`）、`kintone/<profile>/<番号>-<アプリ名>/` のフォルダーと印 `.formula-app.json`、kintone/ の下を変える許可、ファイルの確定とロック（print-craft-authoring tools 2.0.0 の写し）
@@ -33,7 +34,7 @@ Projects/
 - `src/core.ts` … 共通の中核の入口（npm の `@rex0220/formula-authoring-tools/core`。formula MCP が使う。`CORE_API_VERSION` 2）。`scripts/build.mjs` が `dist/core.mjs` と `dist/types/` を作る。MCP が使う名前は `test/core-exports.test.mjs` で固定する
 - `scripts/vendor.mjs` … moment 2.24.0 を CDN から `vendor/` に取る（`vendor/moment.json` の SHA-256 と照合）。`scripts/build.mjs` … esbuild で `dist/cli.mjs` / `dist/eval-worker.mjs` / `dist/core.mjs`。`scripts/gen-docs.mjs` … `docs/`（設定ファイル仕様、関数一覧、functions.json、schema-manifest、既定のテストデータ）と `samples/users.json` を zip から機械生成。`scripts/verify-patterns.mjs` + `scripts/pattern-cases.mjs` … 計算パターン集の例を同梱のサンプルアプリと架空の値で `try` に評価させ、関数一覧の使用例も評価して `docs/計算パターン_検証.md` を作る（`test/docs-sync.test.mjs` が最新と全部一致を確かめる = エンジンの版が変わったときの回帰検査）
 - `pending/` … print-craft から写してまだ計算式用にしていないもの（`diff.ts` / `normalize.ts` は計算式用の `src/commands/` が別にあるので使っていない）。npm には入らない
-- `test/` … `node --test`（src の .ts を直接読む。`test/helpers.mjs` が fixture の zip を読む。`test/fixtures/formula/` はテスト用アプリ 2305 の項目定義と設定）
+- `test/` … `node --test`（src の .ts を直接読む。`test/helpers.mjs` が fixture の zip を読む。`test/fixtures/formula/` はテスト用アプリ 2305 の項目定義と設定、`test/fixtures/fv/` は項目検証の試験用の架空のアプリ 900 の項目定義とレイアウト）
 
 ## 使い方（開発）
 
@@ -61,6 +62,7 @@ npm pack --dry-run  # 公開前に中身を確かめる（dist、vendor、LICENS
 
 ## 履歴
 
+- 0.5.0（2026-10）: 項目検証プラグイン（rex0220 field validation）Ver.72 以降の設定を作る・直す・確かめる `fv` のコマンド（`fv normalize` / `fv check` / `fv summary` / `fv diff` / `fv pull`。`src/fv/`）。式は計算式の zip（Ver.102 以降）のエンジンで評価し、項目検証の同梱のエンジンと違えば情報で知らせる。更新系の関数（FSET / FSET_TADD / BUTTON / DIALOG / CLIPBORD_WRITE / EV_SET と TLTABLE / TABLE_SORT / TABLE_MAP / TABLE_DATA / CSV_TVAL）は、項目検証の式のどこにあっても評価の前に止める。`fv check` は取得済みのレコードに当てた判定の模擬（誤りの文と入れる値は 200 文字まで）。作業フォルダー: 項目検証のダウンロード（`rex0220-field-validation-app<番号>-<日時>.json`）を `take` / `save` / `permission` で扱い、`edit --plugin field-validation`、`files` と `version` に項目検証の行。評価の仕事の kind に `fv-normalize` / `fv-check`。`fields --summary` に項目検証の要素 ID の行。テンプレートに `docs/項目検証/`（設定ファイル仕様と検証パターンは `scripts/gen-fv-docs.mjs` の機械生成）。`core` に項目検証の規則とコマンドを足した（`CORE_API_VERSION` は 2 のまま。足しただけ）
 - 0.4.1（2026-10）: `updateFields`（`fml_update_fields`）で設定に無い行を足せる（ヘッダーのボタン、スペース項目、計算式の無かった項目。省いた値は既定、アプリに無い項目は normalize の field.missing）。差分（`diff` / `fml_diff`）でボタン・表示の行（`(…)` の行、項目定義があればグループ）を ★ にしない（`display: true`。★ が無ければ「既存レコードを変更は要らない」）。`scripts/gen-docs.mjs` の関数一覧に各関数の説明の行（要約と使用例の間の行。引数の意味、置き場所など）を載せる（それまで落ちていた）。`fields --summary`（formula MCP の `fml_fields`）の最後の行に、ボタン・表示を置ける行の fieldcode（ヘッダー `($HEADER1)`〜`($HEADER3)`、要素 ID のあるスペース項目 `(要素ID)`）を出す（項目ではないので一覧に無く、AI がヘッダーの行の書き方を見つけられなかった）。設定ファイル仕様の `fieldcode` にも同じ
 - 0.4.0（2026-10）: ボタン（BUTTON / DIALOG）のクリックの模擬（計画 26 章。`calc --click <項目コード>`、`try --click`。formula MCP 0.3.0 の `fml_calc` の click / `fml_try` の式の click）。デスクトップの buttonClick と同じ手順（押す前の表示 → EV_SET("click") → 式 → 全項目の再計算）を写しのレコードで行い、押す前の表示（TYPE / TITLE / HTML / ICON / キャンセルの有無）と押した後に変わる項目（計算式の無い項目も。項目コード順）を返す（`src/commands/click.ts`）。policy の承認は今までどおり要る。計算パターン集の「ボタン・イベント」に 3 例と検証（47 ケース 128 式）
 - 0.3.1（2026-10）: normalize がスペース項目（要素 ID のある SPACER）とヘッダーの行の計算式を `field.type` で誤って止めていたのを直した（設定画面は許す）。`try` でスペース項目を対象にできる（`--as sp1` / `SPACER`。標本に `sp1` を足した。レコードに値が無いので式の返り値をそのまま返す）
