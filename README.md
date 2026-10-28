@@ -174,6 +174,16 @@ kintone/
 | `… edit --app N` | 今の設定（一番新しいダウンロード / pull）を `…-edit.json` に写す。直すのはこちら（接続のファイルがあるとき） |
 | `… files --app N` | アプリのフォルダーのファイル（今の設定、直したもの、その他の設定、records）（接続のファイルがあるとき） |
 
+項目検証プラグイン（rex0220 field validation）Ver.72 以降の設定も、同じ tools で作れます（式は計算式プラグインと同じ言語で、`.env` の計算式プラグインの zip（Ver.102 以降。試用版でよい）のエンジンで評価します。項目検証の zip は要りません）。手順は [docs/項目検証/AI作業手順.md](docs/項目検証/AI作業手順.md)。
+
+| コマンド | 内容 |
+| --- | --- |
+| `… fv normalize <設定> [--fields f] [--out f] [--check]` | 項目検証の設定を設定画面と同じ規則で検査し、既定値を補った元の値を書き出す（更新系の関数（FSET、TLTABLE など）は置けない） |
+| `… fv check <設定> --app N --id R [--records R1,R2] [--event e1,e2] [--lang ja\|en\|zh] [--user …] [--all]` | 取得済みのレコードに設定を当てた判定の模擬（項目ごとの 非表示 / 入力不可 / 必須 / 誤りの文 / 保存の前に入れる値。更新しない） |
+| `… fv summary <設定> [--field <code>]` / `… fv diff <before> <after>` | 項目検証の設定の要約 / 差 |
+| `… fv pull --app N [--preview]` | アプリに入っている項目検証の今の設定を、元の値の封筒で（API ラボの機能が有効な環境） |
+| `… edit --app N --plugin field-validation` | 項目検証の今の設定（一番新しいダウンロード / fv pull）を `…-edit.json` に写す（接続のファイルがあるとき） |
+
 ## Claude Code のプラグイン `formula` / Claude Desktop の拡張機能（任意）
 
 [formula MCP](https://github.com/rex0220/formula-authoring-mcp) を入れると、AI は tools の CLI の代わりに、プラグインのツール（`fml_docs` の手順、`fml_save_settings` / `fml_update_fields` の保存、`fml_calc` の模擬の計算、kintone からの読み取り）で同じ作業をします。このフォルダーと、`settings/`・`kintone/` の置き場所はそのまま使えます。Claude Desktop（kintone MCP も Claude Code も無い）でも、同じ拡張機能（`.mcpb`）で設定を作れます。
@@ -217,6 +227,7 @@ git commit -m "テンプレートの更新を取り込む"
 | [CLAUDE.md](CLAUDE.md) | AI への常設指示（常に守ることと、どの手順で作業するか。このリポジトリを開いた Claude Code が自動で読みます） |
 | [docs/AI作業手順.md](docs/AI作業手順.md) | AI の作業手順（読む文書、要約コマンド、仕様の確認、新規と変更の流れ、normalize の規則名と直し方、計算式の制約、反映の 4 段） |
 | [policy/README.md](policy/README.md) | 副作用のある関数と各種設定の変更の承認（利用者が書く。既定は BUTTON / DIALOG / FSET / FSET_TADD を承認） |
+| [docs/項目検証/](docs/項目検証/) | 項目検証プラグインの設定: AI作業手順（読むもの・作る流れ・fv normalize の規則名・式の決まり）、設定ファイル仕様と検証パターン（tools で確かめた例。機械生成）。雛形は [samples/項目検証/](samples/項目検証/) |
 
 ## トラブルシュート
 

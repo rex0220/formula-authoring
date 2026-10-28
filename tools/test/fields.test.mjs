@@ -41,4 +41,7 @@ test("fields --summary の最後の行: ボタン・表示を置ける行の fie
   assert.equal(last(f), "ボタン・表示の行（計算式を置ける。fieldcode は括弧ごと）: ヘッダー ($HEADER1) / ($HEADER2) / ($HEADER3)、スペース項目 (sp1)");
   const noSpacer = { ...f, layout: f.layout.map((r) => ({ ...r, fields: (r.fields ?? []).filter((x) => x.type !== "SPACER") })) };
   assert.match(last(noSpacer), /スペース項目なし/);
+  // 項目検証の要素 ID の行（スペース・ラベル・罫線）は、最後の行の 1 つ前
+  const withLabel = { ...f, layout: [...f.layout, { type: "ROW", fields: [{ type: "LABEL", label: "注意", elementId: "lb1" }, { type: "HR", elementId: "hr1" }] }] };
+  assert.equal(listFields(withLabel).split("\n").slice(-2)[0], "項目検証の要素 ID の行（非表示を置ける。fieldcode は括弧ごと）: スペース (sp1)、ラベル (lb1)、罫線 (hr1)");
 });
