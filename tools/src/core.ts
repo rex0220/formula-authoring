@@ -67,3 +67,20 @@ export { PermissionError, assertChangeAllowed, classOfAppPath, type ChangeOp, ty
 export {
   FileExistsError, LOCK_STALE_MS, LockBusyError, acquireLock, cleanupAll, lockPathFor, placeNew, tempPathFor, withRetry, writeNewFile, type Lock, type WriteNewResult
 } from "./commit-file.ts";
+// 項目検証（field-validation/docs/オーサリングツール_実装計画.md の段階 1）: 項目検証の規則（元の値・行・式の検査と派生値・保存値・判定）。式は計算式の zip のエンジンで評価する
+export {
+  FV_CONFIG_PLUGIN_ID, FV_PLUGIN_ID, FV_MIN_VERSION, FV_MIN_FORMULA_VERSION, FV_SNAPSHOT_PREFIX, FV_SNAPSHOT_RE, FV_EDIT_RE, FV_ENGINES, FV_TABLE_PRODUCERS, engineOfFv, fvUpdateFunctions
+} from "./fv/meta.ts";
+export {
+  FV_TARGET_TYPES, FV_ELEMENT_TYPES, FV_BUTTON_TYPE, FV_COLUMN_DENY, FV_SOURCE_KEYS, FV_DERIVED_KEYS, FV_BORDER_DEFAULTS, fvBorderOf, fvSourceOf,
+  type FvSource, type FvSourceInfo, type FvSourceCond, type FvSourceTbl, type FvBorder
+} from "./fv/model.ts";
+export { fvPropsOf, fvRowsOf, fvApplySource, fvHasSetting, type FvProp, type FvRow, type FvRowCond, type FvTblChild, type FvLayoutRow, type FvApplyResult } from "./fv/rows.ts";
+export { FV_INFO_KEYS, fvStrip, fvDerive, fvBuildSaved, type FvColumn, type FvFormulaError, type FvDeriveContext } from "./fv/derive.ts";
+export { FV_JUDGE_DEFAULT_EVENT, fvJudgeRecord, type FvJudgement, type FvJudgeResult, type FvJudgeOptions, type FvLang } from "./fv/judge.ts";
+// 項目検証の段階 2: コマンド（fv normalize / check / summary / diff / pull）と、計算式・項目検証のダウンロード / -edit.json の名前の判定
+export { FV_PLUGIN_NAME, fvNormalizeSettings, outputInfos as fvOutputInfos, type FvNormalizeInput, type FvNormalizeResult } from "./fv/normalize.ts";
+export { FV_CHECK_EVENTS_MAX, FV_CHECK_RECORDS_MAX, FV_EVENT_RE, fvCheckSettings, linesOf as fvLinesOf, renderFvLine, validateFvEvents, type FvCheckInput, type FvCheckLine, type FvCheckRecord, type FvCheckResult } from "./fv/check.ts";
+export { fvDiffSettings, fvSummarizeSettings, type FvDiffResult } from "./fv/summary.ts";
+export { fvDefaultPullName, fvPullSettings, type FvPullOptions } from "./fv/pull.ts";
+export { editKindOf, isEditName, isSnapshotName, snapshotKindOf, type PluginKind } from "./workspace.ts";

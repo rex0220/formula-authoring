@@ -23,7 +23,7 @@ import { PluginZipError } from "./plugin-zip.ts";
 import { schemaRevisionOf, toolsMeta } from "./meta.ts";
 import { PathError, WRITE_ROOTS, isInside, resolveRead, resolveWrite } from "./safe-path.ts";
 import { ConnectionError, PROFILE_NAME_RE, authFor, pickProfile, userApiAuthFor, type ProfileDef } from "./connections.ts";
-import { INBOX, KINTONE_ROOT, SNAPSHOT_RE, WorkspaceError, appDirFor, appFolderOfFile, assertAppMark, assertUsableInKintone, editNameOf, ensureAppFolder, findAppDir, legacyBlockedError, listAppFolder, modeOf, snapshotNameOf, type WorkspaceMode } from "./workspace.ts";
+import { INBOX, KINTONE_ROOT, WorkspaceError, appDirFor, appFolderOfFile, assertAppMark, assertUsableInKintone, editNameOf, ensureAppFolder, findAppDir, legacyBlockedError, listAppFolder, modeOf, snapshotKindOf, snapshotNameOf, type WorkspaceMode } from "./workspace.ts";
 import { PermissionError, assertChangeAllowed, type ChangeOp } from "./permission.ts";
 import { FileExistsError, writeNewFile } from "./commit-file.ts";
 import { DEFAULT_USERS, UsersDataError, summarizeUsers, validateUsersSource, type UsersOrigin, type UsersSource } from "./users/index.ts";
@@ -40,6 +40,9 @@ import { PolicyError, loadPolicy } from "./normalize/policy.ts";
 import { DEFAULT_TIMEOUT_SEC, EvalError, EvalTimeoutError, MAX_TIMEOUT_SEC, runEval } from "./worker/run.ts";
 import { builtinErrorName } from "./worker/eval-run.ts";
 import type { EvalJob } from "./worker/eval-job.ts";
+import { FV_CONFIG_PLUGIN_ID, FV_ENGINES, FV_MIN_FORMULA_VERSION, FV_MIN_VERSION } from "./fv/meta.ts";
+import { fvDiffSettings, fvSummarizeSettings } from "./fv/summary.ts";
+import { fvDefaultPullName, fvPullSettings } from "./fv/pull.ts";
 
 const USAGE = `使い方: npx @rex0220/formula-authoring-tools <command> [options]
   version                                   tools の版と、zip から読んだ計算式プラグインの版・API の版・エンジンの SHA-256、kintone の接続の形
@@ -79,6 +82,18 @@ const USAGE = `使い方: npx @rex0220/formula-authoring-tools <command> [option
   try --describe                            サンプルアプリの項目（1 項目 1 行。○ = 計算式を設定できる型）とレコード 3 件の形
   help
 
+項目検証プラグイン（Ver.72 以降）の設定（式は計算式プラグインの zip（Ver.102 以降。試用版でよい）のエンジンで評価する）:
+  fv normalize <settings.json> [--fields fields/N.json] [--users <f>] [--out <f>] [--force] [--check] [--timeout 秒]
+                                            設定画面と同じ規則で検査し、既定値を補った元の値の封筒を書き出す（更新系の関数（FSET、TLTABLE など）は置けない）
+  fv check <settings.json> --app N (--id R | --records R1,R2,…) [--event <名前>[,<名前>…]] [--lang ja|en|zh] [--user <code>] [--users <f>] [--all] [--timeout 秒]
+                                            取得済みのレコード（records/）に設定を当てた判定の模擬: 項目ごとの 非表示 / 入力不可 / 必須 / 誤りの文 / 保存の前に入れる値。
+                                            --event は app.record.create.show、app.record.edit.change.<項目コード>、app.record.edit.submit など（既定 app.record.index.edit.change）
+  fv summary <settings.json> [--field <code>]
+                                            項目検証の設定ファイルの要約（--field でその行の式の全文）
+  fv diff <before.json> <after.json>        2 つの項目検証の設定ファイルの差
+  fv pull --app N [--preview] [--guest S] [--out settings/<f>.json] [--force]
+                                            アプリに入っている項目検証の今の設定を、元の値の封筒で（接続のファイルがあればアプリのフォルダーに rex0220-field-validation-app<番号>-<日時>.json）
+
 kintone の接続のファイル（FORMULA_KINTONE_CONFIG があるとき。kSQL の ksql.config.json と同じ形。複数のドメイン・アプリ）:
   FORMULA_KINTONE_CONFIG は OS の環境変数（絶対パス）か .env（.env のフォルダーからの相対パスでもよい）。接続のファイルは作業フォルダーの外に置く。
   kintone を使うコマンドに --profile <名前>（省略は接続のファイルの defaultProfile、無ければ dev）。--app は番号。--guest は使わない（profile の guestSpaceId）。
@@ -87,8 +102,9 @@ kintone の接続のファイル（FORMULA_KINTONE_CONFIG があるとき。kSQL
   normalize / calc にアプリのフォルダーの中のファイルを渡すと --fields は同じフォルダーの fields.json、calc --id 3 は records/3.json。
   ダウンロード / pull のファイルは書き換えない（edit で -edit.json に写して直す。normalize の --out もそこへ）。
   take [--profile <名前>]                   inbox/ に置いた設定のダウンロードを、封筒の appId で profile のアプリのフォルダーへ名前のまま移す
-  edit --app N | edit <ダウンロードのファイル>
-                                            一番新しい（または指定した）ダウンロード / pull を <名前>-edit.json に写す（既にあればそのまま）。直すのはこちら
+  edit --app N [--plugin field-validation] | edit <ダウンロードのファイル>
+                                            一番新しい（または指定した）ダウンロード / pull を <名前>-edit.json に写す（既にあればそのまま）。直すのはこちら。
+                                            --plugin field-validation は項目検証のダウンロード / fv pull（既定は計算式）
   files --app N                             アプリのフォルダーのファイル（今の設定 = 一番新しいダウンロード / pull、-edit.json、その他の設定、records）
 
 読むのは作業フォルダー（起動したフォルダー）の中のファイルだけ。書くのは fields/ records/ settings/ temp/ users/ kintone/ の下だけ（kintone/ は接続のファイルがあるときだけ）。
@@ -315,6 +331,10 @@ async function cmdVersion(): Promise<number> {
   if (s.apiSha256) console.log(`  authoring API: sha256 ${s.apiSha256}`);
   console.log(`  設定スキーマの版: ${schemaRevisionOf(engine.api.CONFIG_SCHEMA)}、関数 ${engine.functionNames().length}`);
   for (const w of engine.warnings) console.log(`  注意: ${w}`);
+  // 項目検証（fv）: この zip のエンジンで項目検証の式を評価する。項目検証の版ごとの同梱のエンジンと同じか
+  const fvOk = Number(s.pluginVersion) >= FV_MIN_FORMULA_VERSION;
+  const same = FV_ENGINES.filter((e) => e.engineSha256 === s.engineSha256).map((e) => `Ver.${e.fvVersion}`);
+  console.log(`項目検証プラグイン（fv）: 設定は Ver.${FV_MIN_VERSION} 以降、${fvOk ? `この zip で評価する（${same.length ? `項目検証 ${same.join(", ")} の同梱のエンジンと同じ` : "項目検証の同梱のエンジンとは版が違う。結果が少し違うことがある"}）` : `この zip（Ver.${s.pluginVersion}）では評価しない（計算式 Ver.${FV_MIN_FORMULA_VERSION} 以降の zip が要る）`}`);
   return 0;
 }
 
@@ -454,7 +474,7 @@ function timeoutOf(flags: Flags): number {
  * normalize / calc の共通: 設定ファイル、fields、ユーザー情報、policy、zip の場所を揃えて Worker に渡す仕事を作る（評価は Worker で）。
  * アプリのフォルダーの中のファイルは、いつも同じフォルダーの fields.json（--fields はそれと同じときだけ。別のアプリ・profile・fields/ の項目定義で検査しない）
  */
-function jobOf(positional: string[], flags: Flags, usage: string, kind: "normalize" | "calc"): { job: EvalJob; raw: Record<string, unknown>; folder: { dir: string; profile: string; appId: number } | null } {
+function jobOf(positional: string[], flags: Flags, usage: string, kind: "normalize" | "calc" | "fv-normalize" | "fv-check"): { job: EvalJob; raw: Record<string, unknown>; folder: { dir: string; profile: string; appId: number } | null } {
   const file = positional[1];
   if (!file) throw new UsageError(usage);
   const settingsAbs = existingFile(file, "pull か、設定ファイルを置く");
@@ -511,13 +531,7 @@ async function cmdCalc(positional: string[], flags: Flags): Promise<number> {
   for (const id of ids) if (!/^[1-9]\d{0,9}$/.test(id)) throw new UsageError(`レコード番号が正の整数でない: ${id}`);
   const { job, folder } = jobOf(positional, flags, "calc <settings.json> --app N --id R", "calc");
   if (folder && folder.appId !== app) throw new UsageError(`--app ${app} とファイルのフォルダーのアプリ（${folder.appId}）が違う`);
-  const records = ids.map((id) => {
-    // アプリのフォルダーの中の設定なら同じフォルダーの records/<番号>.json
-    const rel = folder ? path.join(folder.dir, "records", `${id}.json`) : path.join("records", `${app}-${id}.json`);
-    const data = readJsonLimited(existingFile(rel, `record --app ${app} --id ${id}${has(flags, "profile") ? ` --profile ${str(flags, "profile")}` : ""}`)) as { record?: Record<string, { type: string; value: unknown }>; appId?: number; id?: number };
-    if (!data.record || typeof data.record !== "object") throw new InputError(`${shown(path.resolve(W.root, rel))} は record コマンドの出力ではない`);
-    return { id, record: data.record, fileAppId: typeof data.appId === "number" ? data.appId : undefined, fileId: typeof data.id === "number" ? data.id : undefined };
-  });
+  const records = recordsOf(flags, app, folder, "calc <settings.json> --app N --id R（または --records R1,R2,…）");
   job.calc = {
     appId: app, records, evType: str(flags, "event"),
     event: has(flags, "action") || has(flags, "status") || has(flags, "next-status") ? { action: { value: str(flags, "action") ?? "" }, status: { value: str(flags, "status") ?? "" }, nextStatus: { value: str(flags, "next-status") ?? "" } } : undefined,
@@ -533,6 +547,123 @@ async function cmdCalc(positional: string[], flags: Flags): Promise<number> {
   if (outcome.normalize.warnings) console.log(`normalize の警告 ${outcome.normalize.warnings}（normalize で確かめる）`);
   console.log(outcome.calc.text);
   return outcome.calc.failed ? 1 : 0;
+}
+
+/** 取得済みのレコード（--id / --records。アプリのフォルダーの中の設定なら同じフォルダーの records/<番号>.json）。calc と fv check の共通 */
+function recordsOf(flags: Flags, app: number, folder: { dir: string } | null, usage: string): Array<{ id: string; record: Record<string, { type: string; value: unknown }>; fileAppId?: number; fileId?: number }> {
+  const ids = str(flags, "records") ? (str(flags, "records") as string).split(",").map((x) => x.trim()).filter(Boolean) : str(flags, "id") ? [str(flags, "id") as string] : [];
+  if (!ids.length) throw new UsageError(usage);
+  for (const id of ids) if (!/^[1-9]\d{0,9}$/.test(id)) throw new UsageError(`レコード番号が正の整数でない: ${id}`);
+  return ids.map((id) => {
+    const rel = folder ? path.join(folder.dir, "records", `${id}.json`) : path.join("records", `${app}-${id}.json`);
+    const data = readJsonLimited(existingFile(rel, `record --app ${app} --id ${id}${has(flags, "profile") ? ` --profile ${str(flags, "profile")}` : ""}`)) as { record?: Record<string, { type: string; value: unknown }>; appId?: number; id?: number };
+    if (!data.record || typeof data.record !== "object") throw new InputError(`${shown(path.resolve(W.root, rel))} は record コマンドの出力ではない`);
+    return { id, record: data.record, fileAppId: typeof data.appId === "number" ? data.appId : undefined, fileId: typeof data.id === "number" ? data.id : undefined };
+  });
+}
+
+// ---- 項目検証（fv。field-validation/docs/オーサリングツール_実装計画.md の段階 2） ----
+
+async function cmdFv(positional: string[], flags: Flags): Promise<number> {
+  const rest = positional.slice(1);
+  switch (rest[0]) {
+    case "normalize": return await cmdFvNormalize(rest, flags);
+    case "check": return await cmdFvCheck(rest, flags);
+    case "summary": return cmdFvSummary(rest, flags);
+    case "diff": return cmdFvDiff(rest);
+    case "pull": return await cmdFvPull(flags);
+    default: throw new UsageError("fv は normalize / check / summary / diff / pull");
+  }
+}
+
+const FV_REFLECT = "設定画面で 設定をアップロード → 取り込み方（全置換 / 項目の置換）→ 保存する → 運用環境に反映。既存のレコードの値は変わらない（次に編集して保存するときから新しい条件で判定。隠れて初期化がオンの項目は初期値に戻る）";
+
+async function cmdFvNormalize(rest: string[], flags: Flags): Promise<number> {
+  const { job } = jobOf(rest, flags, "fv normalize <settings.json> [--fields fields/N.json]", "fv-normalize");
+  const out = str(flags, "out");
+  if (out) allow(resolveWrite(out, WRITE_ROOTS.settings, W.root), "settings");
+  const outcome = await runEval(job, { timeoutSec: timeoutOf(flags), inline: inline() });
+  for (const w of outcome.engineWarnings) console.log(`注意: ${w}`);
+  console.log(outcome.normalize.summary);
+  if (outcome.normalize.checkDiffs) {
+    console.log(outcome.normalize.checkDiffs.length ? `--check: 入力と出力の差 ${outcome.normalize.checkDiffs.length}\n  ${outcome.normalize.checkDiffs.join("\n  ")}` : "--check: 入力と出力の差 0");
+  }
+  if (outcome.normalize.hasErrors || !outcome.normalize.output) return 1;
+  if (out) {
+    const abs = writeJson(out, outcome.normalize.output, WRITE_ROOTS.settings, "settings", { force: has(flags, "force") });
+    console.log(`→ ${shown(abs)}（既定値を補った元の値。${FV_REFLECT}）`);
+  }
+  return 0;
+}
+
+async function cmdFvCheck(rest: string[], flags: Flags): Promise<number> {
+  const app = intFlag(flags, "app", true) as number;
+  const usage = "fv check <settings.json> --app N --id R（または --records R1,R2,…）";
+  const lang = str(flags, "lang");
+  if (lang !== undefined && !["ja", "en", "zh"].includes(lang)) throw new UsageError(`--lang は ja / en / zh: ${lang}`);
+  const { job, raw, folder } = jobOf(rest, flags, usage, "fv-check");
+  if (folder && folder.appId !== app) throw new UsageError(`--app ${app} とファイルのフォルダーのアプリ（${folder.appId}）が違う`);
+  if (typeof raw.appId === "number" && raw.appId !== app) throw new UsageError(`--app ${app} と設定の appId（${raw.appId}）が違う`);
+  const events = str(flags, "event")?.split(",").map((x) => x.trim()).filter(Boolean);
+  job.fvCheck = { appId: app, records: recordsOf(flags, app, folder, usage).map(({ id, record, fileAppId, fileId }) => ({ id, record, fileAppId, fileId })), events, user: str(flags, "user"), all: has(flags, "all") };
+  const outcome = await runEval(job, { timeoutSec: timeoutOf(flags), inline: inline() });
+  for (const w of outcome.engineWarnings) console.log(`注意: ${w}`);
+  if (outcome.normalize.hasErrors || !outcome.fvCheck) {
+    console.log(outcome.normalize.summary);
+    console.log("fv normalize のエラーがあるので判定しない");
+    return 1;
+  }
+  if (outcome.normalize.warnings) console.log(`fv normalize の警告 ${outcome.normalize.warnings}（fv normalize で確かめる）`);
+  console.log(outcome.fvCheck.text);
+  return 0;
+}
+
+/** 項目検証の設定のファイル（封筒の pluginID で確かめる。計算式の設定を渡したら止める） */
+function fvSettingsOf(abs: string): Record<string, unknown> {
+  const data = readJsonLimited(abs);
+  if (data.pluginID !== FV_CONFIG_PLUGIN_ID) throw new InputError(`${shown(abs)} は項目検証の設定ではない（封筒の pluginID が "${FV_CONFIG_PLUGIN_ID}" でない）`);
+  return data;
+}
+
+function cmdFvSummary(rest: string[], flags: Flags): number {
+  const file = rest[1];
+  if (!file) throw new UsageError("fv summary <settings.json>");
+  const abs = existingFile(file, "fv pull か、設定画面のダウンロードを置く");
+  console.log(fvSummarizeSettings(fvSettingsOf(abs), shown(abs), { field: str(flags, "field") }));
+  return 0;
+}
+
+function cmdFvDiff(rest: string[]): number {
+  const [, a, b] = rest;
+  if (!a || !b) throw new UsageError("fv diff <before.json> <after.json>");
+  const fa = existingFile(a, "設定ファイルを置く");
+  const fb = existingFile(b, "設定ファイルを置く");
+  console.log(fvDiffSettings(fvSettingsOf(fa), fvSettingsOf(fb), { before: shown(fa), after: shown(fb) }).lines.join("\n"));
+  return 0;
+}
+
+async function cmdFvPull(flags: Flags): Promise<number> {
+  const ctx = context(flags);
+  const app = intFlag(flags, "app", true) as number;
+  noOutInWorkspace(flags, ctx);
+  if (ctx.def && has(flags, "force")) throw new UsageError("接続のファイルがあるときの fv pull は、ダウンロードと同じ日時の名前で新しく置くので --force は使えない");
+  const engine = await engineOf();
+  const { client, authLabel, guestSpaceId } = clientFor(ctx, flags, app);
+  const r = await fvPullSettings(client, engine, { app, preview: has(flags, "preview"), guestSpaceId });
+  let out: string;
+  if (ctx.def) {
+    const dir = appDirFor(W.root, ctx.def.profile, app, r.appName);
+    const target = resolveWrite(path.join(dir, snapshotNameOf(app, new Date(), "field-validation")), WRITE_ROOTS.kintone, W.root);
+    if (existsSync(target)) throw new InputError(`${shown(target)} は既にある（同じ日時の名前）。少し待ってからやり直す（ダウンロード / pull のファイルは上書きしない）`);
+    allow(target, "snapshot");
+    ensureAppFolder(dir, ctx.def, app);
+    out = writeJson(target, r.envelope, WRITE_ROOTS.kintone, "snapshot", { exclusive: true });
+  } else {
+    out = writeJson(str(flags, "out") ?? path.join("settings", fvDefaultPullName(r.appName, app)), r.envelope, WRITE_ROOTS.settings, "settings", { force: has(flags, "force") });
+  }
+  console.log(`アプリ ${app} ${r.appName} の項目検証の設定（${has(flags, "preview") ? "動作テスト環境" : "運用中"}、保存形式 ${r.format}）→ ${shown(out)}\n${authLabel}で ${client.baseUrl} から取得`);
+  console.log(fvSummarizeSettings(r.envelope, shown(out)));
+  return 0;
 }
 
 async function cmdTry(positional: string[], flags: Flags): Promise<number> {
@@ -652,15 +783,19 @@ async function cmdTake(flags: Flags): Promise<number> {
 
 async function cmdEdit(positional: string[], flags: Flags): Promise<number> {
   const ctx = profileContext(flags, "edit（1 接続の形では settings/ のファイルを写して直す）");
+  const plugin = str(flags, "plugin") ?? (has(flags, "plugin") ? "" : "formula");
+  if (plugin !== "formula" && plugin !== "field-validation") throw new UsageError("--plugin は formula か field-validation");
   let src = positional[1];
   if (!src) {
     const app = intFlag(flags, "app", true) as number;
     const list = listAppFolder(existingAppDir(ctx, app), W.root);
-    if (!list.snapshots.length) throw new InputError(`${shown(list.dir)} にダウンロード / pull のファイルが無い（設定画面でダウンロードして inbox/ に置き take、または pull --app ${app}${profileFlag(ctx)}）`);
-    src = path.join(list.dir, list.snapshots[0]);
+    const snapshots = plugin === "formula" ? list.snapshots : list.fvSnapshots;
+    if (!snapshots.length) throw new InputError(`${shown(list.dir)} に${plugin === "formula" ? "" : "項目検証の"}ダウンロード / pull のファイルが無い（設定画面でダウンロードして inbox/ に置き take、または ${plugin === "formula" ? "" : "fv "}pull --app ${app}${profileFlag(ctx)}）`);
+    src = path.join(list.dir, snapshots[0]);
   }
   const file = resolveRead(src, W.root);
-  if (!SNAPSHOT_RE.test(path.basename(file)) || !appFolderOfFile(W.root, file)) throw new UsageError(`edit に渡すのはアプリのフォルダーのダウンロード / pull のファイル（rex0220-formula-app<番号>-<日時>.json）: ${src}`);
+  const kind = snapshotKindOf(path.basename(file));
+  if (!kind || !appFolderOfFile(W.root, file)) throw new UsageError(`edit に渡すのはアプリのフォルダーのダウンロード / pull のファイル（rex0220-formula-app<番号>-<日時>.json、項目検証は rex0220-field-validation-app<番号>-<日時>.json）: ${src}`);
   usable(file);
   if (!existsSync(file)) throw new InputError(`${shown(file)} が無い`);
   const dest = resolveWrite(editNameOf(file), WRITE_ROOTS.kintone, W.root);
@@ -671,7 +806,15 @@ async function cmdEdit(positional: string[], flags: Flags): Promise<number> {
     writeText(dest, readTextLimited(file), WRITE_ROOTS.kintone, "settings");
     console.log(`${shown(file)} → ${shown(dest)}（ここを直す。ダウンロードのファイルは書き換えない）`);
   }
-  console.log(`次: 直したら npx @rex0220/formula-authoring-tools normalize ${shown(dest)} → diff ${shown(file)} ${shown(dest)} → calc ${shown(dest)} --app ${appFolderOfFile(W.root, file)?.appId} --id R`);
+  const folder = appFolderOfFile(W.root, file);
+  if (kind === "field-validation") {
+    // 項目検証は temp/ で直し、fv normalize --out で写しに戻す（formula の Claude Code プラグインのフックが kintone/ の JSON の直接の書き込みを止めるため）
+    const draft = `temp/${path.basename(dest)}`;
+    const fields = folder ? ` --fields ${shown(path.join(folder.dir, "fields.json"))}` : "";
+    console.log(`次: npx @rex0220/formula-authoring-tools fv normalize ${shown(dest)} --out ${draft} --force → ${draft} を直す → fv normalize ${draft}${fields} --out ${shown(dest)} --force → fv diff ${shown(file)} ${shown(dest)} → fv check ${shown(dest)} --app ${folder?.appId} --id R`);
+  } else {
+    console.log(`次: 直したら npx @rex0220/formula-authoring-tools normalize ${shown(dest)} → diff ${shown(file)} ${shown(dest)} → calc ${shown(dest)} --app ${folder?.appId} --id R`);
+  }
   return 0;
 }
 
@@ -686,6 +829,10 @@ async function cmdFiles(flags: Flags): Promise<number> {
     ...l.snapshots.map((n, i) => `  ${n}${i === 0 ? "  ← 今の設定" : ""}`),
     `直したもの（-edit.json）: ${l.edits.length ? "" : "無い"}`,
     ...l.edits.map((n) => `  ${n}`),
+    `項目検証のダウンロード / fv pull（新しい順。先頭が今の設定）: ${l.fvSnapshots.length ? "" : "無い"}`,
+    ...l.fvSnapshots.map((n, i) => `  ${n}${i === 0 ? "  ← 今の設定" : ""}`),
+    `項目検証の直したもの（-edit.json）: ${l.fvEdits.length ? "" : "無い"}`,
+    ...l.fvEdits.map((n) => `  ${n}`),
     `その他の設定（AI が作ったもの）: ${l.others.length ? "" : "無い"}`,
     ...l.others.map((n) => `  ${n}`),
     `records/: ${l.records.length ? l.records.join(", ") : "無い"}`
@@ -723,6 +870,7 @@ export async function main(argv: string[]): Promise<number> {
       case "take": return await cmdTake(flags);
       case "edit": return await cmdEdit(positional, flags);
       case "files": return await cmdFiles(flags);
+      case "fv": return await cmdFv(positional, flags);
       default:
         console.error(`不明なコマンド: ${command}\n${USAGE}`);
         return 2;

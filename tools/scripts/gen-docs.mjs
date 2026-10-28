@@ -7,12 +7,14 @@
  *   docs/既定のテストデータ.md    … users の既定のテストデータ（架空）の一覧
  *   samples/users.json           … 既定のテストデータをそのまま（--users の形の例）
  *   docs/計算パターン_検証.md     … 計算パターン集の例を同梱のサンプルアプリで評価した結果と、関数一覧の使用例の評価（scripts/verify-patterns.mjs。工程 8-4）
+ *   docs/項目検証/ と samples/項目検証/settings-source.json … 項目検証の設定ファイル仕様・検証パターン・雛形（scripts/gen-fv-docs.mjs）
  * 実行: tools/ で `npm run gen-docs`（.env の FORMULA_PLUGIN_ZIP か、開発中は FORMULA_ALLOW_DEV_PLUGIN=1）。test/docs-sync.test.mjs が生成物と一致するか確かめる。
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { generateVerification } from "./verify-patterns.mjs";
+import { generateFvDocs } from "./gen-fv-docs.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const tools = path.resolve(here, "..");
@@ -228,6 +230,10 @@ if (invoked === path.resolve(fileURLToPath(import.meta.url))) {
   const { quiet } = await import(pathToFileURL(path.join(tools, "src", "input.ts")).href);
   const v = await generateVerification({ engine, trySettings, defaultUsersInfo, quiet });
   for (const [rel, text] of v.files) files.set(rel, text);
+  const fvMods = await Promise.all(["meta.ts", "model.ts", "normalize.ts", "check.ts"].map((f) => import(pathToFileURL(path.join(tools, "src", "fv", f)).href)));
+  const fvDocs = await generateFvDocs({ engine, fv: Object.assign({}, ...fvMods), defaultUsersInfo, repo });
+  for (const [rel, text] of fvDocs.files) files.set(rel, text);
+  console.log(`項目検証の検証パターン: パターン ${fvDocs.summary.patterns}、ケース ${fvDocs.summary.cases}、確かめた項目 ${fvDocs.summary.checks}（✔ ${fvDocs.summary.ok}、✘ ${fvDocs.summary.ng}）`);
   console.log(`検証: ケース ${v.summary.cases}、式 ${v.summary.formulas}、一致 ${v.summary.ok}、不一致 ${v.summary.ng}。使用例 ${v.summary.examples.total}（一致 ${v.summary.examples.ok}、合わない ${v.summary.examples.ng}、評価できない ${v.summary.examples.err}）`);
   for (const [rel, text] of files) {
     const abs = path.join(repo, rel);

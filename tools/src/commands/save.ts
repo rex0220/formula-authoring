@@ -30,7 +30,7 @@ import type { Policy } from "../normalize/policy.ts";
 import type { Finding } from "../normalize/findings.ts";
 import { PathError, WRITE_ROOTS, resolveRead, resolveWrite } from "../safe-path.ts";
 import { PermissionError, assertChangeAllowed } from "../permission.ts";
-import { EDIT_RE, SNAPSHOT_RE, appFolderOfFile, assertUsableInKintone, type WorkspaceMode } from "../workspace.ts";
+import { appFolderOfFile, assertUsableInKintone, isEditName, isSnapshotName, type WorkspaceMode } from "../workspace.ts";
 import { ConnectionError } from "../connections.ts";
 import { DEFAULT_USERS, type UsersOrigin, type UsersSource } from "../users/index.ts";
 import { diffSettings, type FieldChange } from "./diff.ts";
@@ -164,7 +164,7 @@ function commit(ctx: SaveContext, target: string, text: string, mode: "new" | "r
   const checkTarget = (): void => {
     if (resolveWrite(rel(ctx.root, target), WRITE_ROOTS.settings, ctx.root) !== target) throw new SaveDenied("書く先のフォルダーが途中で変わった（symlink など）");
     assertChangeAllowed(ctx.root, target, "settings", ctx.mode);
-    if (SNAPSHOT_RE.test(path.basename(target))) throw new SaveDenied("ダウンロード / pull のファイルは書き換えない。edit で -edit.json に写して直す");
+    if (isSnapshotName(path.basename(target))) throw new SaveDenied("ダウンロード / pull のファイルは書き換えない。edit で -edit.json に写して直す");
   };
   try {
     // 一時ファイルとロックを作る前にも（normalize の間に接続が変わったフォルダー・差し替えられたフォルダーに何も作らない）
@@ -273,8 +273,8 @@ export async function saveNewSettings(ctx: SaveContext, opt: { path: string; con
   try {
     target = resolveWrite(opt.path, WRITE_ROOTS.settings, ctx.root);
     const name = path.basename(target);
-    if (SNAPSHOT_RE.test(name)) throw new SaveDenied("ダウンロード / pull の名前（rex0220-formula-app<番号>-<日時>.json）では新しく保存しない");
-    if (EDIT_RE.test(name)) throw new SaveDenied("-edit.json の名前では新しく保存しない（ダウンロード / pull を直すなら edit（fml_edit）で写してから fml_update_fields）");
+    if (isSnapshotName(name)) throw new SaveDenied("ダウンロード / pull の名前（rex0220-formula-app<番号>-<日時>.json、項目検証は rex0220-field-validation-app…）では新しく保存しない");
+    if (isEditName(name)) throw new SaveDenied("-edit.json の名前では新しく保存しない（ダウンロード / pull を直すなら edit（fml_edit）で写してから fml_update_fields）");
     assertChangeAllowed(ctx.root, target, "settings", ctx.mode);
   } catch (e) {
     return errorResult(ctx.root, path.resolve(ctx.root, opt.path), e);
@@ -350,7 +350,7 @@ export async function updateFields(ctx: SaveContext, opt: { path: string; expect
   try {
     target = resolveRead(opt.path, ctx.root);
     resolveWrite(opt.path, WRITE_ROOTS.settings, ctx.root);
-    if (SNAPSHOT_RE.test(path.basename(target))) throw new SaveDenied("ダウンロード / pull のファイルは書き換えない。edit（fml_edit）で -edit.json に写して直す");
+    if (isSnapshotName(path.basename(target))) throw new SaveDenied("ダウンロード / pull のファイルは書き換えない。edit（fml_edit）で -edit.json に写して直す");
     assertUsableInKintone(ctx.root, target, ctx.mode);
     assertChangeAllowed(ctx.root, target, "settings", ctx.mode);
   } catch (e) {

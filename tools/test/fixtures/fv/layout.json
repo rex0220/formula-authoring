@@ -1,0 +1,9 @@
+{
+  "layout": [
+    { "type": "ROW", "fields": [ { "type": "SINGLE_LINE_TEXT", "code": "氏名" }, { "type": "NUMBER", "code": "金額" }, { "type": "LABEL", "label": "注意書き", "elementId": "note" } ] },
+    { "type": "ROW", "fields": [ { "type": "DROP_DOWN", "code": "区分" }, { "type": "MULTI_LINE_TEXT", "code": "備考" }, { "type": "SPACER", "elementId": "sp1" }, { "type": "SPACER" } ] },
+    { "type": "ROW", "fields": [ { "type": "TIME", "code": "時刻" }, { "type": "SINGLE_LINE_TEXT", "code": "参照" }, { "type": "CALC", "code": "計算" } ] },
+    { "type": "SUBTABLE", "code": "明細", "fields": [ { "type": "SINGLE_LINE_TEXT", "code": "品名" }, { "type": "NUMBER", "code": "数量" } ] },
+    { "type": "GROUP", "code": "グループ1", "layout": [ { "type": "ROW", "fields": [ { "type": "USER_SELECT", "code": "担当" }, { "type": "HR", "elementId": "line1" } ] } ] }
+  ]
+}

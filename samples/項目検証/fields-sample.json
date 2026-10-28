@@ -1,0 +1,362 @@
+{
+  "tool": "formula-authoring fields",
+  "fetchedAt": "2026-10-28T00:00:00.000Z",
+  "baseUrl": "https://example.cybozu.com",
+  "appId": 900,
+  "appName": "経費申請（架空）",
+  "preview": false,
+  "lang": "ja",
+  "revision": "1",
+  "properties": {
+    "申請者": {
+      "type": "USER_SELECT",
+      "code": "申請者",
+      "label": "申請者",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": [],
+      "entities": []
+    },
+    "申請日": {
+      "type": "DATE",
+      "code": "申請日",
+      "label": "申請日",
+      "noLabel": false,
+      "required": true,
+      "defaultValue": "",
+      "defaultNowValue": false
+    },
+    "区分": {
+      "type": "DROP_DOWN",
+      "code": "区分",
+      "label": "区分",
+      "noLabel": false,
+      "required": false,
+      "options": {
+        "交通費": {
+          "label": "交通費",
+          "index": "0"
+        },
+        "接待費": {
+          "label": "接待費",
+          "index": "1"
+        },
+        "その他": {
+          "label": "その他",
+          "index": "2"
+        }
+      },
+      "defaultValue": ""
+    },
+    "金額": {
+      "type": "NUMBER",
+      "code": "金額",
+      "label": "金額",
+      "noLabel": false,
+      "required": false,
+      "minValue": "0",
+      "maxValue": "1000000",
+      "defaultValue": "",
+      "digit": true,
+      "displayScale": "",
+      "unit": "円",
+      "unitPosition": "AFTER"
+    },
+    "理由": {
+      "type": "MULTI_LINE_TEXT",
+      "code": "理由",
+      "label": "理由",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": ""
+    },
+    "承認者": {
+      "type": "USER_SELECT",
+      "code": "承認者",
+      "label": "承認者",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": [],
+      "entities": []
+    },
+    "支払方法": {
+      "type": "RADIO_BUTTON",
+      "code": "支払方法",
+      "label": "支払方法",
+      "noLabel": false,
+      "required": true,
+      "options": {
+        "振込": {
+          "label": "振込",
+          "index": "0"
+        },
+        "現金": {
+          "label": "現金",
+          "index": "1"
+        }
+      },
+      "defaultValue": "振込",
+      "align": "HORIZONTAL"
+    },
+    "取引先": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "取引先",
+      "label": "取引先",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": "",
+      "unique": false,
+      "minLength": "",
+      "maxLength": "",
+      "expression": "",
+      "hideExpression": false,
+      "lookup": {
+        "relatedApp": {
+          "app": "10",
+          "code": ""
+        },
+        "relatedKeyField": "会社名",
+        "fieldMappings": [],
+        "lookupPickerFields": [
+          "会社名"
+        ],
+        "filterCond": "",
+        "sort": "レコード番号 desc"
+      }
+    },
+    "備考": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "備考",
+      "label": "備考",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": "なし",
+      "unique": false,
+      "minLength": "",
+      "maxLength": "100",
+      "expression": "",
+      "hideExpression": false
+    },
+    "領収書": {
+      "type": "FILE",
+      "code": "領収書",
+      "label": "領収書",
+      "noLabel": false,
+      "required": false,
+      "thumbnailSize": "150"
+    },
+    "合計": {
+      "type": "CALC",
+      "code": "合計",
+      "label": "合計",
+      "noLabel": false,
+      "required": false,
+      "expression": "SUM(金額T)",
+      "format": "NUMBER_DIGIT",
+      "displayScale": "",
+      "hideExpression": false,
+      "unit": "円",
+      "unitPosition": "AFTER"
+    },
+    "明細": {
+      "type": "SUBTABLE",
+      "code": "明細",
+      "label": "明細",
+      "noLabel": false,
+      "fields": {
+        "日付T": {
+          "type": "DATE",
+          "code": "日付T",
+          "label": "日付T",
+          "noLabel": false,
+          "required": false,
+          "defaultValue": "",
+          "defaultNowValue": false
+        },
+        "内容T": {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "内容T",
+          "label": "内容T",
+          "noLabel": false,
+          "required": false,
+          "defaultValue": "",
+          "unique": false,
+          "minLength": "",
+          "maxLength": "",
+          "expression": "",
+          "hideExpression": false
+        },
+        "金額T": {
+          "type": "NUMBER",
+          "code": "金額T",
+          "label": "金額T",
+          "noLabel": false,
+          "required": false,
+          "minValue": "",
+          "maxValue": "",
+          "defaultValue": "",
+          "digit": true,
+          "displayScale": "",
+          "unit": "",
+          "unitPosition": "BEFORE"
+        }
+      }
+    },
+    "振込先": {
+      "type": "GROUP",
+      "code": "振込先",
+      "label": "振込先",
+      "noLabel": false,
+      "openGroup": true
+    },
+    "口座": {
+      "type": "SINGLE_LINE_TEXT",
+      "code": "口座",
+      "label": "口座",
+      "noLabel": false,
+      "required": false,
+      "defaultValue": "",
+      "unique": false,
+      "minLength": "7",
+      "maxLength": "7",
+      "expression": "",
+      "hideExpression": false
+    },
+    "ステータス": {
+      "type": "STATUS",
+      "code": "ステータス",
+      "label": "ステータス",
+      "enabled": true
+    }
+  },
+  "layout": [
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "USER_SELECT",
+          "code": "申請者",
+          "size": {}
+        },
+        {
+          "type": "DATE",
+          "code": "申請日",
+          "size": {}
+        },
+        {
+          "type": "DROP_DOWN",
+          "code": "区分",
+          "size": {}
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "NUMBER",
+          "code": "金額",
+          "size": {}
+        },
+        {
+          "type": "USER_SELECT",
+          "code": "承認者",
+          "size": {}
+        },
+        {
+          "type": "LABEL",
+          "label": "5 万円以上は承認者が要る",
+          "elementId": "note",
+          "size": {}
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "MULTI_LINE_TEXT",
+          "code": "理由",
+          "size": {}
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "RADIO_BUTTON",
+          "code": "支払方法",
+          "size": {}
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "取引先",
+          "size": {}
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "備考",
+          "size": {}
+        },
+        {
+          "type": "SPACER",
+          "elementId": "help",
+          "size": {}
+        }
+      ]
+    },
+    {
+      "type": "SUBTABLE",
+      "code": "明細",
+      "fields": [
+        {
+          "type": "DATE",
+          "code": "日付T",
+          "size": {}
+        },
+        {
+          "type": "SINGLE_LINE_TEXT",
+          "code": "内容T",
+          "size": {}
+        },
+        {
+          "type": "NUMBER",
+          "code": "金額T",
+          "size": {}
+        }
+      ]
+    },
+    {
+      "type": "ROW",
+      "fields": [
+        {
+          "type": "CALC",
+          "code": "合計",
+          "size": {}
+        },
+        {
+          "type": "FILE",
+          "code": "領収書",
+          "size": {}
+        }
+      ]
+    },
+    {
+      "type": "GROUP",
+      "code": "振込先",
+      "layout": [
+        {
+          "type": "ROW",
+          "fields": [
+            {
+              "type": "SINGLE_LINE_TEXT",
+              "code": "口座",
+              "size": {}
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

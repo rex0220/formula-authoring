@@ -1,10 +1,10 @@
 /**
  * take [--profile <名前>]
- * inbox/ に置いた設定のダウンロード（rex0220-formula-app<番号>-<日時>.json。名前はそのまま）を、封筒の appId で
+ * inbox/ に置いた設定のダウンロード（rex0220-formula-app<番号>-<日時>.json、項目検証は rex0220-field-validation-app<番号>-<日時>.json。名前はそのまま）を、封筒の appId で
  * アプリのフォルダー kintone/<profile>/<番号>-<アプリ名>/ に移す（print-craft-authoring の take の写し。2026-10-05 Takashi「ダウンロードのファイル名をそのまま使いたい」）。
  * ダウンロードにはドメインが入っていないので、profile はほかのコマンドと同じ選び方（--profile、無ければ defaultProfile、無ければ dev。15.2）。
  * フォルダーが無ければ作り、中身より先に印を置く（15.5）。
- * 計算式プラグインの設定でないファイル、ファイル名の番号と封筒の appId が違うファイル、行き先に同じ名前の別の中身があるファイルは移さない（skipped に決まった文の理由）。
+ * 計算式・項目検証のプラグインの設定でないファイル、名前と封筒の pluginID のプラグインが違うファイル、ファイル名の番号と封筒の appId が違うファイル、行き先に同じ名前の別の中身があるファイルは移さない（skipped に決まった文の理由）。
  * 印が合わない今あるフォルダー（印が無い・壊れている・別の接続）と、呼び出しの途中の接続の変化は、skipped にせず ConnectionError（conflict）で止める
  * （印は何かを変える前にすべて確かめる。Codex の実装レビュー MAJOR 4）
  */
@@ -13,11 +13,16 @@ import path from "node:path";
 import { MAX_INPUT_BYTES } from "../input.ts";
 import { jsonErrorWhere } from "../json-error.ts";
 import { FORMULA_CONFIG_PLUGIN_ID } from "../meta.ts";
+import { FV_CONFIG_PLUGIN_ID } from "../fv/meta.ts";
 import { realResolve, resolveRead, resolveWrite, WRITE_ROOTS } from "../safe-path.ts";
 import { assertChangeAllowed, PermissionError } from "../permission.ts";
 import { FileExistsError, withRetry, writeNewFile } from "../commit-file.ts";
 import { assertSameConnection, ConnectionError, pickProfile } from "../connections.ts";
-import { appDirFor, assertAppMark, assertInsideWorkspace, ensureAppFolder, findAppDir, INBOX, requireProfiles, SNAPSHOT_RE, type WorkspaceMode } from "../workspace.ts";
+import { appDirFor, assertAppMark, assertInsideWorkspace, ensureAppFolder, findAppDir, INBOX, requireProfiles, snapshotKindOf, type PluginKind, type WorkspaceMode } from "../workspace.ts";
+
+const KIND_OF_PLUGIN_ID: Record<string, PluginKind> = { [FORMULA_CONFIG_PLUGIN_ID]: "formula", [FV_CONFIG_PLUGIN_ID]: "field-validation" };
+/** 名前の日時（YYYYMMDDHHmmss）。行き先のフォルダーのアプリ名は一番新しいダウンロードから（計算式と項目検証が混ざっても日時で比べる） */
+const stampOf = (name: string): string => name.match(/-(\d{8})-(\d{6})\.json$/)?.slice(1).join("") ?? "";
 
 export interface TakeResult {
   /** leftInInbox: 行き先には置いたが inbox の元を消せなかった（消してよい。次の take でも「同じもの」として消す） */
@@ -111,8 +116,9 @@ export function takeInbox(cwdIn: string, mode: WorkspaceMode, profile?: string):
       continue;
     }
     const data = read.data;
-    if (data.pluginID !== FORMULA_CONFIG_PLUGIN_ID) {
-      result.skipped.push({ file: rel, reason: "計算式プラグインの設定のファイルではない（pluginID が違う）" });
+    const kind = typeof data.pluginID === "string" ? KIND_OF_PLUGIN_ID[data.pluginID] : undefined;
+    if (!kind) {
+      result.skipped.push({ file: rel, reason: "計算式・項目検証のプラグインの設定のファイルではない（pluginID が違う）" });
       continue;
     }
     const appId = data.appId;
@@ -121,8 +127,9 @@ export function takeInbox(cwdIn: string, mode: WorkspaceMode, profile?: string):
       continue;
     }
     // 取り込むのはダウンロードの名前（rex0220-formula-app<番号>-<日時>.json）のファイルだけ（Codex レビュー MAJOR 3。名前は変えずに置く）
-    if (!SNAPSHOT_RE.test(name)) {
-      result.skipped.push({ file: rel, reason: "ダウンロードの名前（rex0220-formula-app<番号>-<日時>.json）ではない。設定画面のダウンロードの名前のまま inbox/ に置く" });
+    if (snapshotKindOf(name) !== kind) {
+      const want = kind === "formula" ? "rex0220-formula-app<番号>-<日時>.json" : "rex0220-field-validation-app<番号>-<日時>.json";
+      result.skipped.push({ file: rel, reason: `ダウンロードの名前（${want}）ではない。設定画面のダウンロードの名前のまま inbox/ に置く` });
       continue;
     }
     const m = name.match(/-app(\d+)-/);
@@ -136,7 +143,7 @@ export function takeInbox(cwdIn: string, mode: WorkspaceMode, profile?: string):
   // ファイルごとに決めると、同じアプリでアプリ名の違うダウンロードから、同じ番号のフォルダーを 2 つ作ってしまう。Codex の実装レビュー r2 MAJOR）
   const dirByApp = new Map<number, string>();
   for (const appId of new Set(candidates.map((c) => c.appId))) {
-    const newest = candidates.filter((c) => c.appId === appId).reduce((a, b) => (b.name > a.name ? b : a));
+    const newest = candidates.filter((c) => c.appId === appId).reduce((a, b) => (stampOf(b.name) > stampOf(a.name) ? b : a));
     dirByApp.set(appId, appDirFor(cwd, def.profile, appId, newest.appName));
   }
   const plans: Plan[] = candidates.map((c) => {

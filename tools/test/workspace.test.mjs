@@ -14,6 +14,8 @@ import {
   APP_MARKER,
   EDIT_RE,
   SNAPSHOT_RE,
+  isEditName,
+  isSnapshotName,
   appDirFor,
   appFolderOfFile,
   appFoldersOf,
@@ -31,7 +33,7 @@ import {
   unusedProfileDirs
 } from "../src/workspace.ts";
 import { ConnectionError, pickProfile } from "../src/connections.ts";
-import { PermissionError } from "../src/permission.ts";
+import { PermissionError, classOfAppPath } from "../src/permission.ts";
 import { PathError } from "../src/safe-path.ts";
 import { MAX_INPUT_BYTES } from "../src/input.ts";
 import { takeInbox } from "../src/commands/take.ts";
@@ -166,7 +168,7 @@ test("take: inbox のダウンロードを、封筒の appId で profile（--pro
     assert.equal(readFileSync(path.join(dir, DL), "utf8"), text, "中身も名前もそのまま");
     assert.equal(readAppMark(dir).state, "ok", "印を置いた");
     const reasons = Object.fromEntries(r.skipped.map((s) => [s.file, s.reason]));
-    assert.match(reasons["inbox/other.json"], /計算式プラグインの設定のファイルではない/);
+    assert.match(reasons["inbox/other.json"], /計算式・項目検証のプラグインの設定のファイルではない/);
     assert.match(reasons["inbox/rex0220-formula-app101-20261005-125115.json"], new RegExp(`ファイル名のアプリ 101 と封筒の appId ${APP} が違う`));
     // --profile prod は prod のフォルダーへ
     writeFileSync(path.join(inbox, DL), text);
@@ -186,6 +188,47 @@ test("take: inbox のダウンロードを、封筒の appId で profile（--pro
     assert.ok(!existsSync(path.join(dir, dl2)), "置かない");
     assert.ok(existsSync(path.join(inbox, dl2)) && existsSync(path.join(inbox, DL)), "同じものでも inbox から消さない");
     assert.throws(() => takeInbox(t.root, { kind: "single" }), code("not-configured"));
+  } finally {
+    t.cleanup();
+  }
+});
+
+test("項目検証のダウンロード: take が移し、ダウンロード・-edit.json は計算式と別に一覧し、どちらの名前も書き換えない場所に分ける", { skip }, async () => {
+  const t = makeConnWorkspace();
+  const inbox = path.join(t.root, "inbox");
+  mkdirSync(inbox);
+  try {
+    const fvName = `rex0220-field-validation-app${APP}-20261005-130000.json`;
+    const fvText = JSON.stringify({ date: "2026-10-05T04:00:00.000Z", pluginName: "項目検証", pluginID: "rex0220 field validation plugin", PluginVersion: "72", appId: APP, appName: NAME, pluginEnable: true, pluginInfos: [] }, null, 2);
+    writeFileSync(path.join(inbox, DL), await snapshotText());
+    writeFileSync(path.join(inbox, fvName), fvText);
+    // 名前と pluginID のプラグインが違うもの（項目検証の名前で計算式の中身）は移さない
+    writeFileSync(path.join(inbox, `rex0220-field-validation-app${APP}-20261005-140000.json`), await snapshotText());
+    const r = takeInbox(t.root, t.mode());
+    assert.deepEqual(r.moved.map((m) => path.basename(m.to)).sort(), [DL, fvName].sort(), JSON.stringify(r));
+    assert.match(r.skipped[0].reason, /rex0220-formula-app<番号>-<日時>\.json）ではない/);
+    const dir = path.join(t.root, "kintone", "dev", `${APP}-${NAME}`);
+    const fvEdit = fvName.replace(/\.json$/, "-edit.json");
+    writeFileSync(path.join(dir, fvEdit), fvText);
+    writeFileSync(path.join(dir, "AI-作った.json"), "{}");
+    const l = listAppFolder(dir, t.root);
+    assert.deepEqual([l.snapshots, l.edits, l.fvSnapshots, l.fvEdits, l.others], [[DL], [], [fvName], [fvEdit], ["AI-作った.json"]]);
+    assert.deepEqual([classOfAppPath(fvName), classOfAppPath(fvEdit), classOfAppPath("AI-作った.json")], ["snapshot", "edit", "newsettings"]);
+    assert.ok(isSnapshotName(fvName) && isEditName(fvEdit) && !isSnapshotName(fvEdit));
+    assert.match(snapshotNameOf(APP, new Date(2026, 9, 28, 9, 5, 7), "field-validation"), new RegExp(`^rex0220-field-validation-app${APP}-20261028-090507\\.json$`));
+    // CLI: edit --plugin field-validation は項目検証の一番新しいダウンロードを写す（既定は計算式）。files は両方を分けて出す
+    rmSync(path.join(dir, fvEdit));
+    const env = { FORMULA_KINTONE_CONFIG: t.connFile };
+    let cli = run(["edit", "--app", String(APP), "--plugin", "field-validation"], t.root, env);
+    assert.equal(cli.status, 0, cli.stdout + cli.stderr);
+    assert.ok(existsSync(path.join(dir, fvEdit)), "項目検証の -edit.json");
+    assert.match(cli.stdout, /fv normalize .*→ fv diff .*→ fv check /);
+    cli = run(["edit", "--app", String(APP)], t.root, env);
+    assert.equal(cli.status, 0, cli.stderr);
+    assert.ok(existsSync(path.join(dir, DL.replace(/\.json$/, "-edit.json"))), "既定は計算式");
+    assert.equal(run(["edit", "--app", String(APP), "--plugin", "print-craft"], t.root, env).status, 2);
+    cli = run(["files", "--app", String(APP)], t.root, env);
+    assert.match(cli.stdout, new RegExp(`項目検証のダウンロード / fv pull（新しい順。先頭が今の設定）: \\n  ${fvName}  ← 今の設定`));
   } finally {
     t.cleanup();
   }

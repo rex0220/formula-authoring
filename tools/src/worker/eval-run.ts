@@ -3,6 +3,8 @@ import { loadEngine } from "../engine.ts";
 import { normalizeSettings } from "../commands/normalize.ts";
 import { calcSettings } from "../commands/calc.ts";
 import { trySettings } from "../commands/try.ts";
+import { fvNormalizeSettings } from "../fv/normalize.ts";
+import { fvCheckSettings } from "../fv/check.ts";
 import { buildUsersInfo, UsersDataError } from "../users/index.ts";
 import { InputError } from "../input.ts";
 import { PluginZipError } from "../plugin-zip.ts";
@@ -49,6 +51,22 @@ export async function runEvalJob(job: EvalJob): Promise<EvalOutcome> {
     return { normalize: { summary: r.summary, hasErrors: r.results.some((x) => x.status !== "ok"), warnings, findings: [] }, try: r, engineWarnings: [...engine.warnings] };
   }
   if (job.settingsText === undefined || job.settingsFile === undefined || !job.fields) throw new InputError(`${job.kind} の仕事に設定か項目定義が無い（settingsText / settingsFile / fields）`);
+  if (job.kind === "fv-normalize" || job.kind === "fv-check") {
+    // 項目検証（ユーザー情報は UINFO 系の検査と判定のため。項目検証は式が使えば自動で読み込むので「ユーザー情報」の設定は無い）
+    const res = await fvNormalizeSettings({ settingsText: job.settingsText, settingsFile: job.settingsFile, fields: job.fields, engine, check: job.check, usersInfo, usersOrigin: job.usersOrigin });
+    const fv: EvalOutcome = {
+      normalize: {
+        summary: res.summary, hasErrors: res.findings.hasErrors, warnings: res.findings.count("warning"), findings: [...res.findings.items],
+        output: res.output, checkDiffs: res.checkDiffs, appId: res.appId, size: res.size
+      },
+      engineWarnings: [...engine.warnings]
+    };
+    if (job.kind === "fv-check" && job.fvCheck && !res.findings.hasErrors) {
+      const c = job.fvCheck;
+      fv.fvCheck = fvCheckSettings({ normalized: res, engine, fields: job.fields, appId: c.appId, records: c.records, events: c.events, lang: job.lang, user: c.user, usersInfo, usersOrigin: job.usersOrigin, all: c.all });
+    }
+    return fv;
+  }
   const res = await normalizeSettings({
     settingsText: job.settingsText, settingsFile: job.settingsFile, fields: job.fields, engine, policy: job.policy, check: job.check, lang: job.lang, usersInfo, usersLabel, usersOrigin: job.usersOrigin
   });
