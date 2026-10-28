@@ -12,8 +12,11 @@ import { FV_JUDGE_DEFAULT_EVENT, fvJudgeRecord, type FvJudgeResult, type FvJudge
 import { engineOfFv } from "./meta.ts";
 import type { FvNormalizeResult } from "./normalize.ts";
 
-/** 受けるイベント名（項目検証が式に渡すもの。change は項目コードを付ける。一覧の編集は付けなくてもよい） */
-export const FV_EVENT_RE = /^(mobile\.)?app\.record\.(create|edit)\.(show|submit|change\.[^\s.]+)$|^(mobile\.)?app\.record\.index\.edit\.(submit|change(\.[^\s.]+)?)$|^(mobile\.)?app\.record\.detail\.show$/;
+/**
+ * 受けるイベント名（項目検証が式に渡すもの。change は項目コードを付ける。一覧の編集は付けなくてもよい = 一覧編集向けの判定の口の既定と同じ）。
+ * 詳細画面・印刷（detail.show / print.show）は受けない（項目検証は判定の口と別の処理で隠す。模擬が画面と合う保証が無い。計画 6 章）
+ */
+export const FV_EVENT_RE = /^(mobile\.)?app\.record\.(create|edit)\.(show|submit|change\.[^\s.]+)$|^(mobile\.)?app\.record\.index\.edit\.(submit|change(\.[^\s.]+)?)$/;
 export const FV_CHECK_RECORDS_MAX = 100;
 export const FV_CHECK_EVENTS_MAX = 6;
 /** 1 つの文・入れる値を出す長さの上限（メッセージの式と初期値にレコードの値が入りうるので、長い値をそのまま出さない） */

@@ -49,7 +49,8 @@ export interface EvalJob {
   /** 項目検証の判定の模擬（kind "fv-check"。レコードごと・イベントごと） */
   fvCheck?: {
     appId: number;
-    records: Array<{ id: string; record: KintoneRecord }>;
+    /** fileAppId / fileId はレコードのファイルの封筒の値（あれば appId と番号に合うか確かめる） */
+    records: Array<{ id: string; record: KintoneRecord; fileAppId?: number; fileId?: number }>;
     events?: string[];
     user?: string;
     /** 印の無い項目も出す */

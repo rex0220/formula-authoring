@@ -50,6 +50,10 @@ export interface FvSource {
 /** 元の値のキー（封筒の外側を除く）と、保存のときに作る派生のキー */
 export const FV_SOURCE_KEYS = ["pluginEnable", "pluginPreHide", "pluginProductEnv", "pluginComment", "pluginDescription", "pluginBorderInfo", "pluginInfos"] as const;
 export const FV_DERIVED_KEYS = ["pluginFields", "pluginPP", "pluginRecNo", "pluginStatus", "pluginStatusCode", "pluginStatusAssignee", "pluginHideCheck", "pluginUOG"] as const;
+/** 行（pluginInfos の 1 つ）の元の値のキー（fv normalize の検査と、fv_update_rows の rows の検査） */
+export const FV_ROW_KEYS = ["fieldcode", "state", "formulaSet", "disabledSet", "hideSet", "init", "condInfos", "tblfields"] as const;
+/** 共通の設定のキー（封筒と pluginInfos 以外の元の値。fv_update_rows の common で置き換えられるもの） */
+export const FV_COMMON_KEYS = ["pluginEnable", "pluginPreHide", "pluginProductEnv", "pluginComment", "pluginDescription", "pluginBorderInfo"] as const;
 
 /** 枠線の 3 行の既定（区分の順: 必須で未入力・必須で入力済み・エラー） */
 export const FV_BORDER_DEFAULTS: ReadonlyArray<{ width: number; color: string }> = [

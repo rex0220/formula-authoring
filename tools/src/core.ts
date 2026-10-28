@@ -72,7 +72,7 @@ export {
   FV_CONFIG_PLUGIN_ID, FV_PLUGIN_ID, FV_MIN_VERSION, FV_MIN_FORMULA_VERSION, FV_SNAPSHOT_PREFIX, FV_SNAPSHOT_RE, FV_EDIT_RE, FV_ENGINES, FV_TABLE_PRODUCERS, engineOfFv, fvUpdateFunctions
 } from "./fv/meta.ts";
 export {
-  FV_TARGET_TYPES, FV_ELEMENT_TYPES, FV_BUTTON_TYPE, FV_COLUMN_DENY, FV_SOURCE_KEYS, FV_DERIVED_KEYS, FV_BORDER_DEFAULTS, fvBorderOf, fvSourceOf,
+  FV_TARGET_TYPES, FV_ELEMENT_TYPES, FV_BUTTON_TYPE, FV_COLUMN_DENY, FV_SOURCE_KEYS, FV_DERIVED_KEYS, FV_ROW_KEYS, FV_COMMON_KEYS, FV_BORDER_DEFAULTS, fvBorderOf, fvSourceOf,
   type FvSource, type FvSourceInfo, type FvSourceCond, type FvSourceTbl, type FvBorder
 } from "./fv/model.ts";
 export { fvPropsOf, fvRowsOf, fvApplySource, fvHasSetting, type FvProp, type FvRow, type FvRowCond, type FvTblChild, type FvLayoutRow, type FvApplyResult } from "./fv/rows.ts";
@@ -83,4 +83,6 @@ export { FV_PLUGIN_NAME, fvNormalizeSettings, outputInfos as fvOutputInfos, type
 export { FV_CHECK_EVENTS_MAX, FV_CHECK_RECORDS_MAX, FV_EVENT_RE, fvCheckSettings, linesOf as fvLinesOf, renderFvLine, validateFvEvents, type FvCheckInput, type FvCheckLine, type FvCheckRecord, type FvCheckResult } from "./fv/check.ts";
 export { fvDiffSettings, fvSummarizeSettings, type FvDiffResult } from "./fv/summary.ts";
 export { fvDefaultPullName, fvPullSettings, type FvPullOptions } from "./fv/pull.ts";
+// 項目検証の段階 7（tools 0.6.0）: 保存（formula MCP の fv_save_settings / fv_update_rows の本体）
+export { fvSaveNewSettings, fvUpdateRows } from "./fv/save.ts";
 export { editKindOf, isEditName, isSnapshotName, snapshotKindOf, type PluginKind } from "./workspace.ts";

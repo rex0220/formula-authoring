@@ -174,7 +174,7 @@ kintone/
 | `… edit --app N` | 今の設定（一番新しいダウンロード / pull）を `…-edit.json` に写す。直すのはこちら（接続のファイルがあるとき） |
 | `… files --app N` | アプリのフォルダーのファイル（今の設定、直したもの、その他の設定、records）（接続のファイルがあるとき） |
 
-項目検証プラグイン（rex0220 field validation）Ver.72 以降の設定も、同じ tools で作れます（式は計算式プラグインと同じ言語で、`.env` の計算式プラグインの zip（Ver.102 以降。試用版でよい）のエンジンで評価します。項目検証の zip は要りません）。手順は [docs/項目検証/AI作業手順.md](docs/項目検証/AI作業手順.md)。
+項目検証プラグイン（rex0220 field validation）Ver.72 以降の設定も、同じ tools で作れます（式は計算式プラグインと同じ言語で、`.env` の計算式プラグインの zip（Ver.102 以降。試用版でよい）のエンジンで評価します。項目検証の zip は要りません）。手順は [docs/項目検証/AI作業手順.md](docs/項目検証/AI作業手順.md)。Claude Code のプラグイン `formula`（formula MCP 0.4.0 以降）を入れていれば、AI は `fv_save_settings` / `fv_update_rows` / `fv_check` などのツールで作業します（手順は `fml_docs` の `fv` の章）。
 
 | コマンド | 内容 |
 | --- | --- |
