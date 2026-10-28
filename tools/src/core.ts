@@ -67,3 +67,14 @@ export { PermissionError, assertChangeAllowed, classOfAppPath, type ChangeOp, ty
 export {
   FileExistsError, LOCK_STALE_MS, LockBusyError, acquireLock, cleanupAll, lockPathFor, placeNew, tempPathFor, withRetry, writeNewFile, type Lock, type WriteNewResult
 } from "./commit-file.ts";
+// 項目検証（field-validation/docs/オーサリングツール_実装計画.md の段階 1）: 項目検証の規則（元の値・行・式の検査と派生値・保存値・判定）。式は計算式の zip のエンジンで評価する
+export {
+  FV_CONFIG_PLUGIN_ID, FV_PLUGIN_ID, FV_MIN_VERSION, FV_MIN_FORMULA_VERSION, FV_SNAPSHOT_PREFIX, FV_SNAPSHOT_RE, FV_EDIT_RE, FV_ENGINES, FV_TABLE_PRODUCERS, engineOfFv, fvUpdateFunctions
+} from "./fv/meta.ts";
+export {
+  FV_TARGET_TYPES, FV_ELEMENT_TYPES, FV_BUTTON_TYPE, FV_COLUMN_DENY, FV_SOURCE_KEYS, FV_DERIVED_KEYS, FV_BORDER_DEFAULTS, fvBorderOf, fvSourceOf,
+  type FvSource, type FvSourceInfo, type FvSourceCond, type FvSourceTbl, type FvBorder
+} from "./fv/model.ts";
+export { fvPropsOf, fvRowsOf, fvApplySource, fvHasSetting, type FvProp, type FvRow, type FvRowCond, type FvTblChild, type FvLayoutRow, type FvApplyResult } from "./fv/rows.ts";
+export { FV_INFO_KEYS, fvStrip, fvDerive, fvBuildSaved, type FvColumn, type FvFormulaError, type FvDeriveContext } from "./fv/derive.ts";
+export { FV_JUDGE_DEFAULT_EVENT, fvJudgeRecord, type FvJudgement, type FvJudgeResult, type FvJudgeOptions, type FvLang } from "./fv/judge.ts";
