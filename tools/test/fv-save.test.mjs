@@ -11,7 +11,8 @@ import path from "node:path";
 import { PLUGIN_ZIP } from "./helpers.mjs";
 import { EXPORT } from "./fixtures.mjs";
 import { makeConnWorkspace } from "./conn-helper.mjs";
-import { digestOf } from "../src/commands/save.ts";
+import { commit, digestOf } from "../src/commands/save.ts";
+import { lockPathFor } from "../src/commit-file.ts";
 import { fvSaveNewSettings, fvUpdateRows } from "../src/fv/save.ts";
 import { DEFAULT_POLICY } from "../src/normalize/policy.ts";
 import { realResolve } from "../src/safe-path.ts";
@@ -161,5 +162,20 @@ test("アプリのフォルダー（接続のファイルの形）: 同じフォ
     assert.deepEqual(u.fvDiff.changed, ["金額"]);
   } finally {
     cws.cleanup();
+  }
+});
+
+test("ロックを失ったときの文: 読み直すツールの名前（計算式は fml_summary、項目検証は fv_summary）を案内する（0.6.0 で計算式の文から名前が消えていたのを直した）", () => {
+  const ws = makeSingle();
+  try {
+    mkdirSync(path.join(ws.root, "settings"));
+    for (const [readAgain, args] of [["fml_summary", []], ["fv_summary", ["fv_summary"]]]) {
+      const target = path.join(ws.root, "settings", `${readAgain}.json`);
+      // 確定の直前の確かめの間に、別の保存がロックを取り直した
+      assert.throws(() => commit(ws.ctx, target, "{}\n", "new", () => writeFileSync(lockPathFor(target), "other"), ...args), (e) => e.message.includes(`${readAgain} で読み直してやり直す`));
+      assert.ok(!existsSync(target), "確定しない");
+    }
+  } finally {
+    ws.cleanup();
   }
 });

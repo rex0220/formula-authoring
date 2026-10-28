@@ -180,7 +180,7 @@ export function commit(ctx: SaveContext, target: string, text: string, mode: "ne
     checkTarget();
     recheck();
     // 長く止まっている間に、古いとみなされて他の保存にロックを取られていたら確定しない
-    if (!lock.owned()) throw new ConflictError(`ロックを失った（保存が 60 秒より長く止まった）。 で読み直してやり直す`);
+    if (!lock.owned()) throw new ConflictError(`ロックを失った（保存が 60 秒より長く止まった）。${readAgain} で読み直してやり直す`);
     if (mode === "new") withRetry(() => placeNew(tmp, target));
     else withRetry(() => renameSync(tmp, target));
     digest = digestOf(text);

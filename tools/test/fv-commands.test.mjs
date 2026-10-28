@@ -113,6 +113,10 @@ test("fv check: レコードとイベントごとの判定の表（印のある�
   assert.match(r.text, /  氏名: 入力不可/);
   assert.match(r.contextLine, /ログインユーザー authoring/);
   assert.throws(() => validateFvEvents(["app.record.edit.change"]), /イベント名が違う/);
+  // 詳細画面は受けない（判定の口と別の処理。0.6.0）。一覧の編集の change は項目コードなしでもよい（判定の口の既定）。省けば既定
+  assert.throws(() => validateFvEvents(["app.record.detail.show"]), /イベント名が違う/);
+  assert.deepEqual(validateFvEvents(["app.record.index.edit.change"]), ["app.record.index.edit.change"]);
+  assert.deepEqual(validateFvEvents(undefined), ["app.record.index.edit.change"]);
   assert.deepEqual(validateFvEvents(["mobile.app.record.edit.change.金額", "app.record.index.edit.submit"]).length, 2);
   assert.throws(() => fvCheckSettings({ normalized, engine, fields: FIELDS(), appId: APP, records: [], user: "nobody", usersInfo: defaultUsersInfo(), usersOrigin: { kind: "default" } }), /--user nobody/);
 });
