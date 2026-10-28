@@ -40,7 +40,7 @@ import { PolicyError, loadPolicy } from "./normalize/policy.ts";
 import { DEFAULT_TIMEOUT_SEC, EvalError, EvalTimeoutError, MAX_TIMEOUT_SEC, runEval } from "./worker/run.ts";
 import { builtinErrorName } from "./worker/eval-run.ts";
 import type { EvalJob } from "./worker/eval-job.ts";
-import { FV_ENGINES, FV_MIN_FORMULA_VERSION, FV_MIN_VERSION } from "./fv/meta.ts";
+import { FV_CONFIG_PLUGIN_ID, FV_ENGINES, FV_MIN_FORMULA_VERSION, FV_MIN_VERSION } from "./fv/meta.ts";
 import { fvDiffSettings, fvSummarizeSettings } from "./fv/summary.ts";
 import { fvDefaultPullName, fvPullSettings } from "./fv/pull.ts";
 
@@ -599,10 +599,13 @@ async function cmdFvNormalize(rest: string[], flags: Flags): Promise<number> {
 async function cmdFvCheck(rest: string[], flags: Flags): Promise<number> {
   const app = intFlag(flags, "app", true) as number;
   const usage = "fv check <settings.json> --app N --id R（または --records R1,R2,…）";
-  const { job, folder } = jobOf(rest, flags, usage, "fv-check");
+  const lang = str(flags, "lang");
+  if (lang !== undefined && !["ja", "en", "zh"].includes(lang)) throw new UsageError(`--lang は ja / en / zh: ${lang}`);
+  const { job, raw, folder } = jobOf(rest, flags, usage, "fv-check");
   if (folder && folder.appId !== app) throw new UsageError(`--app ${app} とファイルのフォルダーのアプリ（${folder.appId}）が違う`);
+  if (typeof raw.appId === "number" && raw.appId !== app) throw new UsageError(`--app ${app} と設定の appId（${raw.appId}）が違う`);
   const events = str(flags, "event")?.split(",").map((x) => x.trim()).filter(Boolean);
-  job.fvCheck = { appId: app, records: recordsOf(flags, app, folder, usage).map(({ id, record }) => ({ id, record })), events, user: str(flags, "user"), all: has(flags, "all") };
+  job.fvCheck = { appId: app, records: recordsOf(flags, app, folder, usage).map(({ id, record, fileAppId, fileId }) => ({ id, record, fileAppId, fileId })), events, user: str(flags, "user"), all: has(flags, "all") };
   const outcome = await runEval(job, { timeoutSec: timeoutOf(flags), inline: inline() });
   for (const w of outcome.engineWarnings) console.log(`注意: ${w}`);
   if (outcome.normalize.hasErrors || !outcome.fvCheck) {
@@ -615,11 +618,18 @@ async function cmdFvCheck(rest: string[], flags: Flags): Promise<number> {
   return 0;
 }
 
+/** 項目検証の設定のファイル（封筒の pluginID で確かめる。計算式の設定を渡したら止める） */
+function fvSettingsOf(abs: string): Record<string, unknown> {
+  const data = readJsonLimited(abs);
+  if (data.pluginID !== FV_CONFIG_PLUGIN_ID) throw new InputError(`${shown(abs)} は項目検証の設定ではない（封筒の pluginID が "${FV_CONFIG_PLUGIN_ID}" でない）`);
+  return data;
+}
+
 function cmdFvSummary(rest: string[], flags: Flags): number {
   const file = rest[1];
   if (!file) throw new UsageError("fv summary <settings.json>");
   const abs = existingFile(file, "fv pull か、設定画面のダウンロードを置く");
-  console.log(fvSummarizeSettings(readJsonLimited(abs), shown(abs), { field: str(flags, "field") }));
+  console.log(fvSummarizeSettings(fvSettingsOf(abs), shown(abs), { field: str(flags, "field") }));
   return 0;
 }
 
@@ -628,7 +638,7 @@ function cmdFvDiff(rest: string[]): number {
   if (!a || !b) throw new UsageError("fv diff <before.json> <after.json>");
   const fa = existingFile(a, "設定ファイルを置く");
   const fb = existingFile(b, "設定ファイルを置く");
-  console.log(fvDiffSettings(readJsonLimited(fa), readJsonLimited(fb), { before: shown(fa), after: shown(fb) }).lines.join("\n"));
+  console.log(fvDiffSettings(fvSettingsOf(fa), fvSettingsOf(fb), { before: shown(fa), after: shown(fb) }).lines.join("\n"));
   return 0;
 }
 
@@ -796,8 +806,15 @@ async function cmdEdit(positional: string[], flags: Flags): Promise<number> {
     writeText(dest, readTextLimited(file), WRITE_ROOTS.kintone, "settings");
     console.log(`${shown(file)} → ${shown(dest)}（ここを直す。ダウンロードのファイルは書き換えない）`);
   }
-  const fv = kind === "field-validation" ? "fv " : "";
-  console.log(`次: 直したら npx @rex0220/formula-authoring-tools ${fv}normalize ${shown(dest)} → ${fv}diff ${shown(file)} ${shown(dest)} → ${fv ? "fv check" : "calc"} ${shown(dest)} --app ${appFolderOfFile(W.root, file)?.appId} --id R`);
+  const folder = appFolderOfFile(W.root, file);
+  if (kind === "field-validation") {
+    // 項目検証は temp/ で直し、fv normalize --out で写しに戻す（formula の Claude Code プラグインのフックが kintone/ の JSON の直接の書き込みを止めるため）
+    const draft = `temp/${path.basename(dest)}`;
+    const fields = folder ? ` --fields ${shown(path.join(folder.dir, "fields.json"))}` : "";
+    console.log(`次: npx @rex0220/formula-authoring-tools fv normalize ${shown(dest)} --out ${draft} --force → ${draft} を直す → fv normalize ${draft}${fields} --out ${shown(dest)} --force → fv diff ${shown(file)} ${shown(dest)} → fv check ${shown(dest)} --app ${folder?.appId} --id R`);
+  } else {
+    console.log(`次: 直したら npx @rex0220/formula-authoring-tools normalize ${shown(dest)} → diff ${shown(file)} ${shown(dest)} → calc ${shown(dest)} --app ${folder?.appId} --id R`);
+  }
   return 0;
 }
 

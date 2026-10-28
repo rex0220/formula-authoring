@@ -32,6 +32,8 @@ const TBL_SOURCE = ["fieldcode", "state", "hideSet"];
 const TBL_OTHER = ["id", "fieldlabel", "type", "usedFields", "hide", "fieldno"];
 const BORDER_ITEM = ["state", "btype", "width", "color"];
 const SCREEN = (k: string): boolean => k.startsWith("pq_");
+/** エンジンの例外の文（直すために要る）は短くして出す。検査用のレコードは各項目の初期値なので、利用者のレコードの値は入らない */
+const engineText = (s: string): string => { const t = s.replace(/[\u0000-\u001f]+/g, " "); return t.length > 200 ? `${t.slice(0, 200)}…` : t; };
 
 export interface FvNormalizeInput {
   settingsText: string;
@@ -269,8 +271,8 @@ export async function fvNormalizeSettings(input: FvNormalizeInput): Promise<FvNo
   const errors = quiet(() => fvDerive({ engine, pp, crec }, rows));
   for (const e of errors) {
     const where = `${file} ${e.fieldcode} ${e.column === "condInfos" ? `検証条件 ${(e.index ?? 0) + 1}${e.part ? ` ${e.part}` : ""}` : e.column === "tblfields" ? `テーブル内非表示 ${e.part ?? ""}` : e.column}`;
-    if (e.on) findings.error(e.message.startsWith("空にできない") ? "cond.empty" : "formula.error", where, e.message);
-    else findings.warning("formula.off-error", where, `「使う」がオフの行の誤り（今は効かないが、オンにすると保存で止まる）: ${e.message}`);
+    if (e.on) findings.error(e.message.startsWith("空にできない") ? "cond.empty" : "formula.error", where, engineText(e.message));
+    else findings.warning("formula.off-error", where, `「使う」がオフの行の誤り（今は効かないが、オンにすると保存で止まる）: ${engineText(e.message)}`);
   }
   if (findings.hasErrors) return done({ fvVersion });
 
@@ -289,8 +291,9 @@ export async function fvNormalizeSettings(input: FvNormalizeInput): Promise<FvNo
       return done();
     }
     findings.info("size.bytes", file, `保存値 ${bytes.toLocaleString()} バイト（${size.keys} キー。内部番号の見積もり +${margin.toLocaleString()}。上限 ${max.toLocaleString()}）`);
-  } catch (e) {
-    findings.error("size.limit", file, `保存値が大きすぎる: ${e instanceof Error ? e.message : String(e)}`);
+  } catch {
+    // 計算式の zip の kit の上限で止まった（文は zip のコードのものなので出さない）
+    findings.error("size.limit", file, "保存値を作れない（大きさの上限を超えた）");
     return done();
   }
   if (saved.pluginUOG) findings.info("users", file, "pluginUOG = true（ユーザー情報を使う式がある）");

@@ -9,19 +9,23 @@ import type { FieldsFile } from "../commands/fields.ts";
 import { contextTargetsOf } from "../commands/fields.ts";
 import type { UsersInfoTable, UsersOrigin } from "../users/index.ts";
 import { FV_JUDGE_DEFAULT_EVENT, fvJudgeRecord, type FvJudgeResult, type FvJudgement, type FvLang } from "./judge.ts";
+import { engineOfFv } from "./meta.ts";
 import type { FvNormalizeResult } from "./normalize.ts";
 
 /** 受けるイベント名（項目検証が式に渡すもの。change は項目コードを付ける。一覧の編集は付けなくてもよい） */
 export const FV_EVENT_RE = /^(mobile\.)?app\.record\.(create|edit)\.(show|submit|change\.[^\s.]+)$|^(mobile\.)?app\.record\.index\.edit\.(submit|change(\.[^\s.]+)?)$|^(mobile\.)?app\.record\.detail\.show$/;
 export const FV_CHECK_RECORDS_MAX = 100;
 export const FV_CHECK_EVENTS_MAX = 6;
+/** 1 つの文・入れる値を出す長さの上限（メッセージの式と初期値にレコードの値が入りうるので、長い値をそのまま出さない） */
+export const FV_CHECK_TEXT_MAX = 200;
 
 export interface FvCheckInput {
   normalized: FvNormalizeResult;
   engine: Engine;
   fields: FieldsFile;
   appId: number;
-  records: Array<{ id: string; record: Record<string, unknown> }>;
+  /** fileAppId / fileId は record のファイルの封筒の値（あれば、--app と番号に合うか確かめる） */
+  records: Array<{ id: string; record: Record<string, unknown>; fileAppId?: number; fileId?: number }>;
   events?: string[];
   lang?: FvLang;
   user?: string;
@@ -61,13 +65,14 @@ export function validateFvEvents(list: string[] | undefined): string[] {
 }
 
 const BUTTON_LABEL: Record<string, string> = { $ADD_BUTTON: "行の追加", $DEL_BUTTON: "行の削除" };
+const cut = (s: string): string => (s.length > FV_CHECK_TEXT_MAX ? `${s.slice(0, FV_CHECK_TEXT_MAX)}…（${s.length} 文字）` : s);
 
 /** 判定の結果を行に（印のあるものだけ。all なら全部） */
 export function linesOf(r: FvJudgeResult, all: boolean): FvCheckLine[] {
   const out: FvCheckLine[] = [];
   const add = (field: string, j: FvJudgement | { hidden: boolean }): void => {
-    const line: FvCheckLine = { field, hidden: j.hidden, disabled: "disabled" in j ? j.disabled : false, required: "required" in j ? j.required : false, errors: "errors" in j ? [...j.errors] : [] };
-    if ("reset" in j && j.reset) line.reset = j.reset;
+    const line: FvCheckLine = { field, hidden: j.hidden, disabled: "disabled" in j ? j.disabled : false, required: "required" in j ? j.required : false, errors: "errors" in j ? j.errors.map(cut) : [] };
+    if ("reset" in j && j.reset) line.reset = typeof j.reset.value === "string" ? { ...j.reset, value: cut(j.reset.value) } : j.reset;
     if (all || line.hidden || line.disabled || line.required || line.errors.length || line.reset) out.push(line);
   };
   for (const [code, j] of Object.entries(r.fields)) add(code, j);
@@ -91,6 +96,10 @@ export function fvCheckSettings(input: FvCheckInput): FvCheckResult {
   const { normalized, engine } = input;
   if (!normalized.saved) throw new InputError("fv normalize のエラーがあるので判定しない");
   if (input.records.length > FV_CHECK_RECORDS_MAX) throw new InputError(`レコードは 1 回 ${FV_CHECK_RECORDS_MAX} 件まで`);
+  for (const r of input.records) {
+    if (r.fileAppId !== undefined && r.fileAppId !== input.appId) throw new InputError(`レコード ${r.id} のファイルはアプリ ${r.fileAppId} のもの（--app ${input.appId}）`);
+    if (r.fileId !== undefined && String(r.fileId) !== r.id) throw new InputError(`レコード ${r.id} のファイルの id が ${r.fileId}`);
+  }
   const events = validateFvEvents(input.events);
   const lang: FvLang = input.lang ?? "ja";
   const wantUser = input.user ?? "authoring";
@@ -102,7 +111,11 @@ export function fvCheckSettings(input: FvCheckInput): FvCheckResult {
   const targets = contextTargetsOf(input.fields.properties);
   const saved = normalized.saved as { pluginFields: never[]; pluginPP: unknown };
   const usersLabel = !input.usersInfo ? "なし" : input.usersOrigin.kind === "file" ? input.usersOrigin.file : "既定のテストデータ（架空）";
-  const contextLine = `文脈: アプリ ${input.appId}、ログインユーザー ${loginUser ? loginUser.code : "指定なし（番兵）"}、言語 ${lang}、イベント ${events.join(" / ")}、ユーザー情報 ${usersLabel}`;
+  // 評価に使うエンジン（計算式の zip）と、項目検証の版に同梱のエンジンが違えば添える（判定が少し違うことがある）
+  const bundled = engineOfFv(normalized.fvVersion);
+  const same = bundled?.engineSha256 === engine.source.engineSha256;
+  const engineLabel = `計算式 Ver.${engine.source.pluginVersion} の zip${bundled ? `（項目検証 Ver.${normalized.fvVersion} の同梱は計算式 Ver.${bundled.formulaVersion} 相当。${same ? "同じ" : "違うので結果が少し違うことがある"}）` : ""}`;
+  const contextLine = `文脈: アプリ ${input.appId}、ログインユーザー ${loginUser ? loginUser.code : "指定なし（番兵）"}、言語 ${lang}、イベント ${events.join(" / ")}、ユーザー情報 ${usersLabel}、エンジン ${engineLabel}`;
   const notice = "更新していません（判定の模擬）。項目検証の一覧編集向けの判定と同じ規則で、レコードの画面とは、必須の未入力を常に文に出す・テーブルの子の隠れたルックアップも解除する・グループは出さない、の 3 点が違います。画面への反映（枠線の色、グループの開閉）と、値の変更の後の再検査の順は模擬しません。";
   const records: FvCheckRecord[] = [];
   for (const { id, record } of input.records) {

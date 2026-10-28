@@ -52,7 +52,7 @@
 
 1. `fv pull --app N` で今の設定を取る（API ラボの機能が有効なとき。無理なら利用者に設定画面の「設定をダウンロード」を頼み、`settings/` に置いてもらう。ダウンロードは保存値も入っているが、tools はそのまま読める）
 2. `fv summary` で全体、`fv summary --field <code>` で直す行を見る
-3. pull / ダウンロードのファイルは書き換えない。`fv normalize <元> --out temp/<写し>.json` で写しを作って直し、`fv normalize temp/<写し>.json --out settings/<元の名前>-edit.json` で置く（接続のファイルの形なら `edit --app N --plugin field-validation` が写しを作る。直すときは同じく temp/ を経て `--out <…-edit.json> --force`）
+3. pull / ダウンロードのファイルは書き換えない。`fv normalize <元> --out temp/<写し>.json` で写しを作って直し、`fv normalize temp/<写し>.json --out settings/<元の名前>-edit.json` で置く。接続のファイルの形なら、`edit --app N --plugin field-validation` が `-edit.json` を作り、次のコマンドを出す（`-edit.json` を temp/ に写して直し、`--fields <アプリのフォルダー>/fields.json` を付けて `--out <…-edit.json> --force` で戻す。temp/ の下書きはアプリのフォルダーの外なので、`--fields` が要る）
 4. `fv diff <元> <写し>` で差を確かめ、`fv check`
 5. 反映方法は上と同じ。取り込み方は「項目の置換」で、変えた項目だけチェックしてもらう（共通の設定を変えていなければ「共通の設定」のチェックを外す）
 
@@ -116,6 +116,7 @@
 - グループを隠しても中の項目の判定は変わらない（画面で中の項目も見えなくなるだけ）
 - 内部番号（`fieldno` / `ptno`）は設定画面が保存のときに付ける。tools の出力には無い（正しい）
 - ログインユーザー・ステータス・イベント（`EV_INFO`）で変わる式は、どの場合にどうなるかを表にして利用者に示す（`fv check --user` / `--event`）
+- `fv check` の出力には、メッセージの式の結果と初期化の値が出る（項目の値をつなぐメッセージなら、レコードの値が入る。1 つ 200 文字で切る）。確かめには、テスト用アプリのテストデータのレコードを使う（計算式の手順の「テスト用アプリとテストデータ」）
 
 ## このリポジトリのルール
 

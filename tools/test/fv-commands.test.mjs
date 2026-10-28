@@ -80,6 +80,10 @@ test("fv normalize: アプリに無い行、置けない型の列、式の誤り
   assert.deepEqual([...new Set(rules(r, "error"))].sort(), ["field.column", "field.missing"], r.summary);
   const r2 = await normalize(envelope([{ fieldcode: "金額", state: true, formulaSet: "金額 > 未知の項目" }, { fieldcode: "区分", state: true, condInfos: [{ state: true, condSet: "1", jaSet: "" }] }]));
   assert.deepEqual(rules(r2, "error").sort(), ["cond.empty", "formula.error"], r2.summary);
+  // エンジンの文は制御文字を空白にし、200 文字で切る（式の名前が文に入っても長く出さない）
+  const r3 = await normalize(envelope([{ fieldcode: "金額", state: true, formulaSet: `金額 > 未知${"の".repeat(300)}\n項目` }]));
+  const e3 = r3.findings.items.find((f) => f.rule === "formula.error");
+  assert.ok(e3 && e3.message.length <= 201 && !/[\u0000-\u001f]/.test(e3.message), e3 && e3.message);
 });
 
 test("fv normalize: 警告（文字列の中の //、メッセージが項目の値だけ、フォームで必須の式、初期化だけ、「使う」がオフ、表示のたびに変わる関数）", { skip }, async () => {
@@ -177,6 +181,71 @@ test("CLI（1 接続の形）: fv normalize --out → fv summary → fv diff →
     assert.match(r.stderr, /イベント名が違う/);
     r = run("fv", "nothing");
     assert.equal(r.status, 2);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("fv normalize: 更新系の 11 の関数を、どの置き場所（必須条件・入力不可・非表示・検証条件の条件とメッセージ・テーブル内非表示・旧い形のキー）でも評価の前に止める", { skip }, async () => {
+  const engine = await loadEngine();
+  const fns = ["FSET", "FSET_TADD", "BUTTON", "DIALOG", "CLIPBORD_WRITE", "EV_SET", "TLTABLE", "TABLE_SORT", "TABLE_MAP", "TABLE_DATA", "CSV_TVAL"];
+  const slots = [
+    (f) => ({ fieldcode: "金額", state: true, formulaSet: `${f}(1) > 0` }),
+    (f) => ({ fieldcode: "金額", state: true, disabledSet: `${f}(1) > 0` }),
+    (f) => ({ fieldcode: "金額", state: false, hideSet: `${f}(1) > 0` }),
+    (f) => ({ fieldcode: "氏名", state: true, condInfos: [{ state: true, condSet: `${f}(1) > 0`, jaSet: '"x"' }] }),
+    (f) => ({ fieldcode: "氏名", state: true, condInfos: [{ state: false, condSet: "1", jaSet: `${f}(1) & "x"` }] }),
+    (f) => ({ fieldcode: "明細", state: true, tblfields: [{ fieldcode: "品名", state: false, hideSet: `${f}(1) > 0` }] }),
+    (f) => ({ fieldcode: "金額", state: true, formula: `${f}(1) > 0` })
+  ];
+  const before = engine.dqCount();
+  for (const [i, f] of fns.entries()) {
+    for (const [j, slot] of slots.entries()) {
+      if ((i + j) % 3 !== 0) continue; // 11 × 7 のうち 3 分の 1（どの関数もどの置き場所も 2 回以上）
+      const r = await normalize(envelope([slot(f)]), { engine });
+      const errs = r.findings.items.filter((x) => x.level === "error");
+      assert.deepEqual(errs.map((x) => x.rule), ["formula.update"], `${f} / 置き場所 ${j}: ${r.summary}`);
+      assert.match(errs[0].message, new RegExp(f));
+    }
+  }
+  assert.equal(engine.dqCount(), before, "どれも評価していない");
+});
+
+test("fv check: レコードのファイルの番号の照合、エンジンの版の表示、長い文は 200 文字で切る", { skip }, async () => {
+  const engine = await loadEngine();
+  const long = "あ".repeat(250);
+  const normalized = await normalize(envelope([{ fieldcode: "金額", state: true, condInfos: [{ state: true, condSet: "金額 > 10", jaSet: `"${long}"` }] }]), { engine });
+  const rec = Object.fromEntries(Object.entries(read("fields.json").properties).filter(([, p]) => p.type !== "GROUP").map(([c, p]) => [c, { type: p.type, value: p.type === "SUBTABLE" || p.type === "USER_SELECT" ? [] : c === "金額" ? "20" : "" }]));
+  const base = { normalized, engine, fields: FIELDS(), appId: APP, usersInfo: defaultUsersInfo(), usersOrigin: { kind: "default" } };
+  const r = fvCheckSettings({ ...base, records: [{ id: "1", record: rec, fileAppId: APP, fileId: 1 }] });
+  const err = r.records[0].events[0].lines.find((l) => l.field === "金額").errors[0];
+  assert.equal(err, `${"あ".repeat(200)}…（250 文字）`);
+  assert.match(r.contextLine, /エンジン 計算式 Ver\.\d+ の zip（項目検証 Ver\.72 の同梱は計算式 Ver\.102 相当。(同じ|違うので結果が少し違うことがある)）/);
+  assert.throws(() => fvCheckSettings({ ...base, records: [{ id: "1", record: rec, fileAppId: 901 }] }), /アプリ 901 のもの（--app 900）/);
+  assert.throws(() => fvCheckSettings({ ...base, records: [{ id: "1", record: rec, fileId: 2 }] }), /id が 2/);
+});
+
+test("CLI: fv check の --app と設定の appId、--lang、fv summary / fv diff は項目検証の設定だけ", { skip }, () => {
+  const root = mkdtempSync(path.join(os.tmpdir(), "fv-cli2-"));
+  try {
+    for (const d of ["fields", "settings", "records"]) mkdirSync(path.join(root, d));
+    writeFileSync(path.join(root, "fields", `${APP}.json`), JSON.stringify(FIELDS()));
+    writeFileSync(path.join(root, "settings", "fv.json"), JSON.stringify(envelope(GOOD)));
+    writeFileSync(path.join(root, "settings", "formula.json"), JSON.stringify({ pluginID: "rex0220 formula plugin", PluginVersion: "102", appId: APP, pluginInfos: [] }));
+    const cli = fileURLToPath(new URL("../src/cli.ts", import.meta.url));
+    const env = Object.fromEntries(Object.entries(process.env).filter(([k]) => !/^(KINTONE_|KSQL_|FORMULA_)/.test(k)));
+    const run = (...args) => spawnSync(process.execPath, ["--no-warnings", cli, ...args], { encoding: "utf8", cwd: root, env: { ...env, FORMULA_PLUGIN_ZIP: PLUGIN_ZIP, FORMULA_NO_WORKER: "1" } });
+    let r = run("fv", "check", "settings/fv.json", "--app", "901", "--id", "1");
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /--app 901 と設定の appId（900）が違う/);
+    r = run("fv", "check", "settings/fv.json", "--app", String(APP), "--id", "1", "--lang", "fr");
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /--lang は ja \/ en \/ zh: fr/);
+    r = run("fv", "summary", "settings/formula.json");
+    assert.equal(r.status, 1);
+    assert.match(r.stderr, /項目検証の設定ではない/);
+    r = run("fv", "diff", "settings/fv.json", "settings/formula.json");
+    assert.equal(r.status, 1);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
