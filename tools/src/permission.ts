@@ -17,7 +17,7 @@ import path from "node:path";
 import { assertSameConnection } from "./connections.ts";
 import { PermissionError } from "./permission-error.ts";
 import { isInside } from "./safe-path.ts";
-import { EDIT_RE, KINTONE_ROOT, SNAPSHOT_RE, appFolderOfFile, assertAppMark, legacyBlockedError, type WorkspaceMode } from "./workspace.ts";
+import { KINTONE_ROOT, appFolderOfFile, assertAppMark, isEditName, isSnapshotName, legacyBlockedError, type WorkspaceMode } from "./workspace.ts";
 
 export { PermissionError };
 
@@ -50,8 +50,9 @@ export function classOfAppPath(relInFolder: string): TargetClass {
   if (rel.startsWith("records/")) return rel.toLowerCase().endsWith(".json") && rel.split("/").length === 2 ? "record" : "other";
   if (rel.includes("/")) return "other";
   if (rel === "fields.json") return "fields";
-  if (SNAPSHOT_RE.test(rel)) return "snapshot";
-  if (EDIT_RE.test(rel)) return "edit";
+  // 計算式と項目検証のダウンロード / pull と -edit.json（項目検証の名前も新しい設定として書かせない）
+  if (isSnapshotName(rel)) return "snapshot";
+  if (isEditName(rel)) return "edit";
   if (rel.toLowerCase().endsWith(".json")) return "newsettings";
   return "other";
 }

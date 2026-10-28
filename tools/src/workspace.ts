@@ -6,6 +6,7 @@
  *   - profile の形のアプリのフォルダー: kintone/<profile>/<アプリ番号>-<アプリ名>/（番号の後ろは目印。番号で探すので、アプリ名が変わっても動く）
  *       fields.json、records/<レコード番号>.json
  *       rex0220-formula-app<番号>-<YYYYMMDD>-<HHmmss>.json … 設定画面のダウンロード（名前はそのまま）と pull。一番新しいものが今の設定
+ *       rex0220-field-validation-app<番号>-<YYYYMMDD>-<HHmmss>.json … 項目検証の設定のダウンロードと fv pull（今の設定はプラグインごとに一番新しいもの）
  *       …-edit.json … ダウンロード / pull を AI が直したもの（edit で写す。ダウンロードのファイルは書き換えない）
  *       その他の *.json … AI が新しく作る設定（normalize --out の書き出し先）
  *       .formula-app.json … アプリのフォルダーの印（どの接続のアプリか。フォルダーを作るときだけ置く。15.5）
@@ -18,6 +19,7 @@ import path from "node:path";
 import { ConnectionError, PROFILE_NAME_RE, loadConnections, sameIdentity, type ConnectionSet, type Env, type ProfileDef } from "./connections.ts";
 import { PathError, isInside, realResolve, safeFileName } from "./safe-path.ts";
 import { PermissionError } from "./permission-error.ts";
+import { FV_EDIT_RE, FV_SNAPSHOT_PREFIX, FV_SNAPSHOT_RE } from "./fv/meta.ts";
 
 export const KINTONE_ROOT = "kintone";
 export const INBOX = "inbox";
@@ -29,6 +31,23 @@ export const APP_MARKER = ".formula-app.json";
 export const SNAPSHOT_PREFIX = "rex0220-formula";
 export const SNAPSHOT_RE = /^rex0220-formula-app(\d+)-(\d{8})-(\d{6})\.json$/;
 export const EDIT_RE = /^rex0220-formula-app(\d+)-(\d{8})-(\d{6})-edit\.json$/;
+
+/** 設定のファイルのプラグイン（ダウンロード / pull と -edit.json の名前から。計算式と項目検証）。名前が合わなければ undefined */
+export type PluginKind = "formula" | "field-validation";
+export function snapshotKindOf(name: string): PluginKind | undefined {
+  if (SNAPSHOT_RE.test(name)) return "formula";
+  if (FV_SNAPSHOT_RE.test(name)) return "field-validation";
+  return undefined;
+}
+export function editKindOf(name: string): PluginKind | undefined {
+  if (EDIT_RE.test(name)) return "formula";
+  if (FV_EDIT_RE.test(name)) return "field-validation";
+  return undefined;
+}
+/** ダウンロード / pull の名前か（どちらのプラグインでも。書き換えない名前） */
+export const isSnapshotName = (name: string): boolean => snapshotKindOf(name) !== undefined;
+/** -edit.json の名前か（どちらのプラグインでも） */
+export const isEditName = (name: string): boolean => editKindOf(name) !== undefined;
 
 const MARKER_MAX_BYTES = 4 * 1024;
 
@@ -152,9 +171,9 @@ export function appFolderOfFile(cwd: string, file: string): { dir: string; profi
 }
 
 const pad = (n: number): string => String(n).padStart(2, "0");
-/** ダウンロードと同じ名前（kit の exportFileName と同じ。日時はこの PC の時刻） */
-export function snapshotNameOf(appId: number, now: Date = new Date()): string {
-  return `${SNAPSHOT_PREFIX}-app${appId}-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.json`;
+/** ダウンロードと同じ名前（kit の exportFileName と同じ。日時はこの PC の時刻）。項目検証は kind "field-validation" */
+export function snapshotNameOf(appId: number, now: Date = new Date(), kind: PluginKind = "formula"): string {
+  return `${kind === "formula" ? SNAPSHOT_PREFIX : FV_SNAPSHOT_PREFIX}-app${appId}-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}.json`;
 }
 
 export function editNameOf(snapshotFile: string): string {
@@ -279,6 +298,9 @@ export interface AppFolderList {
   snapshots: string[];
   /** 直したもの（新しい順） */
   edits: string[];
+  /** 項目検証のダウンロードと fv pull（新しい順）、直したもの（新しい順） */
+  fvSnapshots: string[];
+  fvEdits: string[];
   /** AI が作った設定など、その他の json（. で始まる印などは出さない） */
   others: string[];
   records: string[];
@@ -304,7 +326,9 @@ export function listAppFolder(dir: string, cwd?: string): AppFolderList {
     hasFields: names.includes("fields.json"),
     snapshots: names.filter((n) => SNAPSHOT_RE.test(n)).sort(newestFirst),
     edits: names.filter((n) => EDIT_RE.test(n)).sort(newestFirst),
-    others: names.filter((n) => n !== "fields.json" && !SNAPSHOT_RE.test(n) && !EDIT_RE.test(n)).sort(),
+    fvSnapshots: names.filter((n) => FV_SNAPSHOT_RE.test(n)).sort(newestFirst),
+    fvEdits: names.filter((n) => FV_EDIT_RE.test(n)).sort(newestFirst),
+    others: names.filter((n) => n !== "fields.json" && !isSnapshotName(n) && !isEditName(n)).sort(),
     records: sub("records", (n) => n.endsWith(".json"))
   };
 }

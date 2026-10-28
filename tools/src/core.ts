@@ -78,3 +78,9 @@ export {
 export { fvPropsOf, fvRowsOf, fvApplySource, fvHasSetting, type FvProp, type FvRow, type FvRowCond, type FvTblChild, type FvLayoutRow, type FvApplyResult } from "./fv/rows.ts";
 export { FV_INFO_KEYS, fvStrip, fvDerive, fvBuildSaved, type FvColumn, type FvFormulaError, type FvDeriveContext } from "./fv/derive.ts";
 export { FV_JUDGE_DEFAULT_EVENT, fvJudgeRecord, type FvJudgement, type FvJudgeResult, type FvJudgeOptions, type FvLang } from "./fv/judge.ts";
+// 項目検証の段階 2: コマンド（fv normalize / check / summary / diff / pull）と、計算式・項目検証のダウンロード / -edit.json の名前の判定
+export { FV_PLUGIN_NAME, fvNormalizeSettings, outputInfos as fvOutputInfos, type FvNormalizeInput, type FvNormalizeResult } from "./fv/normalize.ts";
+export { FV_CHECK_EVENTS_MAX, FV_CHECK_RECORDS_MAX, FV_EVENT_RE, fvCheckSettings, linesOf as fvLinesOf, renderFvLine, validateFvEvents, type FvCheckInput, type FvCheckLine, type FvCheckRecord, type FvCheckResult } from "./fv/check.ts";
+export { fvDiffSettings, fvSummarizeSettings, type FvDiffResult } from "./fv/summary.ts";
+export { fvDefaultPullName, fvPullSettings, type FvPullOptions } from "./fv/pull.ts";
+export { editKindOf, isEditName, isSnapshotName, snapshotKindOf, type PluginKind } from "./workspace.ts";
