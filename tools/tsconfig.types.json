@@ -15,6 +15,7 @@
     "noImplicitAny": false
   },
   "include": [
-    "src/core.ts"
+    "src/core.ts",
+    "src/generic.ts"
   ]
 }

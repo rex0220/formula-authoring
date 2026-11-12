@@ -13,6 +13,11 @@
       "import": "./dist/core.mjs",
       "default": "./dist/core.mjs"
     },
+    "./generic": {
+      "types": "./dist/types/generic.d.ts",
+      "import": "./dist/generic.mjs",
+      "default": "./dist/generic.mjs"
+    },
     "./package.json": "./package.json"
   },
   "files": [
