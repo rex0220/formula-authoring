@@ -43,6 +43,7 @@ export interface SourceFile {
 }
 
 export const digestOfText = (text: string | Buffer): string => createHash("sha256").update(text).digest("hex");
+const WINDOWS_RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 
 /**
  * 作業フォルダーの直下のファイルの名前を、絶対パスにする。
@@ -51,6 +52,11 @@ export const digestOfText = (text: string | Buffer): string => createHash("sha25
 export function resolveWorkFile(root: string, name: string): string {
   if (typeof name !== "string" || !name || name !== path.basename(name) || /[\\/]/.test(name) || name.startsWith(".") || !/\.json$/i.test(name) || name.length > 200) {
     throw new GenericFileError(`ファイルの名前は、作業フォルダーの直下の .json の名前で書く（フォルダーの区切り・先頭の「.」は使えない）: ${String(name)}`, "denied");
+  }
+  // Windows で別の名前に化ける・開けない名前は、どの OS でも受けない（作業フォルダーを Windows と Mac で共有することがある。safe-path.ts と同じ決まり）:
+  // 予約名（CON、NUL、COM1 …）、使えない字（< > : " | ? * と制御文字）、拡張子の前の末尾の点・空白
+  if (WINDOWS_RESERVED.test(name) || /[<>:"|?*\u0000-\u001f]/.test(name) || /[. ]\.json$/i.test(name) || /^\s/.test(name)) {
+    throw new GenericFileError(`使えないファイルの名前: ${name}`, "denied");
   }
   let real: string;
   let realRoot: string;
@@ -140,6 +146,31 @@ export function saveNewSourceFile(root: string, name: string, file: SourceFile):
 /** 取り込み用のファイル（保存値の封筒）を新しく置く（上書きしない）。text は authoring API の writeEnvelope の結果 */
 export function saveNewImportFile(root: string, name: string, text: string): WriteResult {
   return placeNewFile(root, name, text.endsWith("\n") ? text : `${text}\n`);
+}
+
+/**
+ * 取り込み用のファイルを、**元の設定ファイルが検査したときのままであることを確かめてから**置く。
+ * 検査（kintone の読み取りを挟む）の間に設定ファイルが直されていたら conflict（古い中身から取り込み用のファイルを作らない）。
+ * 確かめ直しと配置は、設定ファイルのロックの中で行う（updateSourceFile と同じロック。直す側はロックの後に digest を確かめ直す）
+ */
+export function saveNewImportFileFor(root: string, sourceName: string, checkedDigest: string, importName: string, text: string): WriteResult {
+  const source = resolveWorkFile(root, sourceName);
+  let lock: Lock | undefined;
+  try {
+    try {
+      lock = acquireLock(source);
+    } catch (e) {
+      if (e instanceof LockBusyError) throw new GenericFileError(`ほかの書き込みが設定ファイルを直している。少し待ってやり直す: ${sourceName}`, "busy");
+      throw e;
+    }
+    if (digestOfText(readText(source, sourceName)) !== checkedDigest) throw new GenericFileError(`検査の後に設定ファイルが変わった（digest が違う）。検査からやり直す: ${sourceName}`, "conflict");
+    const r = saveNewImportFile(root, importName, text);
+    const warnings = cleanupAll([() => void lock!.release()]);
+    lock = undefined;
+    return { ...r, warnings: [...r.warnings, ...warnings] };
+  } finally {
+    if (lock) cleanupAll([() => void lock!.release()]);
+  }
 }
 
 /**

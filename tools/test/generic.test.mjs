@@ -242,6 +242,40 @@ test("項目定義: 読めないアプリは飛ばして注記に残し、その
   assert.ok(r2.notes.some((n) => /アプリ 200 の項目定義を読めない/.test(n)));
 });
 
+test("項目定義: プラグインの API が返したアプリ番号をそのまま kintone に渡さない。自アプリを対象にするときは動作テスト環境", async () => {
+  const client = fakeClient({
+    "app:100": { name: "集計先" }, "preview/app/form/fields:100": { properties: {}, revision: "1" }, "preview/app/form/layout:100": { layout: [], revision: "1" }, "preview/app/views:100": { views: {} },
+    "app:200": { name: "受注" },
+    "app/form/fields:200": { properties: { x: { type: "NUMBER", code: "x", label: "x" } }, revision: "1" }, "app/form/layout:200": { layout: [], revision: "1" }, "app/views:200": { views: {} }
+  });
+  // 代役の API: 設定に書かれた値がそのまま出てきた、という想定（アプリ番号でないもの・負の数・大きすぎる数・重なり・自アプリ）
+  const fake = async (method) => (method === "requirements" ? { needNames: [], targetAppIds: ["abc", "-1", "99999999999999999999", "0200", "200", "200", "100", "1e3"] } : null);
+  const { defs, notes } = await G.fetchGenericDefs(client, fake, { common: {}, rows: [] }, { app: 100 });
+  assert.deepEqual(Object.keys(defs.apps).sort(), ["100", "200"]);
+  assert.deepEqual([...new Set(client.asked)].sort(), [100, 200], "アプリ番号として読めるものだけ、接続を作る（NaN を渡さない）");
+  assert.equal(notes.filter((n) => /アプリ番号として読めない/.test(n)).length, 5);
+  assert.equal(client.calls.filter((c) => c.startsWith("app/form/fields ") && c.includes("200")).length, 1, "同じアプリは 1 回だけ読む");
+  const own = client.calls.filter((c) => /form\/(fields|layout) /.test(c) && /"app":"?100"?[,}]/.test(c));
+  assert.ok(own.length >= 2 && own.every((c) => c.startsWith("preview/")), `自アプリを対象にする設定は、自アプリと同じ動作テスト環境を読む: ${own.join(" / ")}`);
+  assert.deepEqual(["200", "0200", "abc", "-1", "1e3", "99999999999999999999", 200, ""].map((x) => G.isAppIdText(x)), [true, false, false, false, false, false, false, false]);
+  // 名前を求めるほうも同じ検査
+  let round = 0;
+  const names = async (method) => (method === "requirements" ? (round++ === 0 ? { needNames: ["x y", "200"], targetAppIds: [] } : { needNames: [], targetAppIds: [] }) : null);
+  const c2 = fakeClient({ "app:100": { name: "集計先" }, "preview/app/form/fields:100": { properties: {}, revision: "1" }, "preview/app/form/layout:100": { layout: [], revision: "1" }, "preview/app/views:100": { views: {} }, "app:200": { name: "受注" } });
+  const r2 = await G.fetchGenericDefs(c2, names, { common: {}, rows: [] }, { app: 100 });
+  assert.deepEqual([r2.defs.appNames, r2.notes.length], [{ 200: "受注" }, 1]);
+});
+
+test("Worker: 利用者・組織・グループに依る式は、代役の利用者情報でも検査を通る（検査は式の形と使う項目だけ。値は使わない）", { skip }, async () => {
+  for (const formula of ['UINFO("name") != ""', 'UINFO("code") = "user1"', 'CONTAINS(OUSERS("営業部"), UINFO("code"))', 'CONTAINS(GUSERS("管理者"), UINFO("code"))']) {
+    const s = await sample();
+    s.common.executeCondition.formula = formula;
+    const r = await G.callGeneric({ plugin: "aggregate", zip: AGG_ZIP, method: "check", args: [s, DEFS, { lang: "ja" }], context: { ownAppId: 100 } }, { timeoutSec: 60 });
+    assert.deepEqual(r.issues, [], formula);
+    assert.equal(r.evaluation, "dummy-record");
+  }
+});
+
 // ---- 作業フォルダー（直下に JSON を置く形）----------------------------------------------------------
 import { mkdirSync, symlinkSync, readdirSync } from "node:fs";
 
@@ -273,6 +307,9 @@ test("作業フォルダー: 直下の .json だけを読み書きする（フ�
   withTemp((dir) => {
     const denied = (name) => assert.throws(() => G.saveNewSourceFile(dir, name, FILE()), (e) => e instanceof G.GenericFileError && e.status === "denied", name);
     for (const name of ["../x.json", "sub/x.json", "/tmp/x.json", ".hidden.json", "x.txt", "", "a\\b.json"]) denied(name);
+    // Windows で別の名前に化ける・開けない名前は、どの OS でも受けない（作業フォルダーを共有することがある）
+    for (const name of ["CON.json", "nul.json", "com1.json", "LPT9.json", "a .json", "a..json", " a.json", "a:b.json", "a?.json", "a*.json", 'a".json', "a<b>.json", "a|b.json", "a\u0001.json"]) denied(name);
+    assert.equal(G.saveNewSourceFile(dir, "console.json", FILE()).status, "saved", "予約名で始まるだけの名前はよい");
     withTemp((outside) => {
       writeFileSync(path.join(outside, "real.json"), "{}");
       symlinkSync(path.join(outside, "real.json"), path.join(dir, "link.json"));
@@ -286,6 +323,26 @@ test("作業フォルダー: 直下の .json だけを読み書きする（フ�
     assert.throws(() => G.readSourceFile(dir, "other.json"), (e) => e instanceof G.GenericFileError && e.status === "invalid");
     writeFileSync(path.join(dir, "unknown.json"), JSON.stringify({ ...FILE(), plugin: "formula" }));
     assert.throws(() => G.readSourceFile(dir, "unknown.json"), G.UnknownPluginError);
+  });
+});
+
+test("作業フォルダー: 取り込み用のファイルは、設定ファイルが検査したときのままであることを確かめてから置く", () => {
+  withTemp((dir) => {
+    const saved = G.saveNewSourceFile(dir, "agg-app100.json", FILE());
+    const text = JSON.stringify({ pluginID: "rex0220 aggregate records plugin", appId: 100 });
+    // 検査の後に設定ファイルが直された → 古い中身から作らない
+    const up = G.updateSourceFile(dir, "agg-app100.json", saved.digest, (s) => G.patchRow(s, "01", { name: "直した" }));
+    assert.throws(() => G.saveNewImportFileFor(dir, "agg-app100.json", saved.digest, "aggregate-app100-20261113-090000-import.json", text), (e) => e instanceof G.GenericFileError && e.status === "conflict");
+    assert.deepEqual(readdirSync(dir), ["agg-app100.json"], "取り込み用のファイルもロックも残らない");
+    // そのままなら置く。同じ名前は上書きしない
+    const r = G.saveNewImportFileFor(dir, "agg-app100.json", up.digest, "aggregate-app100-20261113-090000-import.json", text);
+    assert.equal(r.status, "saved");
+    assert.throws(() => G.saveNewImportFileFor(dir, "agg-app100.json", up.digest, "aggregate-app100-20261113-090000-import.json", text), (e) => e instanceof G.GenericFileError && e.status === "exists");
+    assert.deepEqual(readdirSync(dir).sort(), ["agg-app100.json", "aggregate-app100-20261113-090000-import.json"], "ロックが残らない（次の書き込みが通る）");
+    assert.equal(G.updateSourceFile(dir, "agg-app100.json", up.digest, (s) => s).status, "saved");
+    // 設定ファイルが無い・外を指す名前
+    assert.throws(() => G.saveNewImportFileFor(dir, "none.json", up.digest, "x-import.json", text), (e) => e instanceof G.GenericFileError && e.status === "missing");
+    assert.throws(() => G.saveNewImportFileFor(dir, "../x.json", up.digest, "x-import.json", text), (e) => e instanceof G.GenericFileError && e.status === "denied");
   });
 });
 

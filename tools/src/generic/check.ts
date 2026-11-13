@@ -39,6 +39,9 @@ export const GENERIC_MAX_APPS = 30;
 
 export class GenericDefsError extends Error {}
 
+/** アプリ番号として kintone に渡してよい文字列か（正の整数。プラグインの API が返した値も、設定に書かれた値も、ここを通す） */
+export const isAppIdText = (id: unknown): id is string => typeof id === "string" && /^[1-9]\d{0,9}$/.test(id) && Number.isSafeInteger(Number(id));
+
 export async function fetchGenericDefs(clientFor: GenericClientFor, call: GenericCaller, source: GenericSource, opt: FetchDefsOptions): Promise<{ defs: GenericDefs; notes: string[] }> {
   const notes: string[] = [];
   const own = await fetchFields(clientFor(opt.app), { app: opt.app, preview: true, lang: opt.lang, guestSpaceId: opt.guestSpaceId });
@@ -60,7 +63,7 @@ export async function fetchGenericDefs(clientFor: GenericClientFor, call: Generi
     }
     if (Object.keys(defs.appNames).length + need.length > GENERIC_MAX_APPS) throw new GenericDefsError(`参照するアプリが多すぎる（${GENERIC_MAX_APPS} を超える）`);
     for (const id of need) {
-      if (!/^[1-9]\d{0,9}$/.test(id)) { failed.add(id); notes.push(`アプリ番号として読めない: ${id}`); continue; }
+      if (!isAppIdText(id)) { failed.add(String(id)); notes.push(`アプリ番号として読めない: ${String(id).slice(0, 40)}`); continue; }
       try {
         const a = await clientFor(Number(id)).get<{ name?: string }>("app", { id }, opt.guestSpaceId);
         defs.appNames[id] = String(a.name ?? "");
@@ -72,10 +75,18 @@ export async function fetchGenericDefs(clientFor: GenericClientFor, call: Generi
   }
   // 名前を取れなかったアプリは appNames から外す（空の名前のまま渡さない。API は「対象アプリが決まらない」で止める）
   for (const id of failed) delete defs.appNames[id];
-  if (targets.length > GENERIC_MAX_APPS) throw new GenericDefsError(`参照するアプリが多すぎる（${GENERIC_MAX_APPS} を超える）`);
-  for (const id of targets) {
+  // 項目定義を読むアプリ。**プラグインの API が返した値をそのまま kintone に渡さない**（設定に書かれた値がそのまま出てくることがある）:
+  // アプリ番号として読めないものは飛ばして注記に残す（そのアプリを使う行は、API が「対象アプリが決まらない」で止める）
+  const valid: string[] = [];
+  for (const id of new Set(targets)) {
+    if (isAppIdText(id)) valid.push(id);
+    else notes.push(`アプリ番号として読めない: ${String(id).slice(0, 40)}`);
+  }
+  if (valid.length > GENERIC_MAX_APPS) throw new GenericDefsError(`参照するアプリが多すぎる（${GENERIC_MAX_APPS} を超える）`);
+  for (const id of valid) {
     try {
-      const f = await fetchFields(clientFor(Number(id)), { app: Number(id), preview: false, lang: opt.lang, guestSpaceId: opt.guestSpaceId });
+      // 自アプリを対象にする設定は、自アプリと同じく動作テスト環境を読む（設定画面と同じ。運用環境と項目がずれていることがある）
+      const f = await fetchFields(clientFor(Number(id)), { app: Number(id), preview: Number(id) === opt.app, lang: opt.lang, guestSpaceId: opt.guestSpaceId });
       defs.apps[id] = { properties: f.properties as Json, layout: f.layout as unknown[] };
     } catch (e) {
       notes.push(`アプリ ${id} の項目定義を読めない（${e instanceof Error ? e.message : String(e)}）`);

@@ -15,7 +15,7 @@ export {
   type GenericSource, type GenericSourceRow, type SourceDiff
 } from "./generic/source.ts";
 export {
-  GENERIC_MAX_APPS, GenericDefsError, checkSource, checkWithDefs, fetchGenericDefs,
+  GENERIC_MAX_APPS, GenericDefsError, checkSource, checkWithDefs, fetchGenericDefs, isAppIdText,
   type FetchDefsOptions, type GenericAppDefs, type GenericCaller, type GenericCheckResult, type GenericClientFor, type GenericDefs, type GenericIssue
 } from "./generic/check.ts";
 // kintone の接続（計算式と同じ部品。接続のファイルは kSQL の ksql.config.json と同じ形。GET だけ）
@@ -25,6 +25,6 @@ export { describeAuth, unquote } from "./env.ts";
 export { toolsMeta } from "./meta.ts";
 export {
   GENERIC_MAX_FILE_BYTES, GenericFileError, SOURCE_FILE_KIND, digestOfText, importFileName, listWorkFiles, readSourceFile, readWorkText, renderSourceFile, resolveWorkFile,
-  saveNewImportFile, saveNewSourceFile, updateSourceFile,
+  saveNewImportFile, saveNewImportFileFor, saveNewSourceFile, updateSourceFile,
   type GenericFileStatus, type ReadSourceResult, type SourceFile, type WorkFileInfo, type WriteResult
 } from "./generic/files.ts";

@@ -28,8 +28,6 @@ export interface GenericPlugin {
   zipEnv: string;
   /** zip の中の、読む順のスクリプト（moment は tools の vendor/ を先に読む）。無ければ止める */
   scripts: readonly string[];
-  /** 無くてもよいスクリプト（あれば、scripts の前に書いた順で読む位置に入れる。キーは「この前に読む」entry） */
-  optionalBefore?: Readonly<Record<string, string>>;
   /** authoring API の entry */
   apiEntry: string;
 }
