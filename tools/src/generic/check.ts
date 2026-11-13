@@ -7,6 +7,7 @@
  *   3. そのアプリの項目定義を読む（**運用環境**。設定画面と同じ）
  *   4. check を呼ぶ
  * kintone へ送るのは GET だけ（kintone-rest.ts の許可表。アプリの一覧の API は使わない）。
+ * **接続はアプリごとに作る**（API トークンはアプリごとに違う。`clientFor(アプリ番号)`）。そのアプリの接続を作れなければ（トークンが無い）、読めないアプリと同じ扱い。
  * 読めなかったアプリ（権限が無い、消えた）は飛ばして注記に残す。そのアプリを使う行は、API が「対象アプリが決まらない / 項目定義が無い」で止める。
  */
 import { fetchFields } from "../commands/fields.ts";
@@ -19,6 +20,9 @@ type Json = Record<string, unknown>;
 export interface GenericIssue { severity: "error" | "warning"; code: string; rowKey: string; section: string; label: string; message: string }
 export interface GenericAppDefs { properties: Json; layout: unknown[]; views?: Json }
 export interface GenericDefs { own: GenericAppDefs; appNames: Record<string, string>; apps: Record<string, GenericAppDefs> }
+
+/** そのアプリを読む接続を返す（接続のファイルの profile の、そのアプリの認証で作る。作れなければ投げる） */
+export type GenericClientFor = (appId: number) => RestClient;
 
 /** プラグインの API を呼ぶ関数（run.ts の callGeneric を、プラグインと zip を決めた形で渡す） */
 export type GenericCaller = (method: GenericMethod, args: unknown[]) => Promise<unknown>;
@@ -35,9 +39,9 @@ export const GENERIC_MAX_APPS = 30;
 
 export class GenericDefsError extends Error {}
 
-export async function fetchGenericDefs(client: RestClient, call: GenericCaller, source: GenericSource, opt: FetchDefsOptions): Promise<{ defs: GenericDefs; notes: string[] }> {
+export async function fetchGenericDefs(clientFor: GenericClientFor, call: GenericCaller, source: GenericSource, opt: FetchDefsOptions): Promise<{ defs: GenericDefs; notes: string[] }> {
   const notes: string[] = [];
-  const own = await fetchFields(client, { app: opt.app, preview: true, lang: opt.lang, guestSpaceId: opt.guestSpaceId });
+  const own = await fetchFields(clientFor(opt.app), { app: opt.app, preview: true, lang: opt.lang, guestSpaceId: opt.guestSpaceId });
   const defs: GenericDefs = { own: { properties: own.properties as Json, layout: own.layout as unknown[], ...(own.views ? { views: own.views as unknown as Json } : {}) }, appNames: {}, apps: {} };
   const failed = new Set<string>();
   let targets: string[] = [];
@@ -58,7 +62,7 @@ export async function fetchGenericDefs(client: RestClient, call: GenericCaller, 
     for (const id of need) {
       if (!/^[1-9]\d{0,9}$/.test(id)) { failed.add(id); notes.push(`アプリ番号として読めない: ${id}`); continue; }
       try {
-        const a = await client.get<{ name?: string }>("app", { id }, opt.guestSpaceId);
+        const a = await clientFor(Number(id)).get<{ name?: string }>("app", { id }, opt.guestSpaceId);
         defs.appNames[id] = String(a.name ?? "");
       } catch (e) {
         failed.add(id);
@@ -71,7 +75,7 @@ export async function fetchGenericDefs(client: RestClient, call: GenericCaller, 
   if (targets.length > GENERIC_MAX_APPS) throw new GenericDefsError(`参照するアプリが多すぎる（${GENERIC_MAX_APPS} を超える）`);
   for (const id of targets) {
     try {
-      const f = await fetchFields(client, { app: Number(id), preview: false, lang: opt.lang, guestSpaceId: opt.guestSpaceId });
+      const f = await fetchFields(clientFor(Number(id)), { app: Number(id), preview: false, lang: opt.lang, guestSpaceId: opt.guestSpaceId });
       defs.apps[id] = { properties: f.properties as Json, layout: f.layout as unknown[] };
     } catch (e) {
       notes.push(`アプリ ${id} の項目定義を読めない（${e instanceof Error ? e.message : String(e)}）`);
@@ -101,8 +105,8 @@ export async function checkWithDefs(call: GenericCaller, source: GenericSource, 
 }
 
 /** kintone から項目定義を読んで検査する */
-export async function checkSource(client: RestClient, call: GenericCaller, source: GenericSource, opt: FetchDefsOptions): Promise<GenericCheckResult> {
-  const { defs, notes } = await fetchGenericDefs(client, call, source, opt);
+export async function checkSource(clientFor: GenericClientFor, call: GenericCaller, source: GenericSource, opt: FetchDefsOptions): Promise<GenericCheckResult> {
+  const { defs, notes } = await fetchGenericDefs(clientFor, call, source, opt);
   const r = await checkWithDefs(call, source, defs, { ownAppId: String(opt.app), lang: opt.lang });
   return { ...r, notes };
 }

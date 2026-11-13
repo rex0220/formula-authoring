@@ -200,7 +200,13 @@ test("元の値: 要約と差分（位置がずれても、中身が同じ行は
 // ---- kintone の項目定義を読んで検査する ------------------------------------------------------------
 function fakeClient(handlers) {
   const calls = [];
-  return { calls, get: async (api, params) => { calls.push(`${api} ${JSON.stringify(params)}`); const h = handlers[`${api}:${params.app ?? params.id}`]; if (!h) { const e = new Error(`403 ${api}`); throw e; } return h; } };
+  const client = { get: async (api, params) => { calls.push(`${api} ${JSON.stringify(params)}`); const h = handlers[`${api}:${params.app ?? params.id}`]; if (!h) { const e = new Error(`403 ${api}`); throw e; } return h; } };
+  // 接続はアプリごとに作る（どのアプリの接続を求められたかを控える）
+  const asked = [];
+  const clientFor = (appId) => { asked.push(appId); return client; };
+  clientFor.calls = calls;
+  clientFor.asked = asked;
+  return clientFor;
 }
 
 test("項目定義: 自アプリは動作テスト環境、名前と対象アプリは運用環境を、2 段で読む（GET だけ）", { skip }, async () => {
@@ -218,6 +224,7 @@ test("項目定義: 自アプリは動作テスト環境、名前と対象アプ
   assert.ok(at("preview/app/form/fields ") < at('app {"id":"200"}') && at('app {"id":"200"}') < at("app/form/fields "), `読む順（自アプリ → 参照先の名前 → 対象アプリの項目定義）: ${apis.join(" → ")}`);
   assert.ok(client.calls.some((c) => c.startsWith("app/form/fields") && c.includes("200")), "対象アプリは運用環境");
   assert.ok(!client.calls.some((c) => c.startsWith("preview/") && c.includes("200")), "対象アプリの動作テスト環境は読まない");
+  assert.deepEqual([...new Set(client.asked)].sort(), [100, 200], "接続は自アプリと対象アプリのそれぞれで作る");
 });
 
 test("項目定義: 読めないアプリは飛ばして注記に残し、その行は API が止める", { skip }, async () => {
