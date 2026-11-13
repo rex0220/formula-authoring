@@ -234,3 +234,108 @@ test("項目定義: 読めないアプリは飛ばして注記に残し、その
   assert.deepEqual(r2.issues.map((x) => `${x.severity}:${x.code}`), ["error:app.noFields"]);
   assert.ok(r2.notes.some((n) => /アプリ 200 の項目定義を読めない/.test(n)));
 });
+
+// ---- 作業フォルダー（直下に JSON を置く形）----------------------------------------------------------
+import { mkdirSync, symlinkSync, readdirSync } from "node:fs";
+
+const FILE = (source = SRC) => ({ kind: G.SOURCE_FILE_KIND, plugin: "aggregate", appId: 100, appName: "集計先", source });
+
+test("作業フォルダー: 設定ファイルを新しく置く（上書きしない）・読む・直す（digest を照合）", () => {
+  withTemp((dir) => {
+    const saved = G.saveNewSourceFile(dir, "agg-app100.json", FILE());
+    assert.equal(saved.status, "saved");
+    assert.throws(() => G.saveNewSourceFile(dir, "agg-app100.json", FILE()), (e) => e instanceof G.GenericFileError && e.status === "exists");
+    const read = G.readSourceFile(dir, "agg-app100.json");
+    assert.deepEqual([read.digest, read.file.plugin, read.file.appId, read.file.source.rows.length], [saved.digest, "aggregate", 100, 2]);
+    // 直す
+    const up = G.updateSourceFile(dir, "agg-app100.json", read.digest, (s) => G.patchRow(s, "01", { name: "A2" }));
+    assert.equal(up.after.rows[0].name, "A2");
+    assert.equal(G.renderDiff(G.diffSource(up.before, up.after)).includes("name: A → A2"), true);
+    const again = G.readSourceFile(dir, "agg-app100.json");
+    assert.deepEqual([again.digest, again.file.source.rows[0].name], [up.digest, "A2"]);
+    // 読んだ後に変わっていたら conflict（古い digest では直せない）
+    assert.throws(() => G.updateSourceFile(dir, "agg-app100.json", read.digest, (s) => s), (e) => e instanceof G.GenericFileError && e.status === "conflict");
+    // 形の崩れた結果は書かない（ファイルはそのまま）
+    assert.throws(() => G.updateSourceFile(dir, "agg-app100.json", up.digest, () => ({ rows: [] })), G.SourceError);
+    assert.equal(G.readSourceFile(dir, "agg-app100.json").digest, up.digest);
+    assert.deepEqual(readdirSync(dir).filter((n) => n !== "agg-app100.json"), [], "一時ファイルとロックが残らない");
+  });
+});
+
+test("作業フォルダー: 直下の .json だけを読み書きする（フォルダーの区切り・..・先頭の「.」・外を指す symlink は断る）", () => {
+  withTemp((dir) => {
+    const denied = (name) => assert.throws(() => G.saveNewSourceFile(dir, name, FILE()), (e) => e instanceof G.GenericFileError && e.status === "denied", name);
+    for (const name of ["../x.json", "sub/x.json", "/tmp/x.json", ".hidden.json", "x.txt", "", "a\\b.json"]) denied(name);
+    withTemp((outside) => {
+      writeFileSync(path.join(outside, "real.json"), "{}");
+      symlinkSync(path.join(outside, "real.json"), path.join(dir, "link.json"));
+      assert.throws(() => G.readSourceFile(dir, "link.json"), (e) => e instanceof G.GenericFileError && e.status === "denied");
+      assert.throws(() => G.updateSourceFile(dir, "link.json", "x", (s) => s), (e) => e instanceof G.GenericFileError && e.status === "denied");
+    });
+    assert.throws(() => G.readSourceFile(dir, "none.json"), (e) => e instanceof G.GenericFileError && e.status === "missing");
+    writeFileSync(path.join(dir, "bad.json"), "{");
+    writeFileSync(path.join(dir, "other.json"), JSON.stringify({ kind: "x" }));
+    assert.throws(() => G.readSourceFile(dir, "bad.json"), (e) => e instanceof G.GenericFileError && e.status === "invalid");
+    assert.throws(() => G.readSourceFile(dir, "other.json"), (e) => e instanceof G.GenericFileError && e.status === "invalid");
+    writeFileSync(path.join(dir, "unknown.json"), JSON.stringify({ ...FILE(), plugin: "formula" }));
+    assert.throws(() => G.readSourceFile(dir, "unknown.json"), G.UnknownPluginError);
+  });
+});
+
+test("作業フォルダー: 一覧は種類（設定ファイル・保存値の封筒・そのほか）を見分ける", () => {
+  withTemp((dir) => {
+    G.saveNewSourceFile(dir, "b-source.json", FILE());
+    writeFileSync(path.join(dir, "a-download.json"), JSON.stringify({ date: "2026-11-13 10:00:00", pluginName: "アプリ集計", pluginID: "rex0220 aggregate records plugin", PluginVersion: "67", appId: 100, appName: "集計先", pluginInfos: [] }));
+    writeFileSync(path.join(dir, "c-other.json"), "[1,2]");
+    writeFileSync(path.join(dir, "d-broken.json"), "{");
+    writeFileSync(path.join(dir, "note.txt"), "x");
+    mkdirSync(path.join(dir, "sub.json"));
+    const list = G.listWorkFiles(dir);
+    assert.deepEqual(list.map((f) => [f.name, f.type]), [["a-download.json", "envelope"], ["b-source.json", "source"], ["c-other.json", "other"], ["d-broken.json", "unreadable"]]);
+    assert.deepEqual([list[0].pluginId, list[0].pluginVersion, list[0].appId], ["rex0220 aggregate records plugin", "67", 100]);
+    assert.deepEqual([list[1].plugin, list[1].appId, list[1].rows], ["aggregate", 100, 2]);
+    assert.match(G.importFileName("aggregate", 100, new Date(2026, 10, 13, 9, 5, 7)), /^aggregate-app100-20261113-090507-import\.json$/);
+  });
+});
+
+test("作業フォルダー: ダウンロードした設定 → 設定ファイル → 直す → 検査 → 取り込み用のファイル、まで通す", { skip }, async () => {
+  await withTempAsync(async (dir) => {
+    // 設定画面でダウンロードしたファイル（保存値の封筒）を作業フォルダーに置く
+    const first = await G.checkWithDefs(caller, await sample(), DEFS);
+    writeFileSync(path.join(dir, "rex0220-aggregate-records-app100-20261113-090000.json"), await call("writeEnvelope", [{ appId: 100, appName: "集計先" }, first.body]));
+    // 設定ファイルにする（元は残す）
+    const dl = G.readWorkText(dir, "rex0220-aggregate-records-app100-20261113-090000.json");
+    const env = await call("readEnvelope", [dl.text]);
+    const source = await call("toSource", [env.body, "ja"]);
+    const saved = G.saveNewSourceFile(dir, "agg-app100.json", { kind: G.SOURCE_FILE_KIND, plugin: "aggregate", appId: env.envelope.appId, appName: env.envelope.appName, source });
+    // 直す: 集計項目の式を替える
+    const up = G.updateSourceFile(dir, "agg-app100.json", saved.digest, (s) => {
+      const row = G.getRow(s, "01");
+      row.fields[0].formula = "金額";
+      return G.setRow(s, "01", row);
+    });
+    // 検査（kintone から項目定義を読む）→ 取り込み用のファイル
+    const client = fakeClient({
+      "app:100": { name: "集計先" }, "preview/app/form/fields:100": { properties: OWN.properties, revision: "1" }, "preview/app/form/layout:100": { layout: [], revision: "1" }, "preview/app/views:100": { views: {} },
+      "app:200": { name: "受注" }, "app/form/fields:200": { properties: TARGET.properties, revision: "1" }, "app/form/layout:200": { layout: [], revision: "1" }, "app/views:200": { views: {} }
+    });
+    const file = G.readSourceFile(dir, "agg-app100.json");
+    assert.equal(file.digest, up.digest);
+    const checked = await G.checkSource(client, caller, file.file.source, { app: file.file.appId });
+    assert.deepEqual(checked.issues, []);
+    const text = await call("writeEnvelope", [{ appId: file.file.appId, appName: file.file.appName }, checked.body]);
+    const name = G.importFileName("aggregate", file.file.appId, new Date(2026, 10, 13, 9, 30, 0));
+    G.saveNewImportFile(dir, name, text);
+    assert.throws(() => G.saveNewImportFile(dir, name, text), (e) => e instanceof G.GenericFileError && e.status === "exists", "取り込み用のファイルも上書きしない");
+    // 取り込み用のファイルは、設定画面の取り込みと同じ検査（readEnvelope）に通り、直した式が入っている
+    const back = await call("readEnvelope", [G.readWorkText(dir, name).text]);
+    assert.deepEqual([back.envelope.pluginID, back.envelope.appId, back.body.pluginInfos[0].fieldsInfo[0].fieldCalc], [AGG.configPluginId, 100, "金額"]);
+    assert.equal(G.digestOfJson(back.body), checked.digest, "検査を通った保存値と同じ印");
+    assert.deepEqual(G.listWorkFiles(dir).map((f) => f.type), ["source", "envelope", "envelope"]);
+  });
+});
+
+async function withTempAsync(fn) {
+  const dir = mkdtempSync(path.join(os.tmpdir(), "generic-work-"));
+  try { return await fn(dir); } finally { rmSync(dir, { recursive: true, force: true }); }
+}

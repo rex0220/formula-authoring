@@ -18,3 +18,8 @@ export {
   GENERIC_MAX_APPS, GenericDefsError, checkSource, checkWithDefs, fetchGenericDefs,
   type FetchDefsOptions, type GenericAppDefs, type GenericCaller, type GenericCheckResult, type GenericDefs, type GenericIssue
 } from "./generic/check.ts";
+export {
+  GENERIC_MAX_FILE_BYTES, GenericFileError, SOURCE_FILE_KIND, digestOfText, importFileName, listWorkFiles, readSourceFile, readWorkText, renderSourceFile, resolveWorkFile,
+  saveNewImportFile, saveNewSourceFile, updateSourceFile,
+  type GenericFileStatus, type ReadSourceResult, type SourceFile, type WorkFileInfo, type WriteResult
+} from "./generic/files.ts";

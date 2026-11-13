@@ -162,14 +162,14 @@ export interface SourceDiff {
   rows: Array<{ change: "added" | "removed" | "changed"; before?: string; after?: string; name?: string; paths: string[] }>;
 }
 
-/** 2 つの行がどれだけ似ているか（いちばん外側のキーのうち、中身が同じものの割合。name が同じなら足し、違えば引く） */
+/** 2 つの行がどれだけ似ているか（いちばん外側のキーのうち、中身が同じものの割合。name が同じなら足す。名前だけ変えた行も「変わった」と見るので、違っても引かない） */
 function similarity(a: GenericSourceRow, b: GenericSourceRow): number {
   const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((k) => k !== "key");
   if (keys.length === 0) return 0;
   const same = keys.filter((k) => canonicalJson(a[k]) === canonicalJson(b[k])).length / keys.length;
   const na = typeof a.name === "string" ? a.name : "";
   const nb = typeof b.name === "string" ? b.name : "";
-  return same + (na && nb ? (na === nb ? 1 : -0.5) : 0);
+  return same + (na && na === nb ? 1 : 0);
 }
 
 /**
