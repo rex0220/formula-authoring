@@ -45,7 +45,24 @@ const AGGREGATE: GenericPlugin = {
   apiEntry: "config_js/aggregate-authoring-api.js"
 };
 
-export const GENERIC_PLUGINS: Readonly<Record<string, GenericPlugin>> = { aggregate: AGGREGATE };
+/**
+ * 項目書式（Ver.16〜）。authoring API の check が返す本体は「共通の設定 + pluginInfos」で、保存値そのものではない
+ * （テーブルの書式に使う kintone の内部番号は設定画面の中からしか取れない。設定画面が取り込んで保存するときに作る）。模擬（simulate）あり
+ */
+const FIELD_FORMAT: GenericPlugin = {
+  name: "field-format",
+  title: "項目書式",
+  toolPrefix: "ffmt",
+  kintonePluginId: "oliedeaopbljhpcolhigchoocbfjkcdj",
+  configPluginId: "rex0220 field format plugin",
+  minPluginVersion: 16,
+  contractVersions: [1],
+  zipEnv: "FIELD_FORMAT_PLUGIN_ZIP",
+  scripts: ["desktop_js/moment-timezone-with-data.min.js", "desktop_js/bignumber.min.js", "desktop_js/rex0220_decimal.min.js", "desktop_js/KintoneFormulaFormat.min.js"],
+  apiEntry: "config_js/field-format-authoring-api.js"
+};
+
+export const GENERIC_PLUGINS: Readonly<Record<string, GenericPlugin>> = { aggregate: AGGREGATE, "field-format": FIELD_FORMAT };
 
 export class UnknownPluginError extends Error {}
 

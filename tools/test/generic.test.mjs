@@ -403,3 +403,75 @@ async function withTempAsync(fn) {
   const dir = mkdtempSync(path.join(os.tmpdir(), "generic-work-"));
   try { return await fn(dir); } finally { rmSync(dir, { recursive: true, force: true }); }
 }
+
+// ---- 項目書式（2 つ目の製品。check の本体が保存値そのものでない・模擬がある） ----------------------------------------
+const FF_ZIP = path.resolve(HERE, "../../../field-format/dist/field-format-plugin16.zip");
+const skipFF = existsSync(FF_ZIP) ? false : `項目書式の zip が無い: ${FF_ZIP}`;
+const ffCall = (method, args) => G.callGeneric({ plugin: "field-format", zip: FF_ZIP, method, args, context: { ownAppId: 12 } }, { timeoutSec: 60 });
+const FF_DEFS = {
+  own: {
+    properties: {
+      txt_name: { type: "SINGLE_LINE_TEXT", code: "txt_name", label: "名前" },
+      num_amount: { type: "NUMBER", code: "num_amount", label: "金額" },
+      tbl: { type: "SUBTABLE", code: "tbl", label: "明細", fields: { t_qty: { type: "NUMBER", code: "t_qty", label: "数量" } } }
+    },
+    layout: [{ type: "ROW", fields: [{ type: "SINGLE_LINE_TEXT", code: "txt_name" }, { type: "NUMBER", code: "num_amount" }] }, { type: "SUBTABLE", code: "tbl", fields: [{ type: "NUMBER", code: "t_qty" }] }],
+    views: { 一覧A: { id: "5001", type: "LIST", name: "一覧A", index: "0" } }
+  },
+  appNames: {}, apps: {}
+};
+const ffCond = (formula, more = {}) => ({ state: true, formula, theme: "", color: "", bcolor: "", fsize: "", fstyle: "", ...more });
+const FF_SOURCE = {
+  common: { pluginEnable: true, pluginComment: "", pluginDescription: "", listInfo: { all_enabled: true, views: {} } },
+  rows: [
+    { key: "01", state: true, field: "num_amount", detail: true, list: true, label: [], value: [ffCond("num_amount>=100", { color: "#ff0000" }), ffCond("num_amount<0", { bcolor: "#ffff00" })] },
+    { key: "02", state: true, field: "t_qty", detail: true, list: true, label: [], value: [ffCond("t_qty>=10", { fstyle: "bold" })] }
+  ]
+};
+
+test("表: 項目書式がある（ツールの頭 ffmt、zip の場所 FIELD_FORMAT_PLUGIN_ZIP、版 16 から）", () => {
+  const p = G.genericPlugin("field-format");
+  assert.deepEqual([p.title, p.toolPrefix, p.zipEnv, p.minPluginVersion, p.apiEntry], ["項目書式", "ffmt", "FIELD_FORMAT_PLUGIN_ZIP", 16, "config_js/field-format-authoring-api.js"]);
+  assert.deepEqual(Object.keys(G.GENERIC_PLUGINS).sort(), ["aggregate", "field-format"]);
+});
+
+test("項目書式: zip の authoring API で検査する。本体は「共通の設定 + pluginInfos」（派生値・内部番号なし）。アプリ集計の zip は項目書式として読めない", { skip: skipFF }, async () => {
+  const d = await ffCall("describe", []);
+  assert.deepEqual([d.plugin, d.pluginVersion, d.contractVersion, d.hasSimulate, d.zip.signed], ["field-format", "16", 1, true, true]);
+  const r = await G.checkWithDefs(ffCall, FF_SOURCE, FF_DEFS, { lang: "ja", ownAppId: "12" });
+  assert.deepEqual(r.issues, []);
+  assert.deepEqual(Object.keys(r.body).sort(), ["pluginComment", "pluginDescription", "pluginEnable", "pluginInfos", "pluginListInfo"]);
+  assert.deepEqual(r.body.pluginInfos.map((x) => x.fieldcode), ["num_amount", "t_qty"]);
+  assert.equal(r.digest, G.digestOfJson(r.body));
+  // 封筒にして読み直せる（設定画面の「設定をアップロード」が読む形）
+  const text = await ffCall("writeEnvelope", [{ appId: 12, appName: "app" }, r.body]);
+  assert.equal(JSON.parse(text).pluginID, "rex0220 field format plugin");
+  assert.deepEqual((await ffCall("readEnvelope", [text])).body, r.body);
+  // 項目書式で使えない関数は、ツールの代役のユーザー情報があっても止まる（レコード画面と同じ理由）
+  const bad = structuredClone(FF_SOURCE);
+  bad.rows[0].value[0].formula = 'UINFO("code")="x"';
+  const b = await G.checkWithDefs(ffCall, bad, FF_DEFS, { lang: "ja" });
+  assert.deepEqual(b.issues.map((x) => [x.severity, x.code, x.rowKey, /is not available/.test(x.message)]), [["error", "formula.invalid", "01", true]]);
+  assert.equal(b.body, null);
+  if (!skip) await assert.rejects(() => G.callGeneric({ plugin: "field-format", zip: AGG_ZIP, method: "describe", args: [] }, { timeoutSec: 60 }), (e) => e instanceof G.GenericCallError || /プラグイン|plugin/i.test(String(e.message)));
+});
+
+test("項目書式: 模擬（simulate）を Worker 越しに呼べる。レコードごと・画面ごとに選ばれる条件と、条件ごとの評価", { skip: skipFF }, async () => {
+  assert.ok(G.GENERIC_METHODS.includes("simulate"));
+  const records = [
+    { $id: { type: "__ID__", value: "1" }, txt_name: { type: "SINGLE_LINE_TEXT", value: "A" }, num_amount: { type: "NUMBER", value: "150" }, tbl: { type: "SUBTABLE", value: [{ id: "1", value: { t_qty: { type: "NUMBER", value: "12" } } }, { id: "2", value: { t_qty: { type: "NUMBER", value: "3" } } }] } },
+    { $id: { type: "__ID__", value: "2" }, txt_name: { type: "SINGLE_LINE_TEXT", value: "B" }, num_amount: { type: "NUMBER", value: "-5" }, tbl: { type: "SUBTABLE", value: [] } }
+  ];
+  const s = await ffCall("simulate", [FF_SOURCE, FF_DEFS, { lang: "ja", ownAppId: "12" }, { records, screens: ["detail", "list", "mobileList"] }]);
+  assert.deepEqual(s.issues, []);
+  const pick = (i, screen) => s.records[i].screens[screen].map((t) => `${t.field}/${t.part}${t.row ? `/${t.row}` : ""}=${t.cond}`);
+  assert.deepEqual(pick(0, "detail"), ["num_amount/label=0", "num_amount/value=1", "t_qty/label=0", "t_qty/value/1=1", "t_qty/value/2=0"]);
+  assert.deepEqual(pick(1, "detail"), ["num_amount/label=0", "num_amount/value=2", "t_qty/label=0"]);
+  assert.deepEqual(pick(0, "list"), ["num_amount/value=1", "t_qty/value/1=1", "t_qty/value/2=0"]);
+  assert.deepEqual(pick(0, "mobileList"), ["num_amount/value=1"], "モバイルの一覧にテーブルの行は無い");
+  assert.deepEqual(s.conditions.map((c) => [c.rowKey, c.field, c.cond, c.total, c.hits]), [["01", "num_amount", 1, 2, 1], ["01", "num_amount", 2, 2, 1], ["02", "t_qty", 1, 2, 1]]);
+  // 入力の誤りは指摘で返る（Worker は落ちない）
+  assert.deepEqual((await ffCall("simulate", [FF_SOURCE, FF_DEFS, {}, {}])).issues.map((x) => x.code), ["simulate.records"]);
+  // 模擬の無い製品（アプリ集計）は「口が無い」で止まる
+  if (!skip) await assert.rejects(() => call("simulate", [{ common: {}, rows: [] }, FF_DEFS, {}, {}]));
+});

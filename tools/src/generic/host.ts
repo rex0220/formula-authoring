@@ -19,7 +19,7 @@ import { AUTHORING_GLOBAL, genericPlugin } from "./registry.ts";
 import { GenericZipError, readGenericZip, type GenericZipSources } from "./zip.ts";
 
 /** ツールが呼べる口（authoring API の契約の口と、zip と API の状態を返す describe） */
-export const GENERIC_METHODS = ["describe", "toSource", "newSource", "newRow", "requirements", "check", "readEnvelope", "writeEnvelope"] as const;
+export const GENERIC_METHODS = ["describe", "toSource", "newSource", "newRow", "requirements", "check", "readEnvelope", "writeEnvelope", "simulate"] as const;
 export type GenericMethod = (typeof GENERIC_METHODS)[number];
 
 export interface GenericJob {
