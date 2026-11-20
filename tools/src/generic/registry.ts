@@ -30,6 +30,8 @@ export interface GenericPlugin {
   scripts: readonly string[];
   /** authoring API の entry */
   apiEntry: string;
+  /** 模擬（authoring API の simulate）がある製品。レコードを当てて確かめるツールを出す */
+  simulate?: boolean;
 }
 
 const AGGREGATE: GenericPlugin = {
@@ -59,7 +61,8 @@ const FIELD_FORMAT: GenericPlugin = {
   contractVersions: [1],
   zipEnv: "FIELD_FORMAT_PLUGIN_ZIP",
   scripts: ["desktop_js/moment-timezone-with-data.min.js", "desktop_js/bignumber.min.js", "desktop_js/rex0220_decimal.min.js", "desktop_js/KintoneFormulaFormat.min.js"],
-  apiEntry: "config_js/field-format-authoring-api.js"
+  apiEntry: "config_js/field-format-authoring-api.js",
+  simulate: true
 };
 
 export const GENERIC_PLUGINS: Readonly<Record<string, GenericPlugin>> = { aggregate: AGGREGATE, "field-format": FIELD_FORMAT };

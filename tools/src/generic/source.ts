@@ -103,7 +103,8 @@ export function patchCommon(source: GenericSource, patch: Json): GenericSource {
 // ---- 要約と差分 ------------------------------------------------------------------------------------
 
 const short = (v: unknown, max = 100): string => {
-  const t = typeof v === "string" ? v : JSON.stringify(v);
+  // 片方にしか無いキー（undefined）は JSON にならない（JSON.stringify が undefined を返す）。「（なし）」と出す
+  const t = v === undefined ? "（なし）" : typeof v === "string" ? v : (JSON.stringify(v) ?? String(v));
   return t.length > max ? `${t.slice(0, max)}…` : t;
 };
 /** 値を 1 行ずつの文にする（並びの要素は 1 行に 1 つ。state が false の要素は「－」を付ける） */
@@ -138,7 +139,7 @@ export function summarizeSource(source: GenericSource): string {
   for (const [k, v] of Object.entries(s.common)) linesOf(k, v, "  ", out);
   for (const r of s.rows) {
     const { key, state, ...rest } = r;
-    out.push(`[行 ${key}] ${state === false ? "無効" : "有効"}${typeof rest.name === "string" && rest.name ? ` ${rest.name}` : ""}`);
+    out.push(`[行 ${key}] ${state === false ? "無効" : "有効"}${titleOf(rest) ? ` ${titleOf(rest)}` : ""}`);
     for (const [k, v] of Object.entries(rest)) if (k !== "name") linesOf(k, v, "  ", out);
   }
   return out.join("\n");
@@ -162,13 +163,16 @@ export interface SourceDiff {
   rows: Array<{ change: "added" | "removed" | "changed"; before?: string; after?: string; name?: string; paths: string[] }>;
 }
 
+/** 行の見出し（要約・差分に出す名前）。行に name があればそれ、無ければ項目コード field（1 項目に 1 行のプラグイン）。どちらも無ければ空 */
+const titleOf = (r: Json): string => (typeof r.name === "string" && r.name ? r.name : typeof r.field === "string" ? r.field : "");
+
 /** 2 つの行がどれだけ似ているか（いちばん外側のキーのうち、中身が同じものの割合。name が同じなら足す。名前だけ変えた行も「変わった」と見るので、違っても引かない） */
 function similarity(a: GenericSourceRow, b: GenericSourceRow): number {
   const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].filter((k) => k !== "key");
   if (keys.length === 0) return 0;
   const same = keys.filter((k) => canonicalJson(a[k]) === canonicalJson(b[k])).length / keys.length;
-  const na = typeof a.name === "string" ? a.name : "";
-  const nb = typeof b.name === "string" ? b.name : "";
+  const na = titleOf(a);
+  const nb = titleOf(b);
   return same + (na && na === nb ? 1 : 0);
 }
 
@@ -204,7 +208,7 @@ export function diffSource(before: GenericSource, after: GenericSource): SourceD
       usedB.add(c.ib);
       found.push({ ia: c.ia, ib: c.ib });
     }
-    const nameOf = (r: GenericSourceRow): string | undefined => (typeof r.name === "string" ? r.name : undefined);
+    const nameOf = (r: GenericSourceRow): string | undefined => (typeof r.name === "string" ? r.name : titleOf(r) || undefined);
     const group: Array<{ at: number; row: SourceDiff["rows"][number] }> = [];
     for (const { ia, ib } of found) {
       const paths: string[] = [];

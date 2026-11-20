@@ -464,14 +464,76 @@ test("項目書式: 模擬（simulate）を Worker 越しに呼べる。レコ�
   ];
   const s = await ffCall("simulate", [FF_SOURCE, FF_DEFS, { lang: "ja", ownAppId: "12" }, { records, screens: ["detail", "list", "mobileList"] }]);
   assert.deepEqual(s.issues, []);
-  const pick = (i, screen) => s.records[i].screens[screen].map((t) => `${t.field}/${t.part}${t.row ? `/${t.row}` : ""}=${t.cond}`);
-  assert.deepEqual(pick(0, "detail"), ["num_amount/label=0", "num_amount/value=1", "t_qty/label=0", "t_qty/value/1=1", "t_qty/value/2=0"]);
-  assert.deepEqual(pick(1, "detail"), ["num_amount/label=0", "num_amount/value=2", "t_qty/label=0"]);
-  assert.deepEqual(pick(0, "list"), ["num_amount/value=1", "t_qty/value/1=1", "t_qty/value/2=0"]);
-  assert.deepEqual(pick(0, "mobileList"), ["num_amount/value=1"], "モバイルの一覧にテーブルの行は無い");
+  // 答えは項目ごと（番号 = 選ばれた条件。0 = どれも付かない。テーブルの中の値の書式は行ごとの並び）
+  assert.deepEqual(s.records[0].screens.detail, { num_amount: { label: 0, value: 1 }, t_qty: { label: 0, value: [1, 0] } });
+  assert.deepEqual(s.records[1].screens.detail, { num_amount: { label: 0, value: 2 }, t_qty: { label: 0 } });
+  assert.deepEqual(s.records[0].screens.list, { num_amount: { value: 1 }, t_qty: { value: [1, 0] } });
+  assert.deepEqual(s.records[0].screens.mobileList, { num_amount: { value: 1 } }, "モバイルの一覧にテーブルの行は無い");
   assert.deepEqual(s.conditions.map((c) => [c.rowKey, c.field, c.cond, c.total, c.hits]), [["01", "num_amount", 1, 2, 1], ["01", "num_amount", 2, 2, 1], ["02", "t_qty", 1, 2, 1]]);
   // 入力の誤りは指摘で返る（Worker は落ちない）
   assert.deepEqual((await ffCall("simulate", [FF_SOURCE, FF_DEFS, {}, {}])).issues.map((x) => x.code), ["simulate.records"]);
   // 模擬の無い製品（アプリ集計）は「口が無い」で止まる
   if (!skip) await assert.rejects(() => call("simulate", [{ common: {}, rows: [] }, FF_DEFS, {}, {}]));
+});
+
+test("項目書式: レコードをそろえて模擬する（書いたレコード・番号・条件のどれか 1 つ。kintone へは GET だけ。件数はここで決める）", { skip: skipFF }, async () => {
+  const rec = (id, amount) => ({ $id: { type: "__ID__", value: String(id) }, num_amount: { type: "NUMBER", value: String(amount) }, tbl: { type: "SUBTABLE", value: [] } });
+  const calls = [];
+  const client = {
+    get: async (api, params) => {
+      calls.push(`${api} ${JSON.stringify(params)}`);
+      if (api === "app") return { appId: "12", name: "app" };
+      if (api === "preview/app/form/fields") return { properties: FF_DEFS.own.properties, revision: "1" };
+      if (api === "preview/app/form/layout") return { layout: FF_DEFS.own.layout, revision: "1" };
+      if (api === "preview/app/views") return { views: FF_DEFS.own.views };
+      if (api === "record") return { record: rec(params.id, params.id === 3 ? 150 : -5) };
+      if (api === "records") return { records: [rec(7, 150), rec(8, 50)] };
+      throw new Error(`403 ${api}`);
+    }
+  };
+  const clientFor = () => client;
+  const pick = (r) => r.result.records.map((x) => [x.id, x.screens.detail.num_amount.value]);
+  // 番号で
+  const byIds = await G.simulateSource(clientFor, ffCall, FF_SOURCE, { app: 12 }, { ids: [3, 4, 3] });
+  assert.deepEqual([byIds.from, byIds.count, pick(byIds)], ["ids", 2, [["3", 1], ["4", 2]]]);
+  assert.deepEqual(calls.filter((c) => c.startsWith("record ")), ['record {"app":12,"id":3}', 'record {"app":12,"id":4}']);
+  // 条件で（limit はここで付ける）
+  calls.length = 0;
+  const byQuery = await G.simulateSource(clientFor, ffCall, FF_SOURCE, { app: 12 }, { query: 'num_amount > 0 order by $id asc' }, { screens: ["detail"] });
+  assert.deepEqual([byQuery.from, byQuery.count, byQuery.query, pick(byQuery)], ["query", 2, `num_amount > 0 order by $id asc limit ${G.GENERIC_SIM_MAX_RECORDS}`, [["7", 1], ["8", 0]]]);
+  assert.deepEqual(byQuery.result.screens, ["detail"], "画面の指定はプラグインの API に渡る");
+  // 書いたレコードで（レコードは読まない）
+  calls.length = 0;
+  const inline = await G.simulateSource(clientFor, ffCall, FF_SOURCE, { app: 12 }, { records: [rec(1, 100)] });
+  assert.deepEqual([inline.from, pick(inline)], ["records", [["1", 1]]]);
+  assert.equal(calls.some((c) => c.startsWith("record")), false);
+  assert.ok(calls.every((c) => /^(app|preview\/app\/form\/fields|preview\/app\/form\/layout|preview\/app\/views) /.test(c)), calls.join("\n"));
+  // 渡し方の誤り
+  await assert.rejects(() => G.simulateSource(clientFor, ffCall, FF_SOURCE, { app: 12 }, {}), G.GenericSimulateError);
+  await assert.rejects(() => G.simulateSource(clientFor, ffCall, FF_SOURCE, { app: 12 }, { ids: [1], query: "" }), G.GenericSimulateError);
+  await assert.rejects(() => G.simulateSource(clientFor, ffCall, FF_SOURCE, { app: 12 }, { ids: [0] }), G.GenericSimulateError);
+  await assert.rejects(() => G.simulateSource(clientFor, ffCall, FF_SOURCE, { app: 12 }, { ids: Array.from({ length: G.GENERIC_SIM_MAX_RECORDS + 1 }, (_x, i) => i + 1) }), G.GenericSimulateError);
+  await assert.rejects(() => G.simulateSource(clientFor, ffCall, FF_SOURCE, { app: 12 }, { query: "limit 500" }), G.GenericQueryError);
+  await assert.rejects(() => G.simulateSource(clientFor, ffCall, FF_SOURCE, { app: 12 }, { records: [] }), G.GenericSimulateError);
+});
+
+test("元の値: 差分は、片方にしか無いキー（行の外の設定の map に足した・消した）でも作れる", () => {
+  const a = { common: { listInfo: { all_enabled: true, views: {} } }, rows: [{ key: "01", state: true, field: "x", value: [] }] };
+  const b = G.patchCommon(G.patchRow(a, "01", { note: "足したキー" }), { listInfo: { all_enabled: false, views: { 5001: "一覧A" } } });
+  const d = G.diffSource(a, b);
+  assert.deepEqual(d.common, ["listInfo.all_enabled: true → false", "listInfo.views.5001: （なし） → 一覧A"]);
+  assert.deepEqual(d.rows[0].paths, ["note: （なし） → 足したキー"]);
+  assert.deepEqual(G.diffSource(b, a).common, ["listInfo.all_enabled: false → true", "listInfo.views.5001: 一覧A → （なし）"]);
+  assert.match(G.renderDiff(d), /listInfo\.views\.5001/);
+});
+
+test("元の値: 行に name が無く field があれば、要約と差分の見出しは項目コード（同じ項目の行は、位置が変わっても同じ行と見る）", () => {
+  const a = { common: {}, rows: [{ key: "01", state: true, field: "期限", value: [{ state: true, formula: "1" }] }, { key: "02", state: false, field: "金額", value: [] }] };
+  assert.match(G.summarizeSource(a), /\[行 01\] 有効 期限/);
+  assert.match(G.summarizeSource(a), /\[行 02\] 無効 金額/);
+  // 先頭に行を足し、期限の式を直す
+  const b = G.patchRow(G.addRow(a, { field: "状況", value: [] }, 0).source, "02", { value: [{ state: true, formula: "2" }] });
+  const d = G.diffSource(a, b);
+  assert.deepEqual(d.rows.map((r) => [r.change, r.before, r.after, r.name]), [["added", undefined, "01", "状況"], ["changed", "01", "02", "期限"]]);
+  assert.match(G.renderDiff(d), /\[行 01\] 足した 状況/);
 });

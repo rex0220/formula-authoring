@@ -21,12 +21,17 @@ function withoutQuoted(q: string): string {
   return q.replace(/"(?:[^"\\]|\\.)*"/g, '""');
 }
 
-/** 受け取った query を検査し、末尾に limit を付けた query を返す */
-export function listQueryOf(query: string | undefined): string {
+/** 受け取った query を検査し、末尾に limit を付けた query を返す（件数は呼ぶ側が決める。汎用の入口の模擬も使う） */
+export function queryWithLimit(query: string | undefined, limit: number): string {
   const q = (query ?? "").trim();
   if ([...q].length > QUERY_MAX) throw new QueryError(`query は ${QUERY_MAX} 文字まで`);
   if (/\b(limit|offset)\b/i.test(withoutQuoted(q))) throw new QueryError("query に limit / offset は書かない（件数はサーバーが決める）");
-  return q ? `${q} limit ${LIST_LIMIT}` : `limit ${LIST_LIMIT}`;
+  return q ? `${q} limit ${limit}` : `limit ${limit}`;
+}
+
+/** 受け取った query を検査し、末尾に limit を付けた query を返す */
+export function listQueryOf(query: string | undefined): string {
+  return queryWithLimit(query, LIST_LIMIT);
 }
 
 export interface RecordShape {
