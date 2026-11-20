@@ -18,7 +18,7 @@ export {
   GENERIC_MAX_APPS, GenericDefsError, checkSource, checkWithDefs, fetchGenericDefs, isAppIdText,
   type FetchDefsOptions, type GenericAppDefs, type GenericCaller, type GenericCheckResult, type GenericClientFor, type GenericDefs, type GenericIssue
 } from "./generic/check.ts";
-export { GENERIC_SIM_MAX_RECORDS, GenericNoRecordsError, GenericQueryError, GenericSimulateError, fetchSimRecords, simulateSource, type GenericSimulateResult, type SimRecords, type SimRecordsInput } from "./generic/simulate.ts";
+export { GENERIC_SIM_MAX_RECORDS, GenericNoRecordsError, GenericQueryError, GenericSimulateError, fetchSimRecords, planSimRecords, simulateSource, type GenericSimulateResult, type SimRecords, type SimRecordsInput } from "./generic/simulate.ts";
 // kintone の接続（計算式と同じ部品。接続のファイルは kSQL の ksql.config.json と同じ形。GET だけ）
 export { ConnectionError, PROFILE_NAME_RE, authFor, loadConnections, pickProfile, type ConnectionSet, type Env, type ProfileDef } from "./connections.ts";
 export { NotAllowedError, RestError, createRestClient, type RestClient } from "./kintone-rest.ts";

@@ -23,7 +23,7 @@ export const SOURCE_FILE_KIND = "rex0220-authoring-source";
 /** 1 つのファイルの上限（設定ファイル・取り込み用・ダウンロード）。超えたら読まない */
 export const GENERIC_MAX_FILE_BYTES = 8 * 1024 * 1024;
 
-export type GenericFileStatus = "saved" | "exists" | "conflict" | "busy" | "denied" | "invalid" | "missing";
+export type GenericFileStatus = "saved" | "exists" | "conflict" | "busy" | "denied" | "invalid" | "missing" | "other-plugin";
 export class GenericFileError extends Error {
   readonly status: GenericFileStatus;
   constructor(message: string, status: GenericFileStatus) {
@@ -83,7 +83,12 @@ function readText(file: string, name: string): string {
   return readFileSync(file, "utf8");
 }
 
-function parseSourceFile(text: string, name: string): SourceFile {
+/**
+ * expectedPlugin を渡すと、その製品の設定ファイルでなければ止める（other-plugin）。
+ * **製品ごとの MCP は必ず渡す**: 同じ作業フォルダーに別の製品の設定ファイルがあると、形（{ common, rows }）は同じなので読めてしまい、
+ * 別の製品の行を「行なし」と読んで、空の設定の取り込み用のファイルを作れる（全置換で取り込むと、今の設定が消える）
+ */
+function parseSourceFile(text: string, name: string, expectedPlugin?: string): SourceFile {
   let v: unknown;
   try {
     v = JSON.parse(text);
@@ -93,7 +98,9 @@ function parseSourceFile(text: string, name: string): SourceFile {
   const o = v as Partial<SourceFile> | null;
   if (!o || typeof o !== "object" || o.kind !== SOURCE_FILE_KIND) throw new GenericFileError(`設定ファイルではない（kind が ${SOURCE_FILE_KIND} でない）: ${name}`, "invalid");
   genericPlugin(String(o.plugin));
-  if (!Number.isInteger(o.appId) || (o.appId as number) < 1) throw new GenericFileError(`appId（自アプリの番号）が無い: ${name}`, "invalid");
+  if (expectedPlugin !== undefined && o.plugin !== expectedPlugin) throw new GenericFileError(`別のプラグイン（${genericPlugin(String(o.plugin)).title}）の設定ファイル: ${name}（このツールが扱うのは ${genericPlugin(expectedPlugin).title}）`, "other-plugin");
+  // アプリ番号は、参照先のアプリと同じ範囲（正の整数・10 桁まで）
+  if (!Number.isSafeInteger(o.appId) || (o.appId as number) < 1 || (o.appId as number) > 9999999999) throw new GenericFileError(`appId（自アプリの番号）が無いか、アプリ番号として読めない: ${name}`, "invalid");
   let source: GenericSource;
   try {
     source = assertSource(o.source);
@@ -111,10 +118,10 @@ export function renderSourceFile(file: SourceFile): string {
 
 export interface ReadSourceResult { name: string; file: SourceFile; digest: string }
 
-export function readSourceFile(root: string, name: string): ReadSourceResult {
+export function readSourceFile(root: string, name: string, expectedPlugin?: string): ReadSourceResult {
   const target = resolveWorkFile(root, name);
   const text = readText(target, name);
-  return { name, file: parseSourceFile(text, name), digest: digestOfText(text) };
+  return { name, file: parseSourceFile(text, name, expectedPlugin), digest: digestOfText(text) };
 }
 
 /** 作業フォルダーのほかの JSON（設定画面でダウンロードしたファイルなど）を文字のまま読む */
@@ -177,11 +184,11 @@ export function saveNewImportFileFor(root: string, sourceName: string, checkedDi
  * 設定ファイルを直す。読んだ時点の digest（expectedDigest）と違えば conflict（読んだ後に変わった）。
  * 入れ替えは、ロック → digest の確かめ直し → 隣の一時ファイル → rename。plugin と appId は変えられない
  */
-export function updateSourceFile(root: string, name: string, expectedDigest: string, edit: (source: GenericSource) => GenericSource): WriteResult & { before: GenericSource; after: GenericSource } {
+export function updateSourceFile(root: string, name: string, expectedDigest: string, edit: (source: GenericSource) => GenericSource, expectedPlugin?: string): WriteResult & { before: GenericSource; after: GenericSource } {
   const target = resolveWorkFile(root, name);
   const current = readText(target, name);
   if (digestOfText(current) !== expectedDigest) throw new GenericFileError(`読んだ後にファイルが変わった（digest が違う）。読み直してからやり直す: ${name}`, "conflict");
-  const file = parseSourceFile(current, name);
+  const file = parseSourceFile(current, name, expectedPlugin);
   const after = assertSource(edit(JSON.parse(JSON.stringify(file.source)) as GenericSource));
   const text = renderSourceFile({ ...file, source: after });
   if (Buffer.byteLength(text) > GENERIC_MAX_FILE_BYTES) throw new GenericFileError(`ファイルが大きすぎる（${GENERIC_MAX_FILE_BYTES} バイトまで）: ${name}`, "invalid");

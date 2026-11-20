@@ -38,8 +38,8 @@ export interface SimRecords {
 
 const isObject = (v: unknown): v is Json => typeof v === "object" && v !== null && !Array.isArray(v);
 
-/** 模擬に当てるレコードをそろえる。records / ids / query は 1 つだけ */
-export async function fetchSimRecords(clientFor: GenericClientFor, opt: { app: number; guestSpaceId?: number }, input: SimRecordsInput): Promise<SimRecords> {
+/** レコードの渡し方を確かめる（kintone を読む前に）。records / ids / query は 1 つだけ。query は limit を付けた形にして返す */
+export function planSimRecords(input: SimRecordsInput): { from: "records"; records: Json[] } | { from: "ids"; ids: number[] } | { from: "query"; query: string } {
   const given = [input.records !== undefined, input.ids !== undefined, input.query !== undefined].filter(Boolean).length;
   if (given !== 1) throw new GenericSimulateError("records（書いたレコード）・ids（レコード番号）・query（条件）のどれか 1 つを渡す");
   if (input.records !== undefined) {
@@ -47,18 +47,28 @@ export async function fetchSimRecords(clientFor: GenericClientFor, opt: { app: n
     if (!Array.isArray(records) || records.length === 0 || records.length > GENERIC_SIM_MAX_RECORDS || records.some((r) => !isObject(r))) throw new GenericSimulateError(`records は 1〜${GENERIC_SIM_MAX_RECORDS} 件のレコード（オブジェクト）で書く`);
     return { from: "records", records: records as Json[] };
   }
-  const client = clientFor(opt.app);
   if (input.ids !== undefined) {
     const ids = [...new Set(input.ids)];
     if (ids.length === 0 || ids.length > GENERIC_SIM_MAX_RECORDS || ids.some((id) => !Number.isSafeInteger(id) || id <= 0)) throw new GenericSimulateError(`ids は 1〜${GENERIC_SIM_MAX_RECORDS} 件のレコード番号（正の整数）で書く`);
+    return { from: "ids", ids };
+  }
+  return { from: "query", query: queryWithLimit(input.query, GENERIC_SIM_MAX_RECORDS) };
+}
+
+/** 模擬に当てるレコードをそろえる（ids と query は kintone から GET で読む） */
+export async function fetchSimRecords(clientFor: GenericClientFor, opt: { app: number; guestSpaceId?: number }, input: SimRecordsInput): Promise<SimRecords> {
+  const plan = planSimRecords(input);
+  if (plan.from === "records") return plan;
+  const client = clientFor(opt.app);
+  if (plan.from === "ids") {
     const records: Json[] = [];
-    for (const id of ids) {
+    for (const id of plan.ids) {
       const res = await client.get<{ record?: Json }>("record", { app: opt.app, id }, opt.guestSpaceId);
       records.push(res.record ?? {});
     }
     return { from: "ids", records };
   }
-  const query = queryWithLimit(input.query, GENERIC_SIM_MAX_RECORDS);
+  const query = plan.query;
   const res = await client.get<{ records?: Json[] }>("records", { app: opt.app, query }, opt.guestSpaceId);
   const records = (res.records ?? []).slice(0, GENERIC_SIM_MAX_RECORDS);
   if (records.length === 0) throw new GenericNoRecordsError("条件に合うレコードが無い（query を見直すか、ids か records で渡す）");
@@ -66,9 +76,10 @@ export async function fetchSimRecords(clientFor: GenericClientFor, opt: { app: n
 }
 
 export interface GenericSimulateResult {
-  /** プラグインの API が返した結果（形はプラグインごと） */
+  /** プラグインの API が返した結果（形はプラグインごと）。検査で止まったときは { issues, records: null } */
   result: Json;
-  from: SimRecords["from"];
+  /** レコードの渡し方。検査で止まってレコードを読んでいないときは "none" */
+  from: SimRecords["from"] | "none";
   /** 当てたレコードの数 */
   count: number;
   query?: string;
@@ -78,8 +89,14 @@ export interface GenericSimulateResult {
 
 /** kintone から項目定義（と、ids / query ならレコード）を読んで模擬する。options はプラグインの simulate に渡す入力（records 以外。画面の指定など） */
 export async function simulateSource(clientFor: GenericClientFor, call: GenericCaller, source: GenericSource, opt: FetchDefsOptions, input: SimRecordsInput, options: Json = {}): Promise<GenericSimulateResult> {
-  const recs = await fetchSimRecords(clientFor, opt, input);
+  // 渡し方の誤りは、kintone を読む前に止める
+  planSimRecords(input);
   const { defs, notes } = await fetchGenericDefs(clientFor, call, source, opt);
-  const result = (await call("simulate", [source, defs, { ownAppId: String(opt.app), lang: opt.lang }, { ...options, records: recs.records }])) as Json;
+  const context = { ownAppId: String(opt.app), lang: opt.lang };
+  // **設定に止まる誤りがあれば、レコードを読まない**（検査を先に通す。模擬しないのにレコードを読みに行かない）
+  const checked = (await call("check", [source, defs, context])) as { issues?: Array<{ severity?: string }> };
+  if ((checked.issues ?? []).some((x) => x.severity === "error")) return { result: { issues: checked.issues, records: null }, from: "none", count: 0, notes };
+  const recs = await fetchSimRecords(clientFor, opt, input);
+  const result = (await call("simulate", [source, defs, context, { ...options, records: recs.records }])) as Json;
   return { result, from: recs.from, count: recs.records.length, ...(recs.query ? { query: recs.query } : {}), notes };
 }

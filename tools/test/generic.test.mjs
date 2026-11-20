@@ -537,3 +537,51 @@ test("元の値: 行に name が無く field があれば、要約と差分の�
   assert.deepEqual(d.rows.map((r) => [r.change, r.before, r.after, r.name]), [["added", undefined, "01", "状況"], ["changed", "01", "02", "期限"]]);
   assert.match(G.renderDiff(d), /\[行 01\] 足した 状況/);
 });
+
+test("作業フォルダー: 製品を指定して読むと、別の製品の設定ファイルは止める（形が同じなので、指定しなければ読めてしまう）。アプリ番号は 10 桁までの整数", () => {
+  withTemp((dir) => {
+    const src = { common: {}, rows: [] };
+    G.saveNewSourceFile(dir, "agg.json", { kind: G.SOURCE_FILE_KIND, plugin: "aggregate", appId: 100, appName: "a", source: src });
+    G.saveNewSourceFile(dir, "ffmt.json", { kind: G.SOURCE_FILE_KIND, plugin: "field-format", appId: 100, appName: "a", source: src });
+    assert.equal(G.readSourceFile(dir, "agg.json", "aggregate").file.plugin, "aggregate");
+    assert.equal(G.readSourceFile(dir, "ffmt.json", "field-format").file.plugin, "field-format");
+    for (const [file, plugin] of [["agg.json", "field-format"], ["ffmt.json", "aggregate"]]) {
+      assert.throws(() => G.readSourceFile(dir, file, plugin), (e) => e instanceof G.GenericFileError && e.status === "other-plugin" && /別のプラグイン/.test(e.message), `${file} を ${plugin} として読まない`);
+      const digest = G.readSourceFile(dir, file).digest;
+      assert.throws(() => G.updateSourceFile(dir, file, digest, (s) => s, plugin), (e) => e instanceof G.GenericFileError && e.status === "other-plugin", `${file} を ${plugin} として直さない`);
+      assert.equal(G.readSourceFile(dir, file).digest, digest, "止めたときは書き換えていない");
+    }
+    // アプリ番号: 安全な整数・10 桁まで
+    for (const appId of [0, -1, 1.5, 2 ** 53, 10000000000, "100"]) {
+      writeFileSync(path.join(dir, "bad.json"), JSON.stringify({ kind: G.SOURCE_FILE_KIND, plugin: "aggregate", appId, appName: "", source: src }));
+      assert.throws(() => G.readSourceFile(dir, "bad.json"), (e) => e instanceof G.GenericFileError && e.status === "invalid", String(appId));
+    }
+  });
+});
+
+test("項目書式: 模擬は検査が先。設定に止まる誤りがあれば、レコードを読まない（指摘だけを返す）。渡し方の誤りは kintone を読む前に止める", { skip: skipFF }, async () => {
+  const calls = [];
+  const client = {
+    get: async (api, params) => {
+      calls.push(api);
+      if (api === "app") return { appId: "12", name: "app" };
+      if (api === "preview/app/form/fields") return { properties: FF_DEFS.own.properties, revision: "1" };
+      if (api === "preview/app/form/layout") return { layout: FF_DEFS.own.layout, revision: "1" };
+      if (api === "preview/app/views") return { views: FF_DEFS.own.views };
+      if (api === "record") return { record: { $id: { type: "__ID__", value: String(params.id) }, num_amount: { type: "NUMBER", value: "1" } } };
+      throw new Error(`403 ${api}`);
+    }
+  };
+  const bad = structuredClone(FF_SOURCE);
+  bad.rows[0].value[0].color = "red";
+  const r = await G.simulateSource(() => client, ffCall, bad, { app: 12 }, { ids: [1, 2] });
+  assert.deepEqual([r.from, r.count, r.result.records, r.result.issues.map((x) => x.code)], ["none", 0, null, ["color.format"]]);
+  assert.equal(calls.includes("record"), false, "レコードを読んでいない");
+  // 渡し方の誤りは、項目定義も読まない
+  calls.length = 0;
+  await assert.rejects(() => G.simulateSource(() => client, ffCall, FF_SOURCE, { app: 12 }, { ids: [1], records: [{}] }), G.GenericSimulateError);
+  assert.deepEqual(calls, []);
+  // 誤りが無ければ読む
+  const ok = await G.simulateSource(() => client, ffCall, FF_SOURCE, { app: 12 }, { ids: [1] });
+  assert.deepEqual([ok.from, ok.count, calls.filter((c) => c === "record").length], ["ids", 1, 1]);
+});
