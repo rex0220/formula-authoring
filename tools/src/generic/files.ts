@@ -118,10 +118,11 @@ export function renderSourceFile(file: SourceFile): string {
 
 export interface ReadSourceResult { name: string; file: SourceFile; digest: string }
 
-export function readSourceFile(root: string, name: string, expectedPlugin?: string): ReadSourceResult {
+/** expectedPlugin は必ず書く（製品の名前。どの製品でもよいなら null）。型で省けなくしてあるのは、入口を足したときに渡し忘れないため */
+export function readSourceFile(root: string, name: string, expectedPlugin: string | null): ReadSourceResult {
   const target = resolveWorkFile(root, name);
   const text = readText(target, name);
-  return { name, file: parseSourceFile(text, name, expectedPlugin), digest: digestOfText(text) };
+  return { name, file: parseSourceFile(text, name, expectedPlugin ?? undefined), digest: digestOfText(text) };
 }
 
 /** 作業フォルダーのほかの JSON（設定画面でダウンロードしたファイルなど）を文字のまま読む */
@@ -184,11 +185,11 @@ export function saveNewImportFileFor(root: string, sourceName: string, checkedDi
  * 設定ファイルを直す。読んだ時点の digest（expectedDigest）と違えば conflict（読んだ後に変わった）。
  * 入れ替えは、ロック → digest の確かめ直し → 隣の一時ファイル → rename。plugin と appId は変えられない
  */
-export function updateSourceFile(root: string, name: string, expectedDigest: string, edit: (source: GenericSource) => GenericSource, expectedPlugin?: string): WriteResult & { before: GenericSource; after: GenericSource } {
+export function updateSourceFile(root: string, name: string, expectedDigest: string, edit: (source: GenericSource) => GenericSource, expectedPlugin: string | null): WriteResult & { before: GenericSource; after: GenericSource } {
   const target = resolveWorkFile(root, name);
   const current = readText(target, name);
   if (digestOfText(current) !== expectedDigest) throw new GenericFileError(`読んだ後にファイルが変わった（digest が違う）。読み直してからやり直す: ${name}`, "conflict");
-  const file = parseSourceFile(current, name, expectedPlugin);
+  const file = parseSourceFile(current, name, expectedPlugin ?? undefined);
   const after = assertSource(edit(JSON.parse(JSON.stringify(file.source)) as GenericSource));
   const text = renderSourceFile({ ...file, source: after });
   if (Buffer.byteLength(text) > GENERIC_MAX_FILE_BYTES) throw new GenericFileError(`ファイルが大きすぎる（${GENERIC_MAX_FILE_BYTES} バイトまで）: ${name}`, "invalid");
