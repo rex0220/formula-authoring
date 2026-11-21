@@ -103,6 +103,34 @@ if (coreLeaked.length) {
   console.error(`中核の入口に入れてはいけないもの（計算式プラグイン / kit / rexgrid のコード、cli.ts、dev-paths.ts）が入っている:\n  ${coreLeaked.join("\n  ")}`);
   process.exit(1);
 }
+// 汎用のオーサリングの入口（@rex0220/formula-authoring-tools/generic。計算式エンジンを使うほかのプラグイン向け。src/generic.ts）:
+// dist/generic.mjs と、その Worker の入口 dist/generic-worker.mjs（1 つの仕事 = 1 つの Worker。プラグインの zip はその中で読む）
+for (const [entry, outName, label] of [["generic.ts", "generic.mjs", "汎用の入口"], [path.join("generic", "generic-worker.ts"), "generic-worker.mjs", "汎用の Worker の入口"]]) {
+  const r = await build({
+    entryPoints: [path.join(root, "src", entry)],
+    outfile: path.join(root, "dist", outName),
+    bundle: true,
+    format: "esm",
+    platform: "node",
+    target: "node20",
+    charset: "utf8",
+    legalComments: "none",
+    external: ["happy-dom"],
+    banner: { js: `/*! @rex0220/formula-authoring-tools/generic ${meta.toolsVersion} (c) rex0220. MIT License. プラグインのコード（計算式エンジンと authoring API）は利用者のプラグインの zip から読む（このファイルには含まれない）。commit ${meta.commit}. */` },
+    define: { __FORMULA_TOOLS_META__: JSON.stringify(JSON.stringify(meta)) },
+    alias: { formula: FORMULA_ROOT, "plugin-config-kit": kitRoot(), rexgrid: rexgridRoot() },
+    absWorkingDir: root,
+    metafile: true,
+    logLevel: "warning"
+  });
+  const bad = Object.keys(r.metafile.inputs).filter((p) => /formula[\\/](src|lib|prod)[\\/]|plugin-config-kit[\\/]src|rexgrid[\\/]src|[\\/]src[\\/](cli|dev-paths)\.ts$|kintone-plugin[\\/](aggregate|data-generator)[\\/]/.test(p));
+  if (bad.length) {
+    console.error(`${label}に入れてはいけないもの（プラグイン / kit / rexgrid のコード、cli.ts、dev-paths.ts）が入っている:\n  ${bad.join("\n  ")}`);
+    process.exit(1);
+  }
+  console.log(`wrote dist/${outName} (${readFileSync(path.join(root, "dist", outName)).length.toLocaleString()} bytes)`);
+}
+
 // 型: ① 本物の型（計算式プラグインの型を含む）で検査する（誤りがあれば止める）→ ② 計算式プラグインの型を代わりの型（scripts/types-stub/。any）にして宣言だけを作る
 // （計算式プラグインの型は計算式プラグインのリポジトリにあり npm に出さない。② の検査の誤りは代わりの型によるものなので見ない。正しさは ① で確かめる）
 // → ③ 宣言の中の計算式プラグインの参照を、同梱した代わりの型（dist/types/_formula/）に向け直す → ④ 読み込む側の設定で、宣言の検査も省かずに通るか
@@ -115,8 +143,8 @@ if (check.status !== 0) {
 const typesDir = path.join(root, "dist", "types");
 rmSync(typesDir, { recursive: true, force: true });
 spawnSync(process.execPath, [tscBin, "-p", path.join(root, "tsconfig.types.json")], { encoding: "utf8", cwd: root });
-if (!existsSync(path.join(typesDir, "core.d.ts"))) {
-  console.error("中核の型（dist/types/core.d.ts）を作れなかった");
+if (!existsSync(path.join(typesDir, "core.d.ts")) || !existsSync(path.join(typesDir, "generic.d.ts"))) {
+  console.error("中核の型（dist/types/core.d.ts・generic.d.ts）を作れなかった");
   process.exit(1);
 }
 const stubRoot = path.join(root, "scripts", "types-stub", "formula");
