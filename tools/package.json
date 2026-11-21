@@ -1,6 +1,6 @@
 {
   "name": "@rex0220/formula-authoring-tools",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "rex0220 計算式プラグイン（kintone）の設定を AI で作るための CLI。利用者のプラグインの zip から authoring API と計算式エンジンを読んで Node で動く",
   "license": "MIT",
   "type": "module",
@@ -39,7 +39,9 @@
     "prepack": "node scripts/vendor.mjs && node scripts/build.mjs",
     "gen-docs": "node scripts/gen-docs.mjs"
   },
-  "publishConfig": { "access": "public" },
+  "publishConfig": {
+    "access": "public"
+  },
   "homepage": "https://github.com/rex0220/formula-authoring#readme",
   "repository": {
     "type": "git",
