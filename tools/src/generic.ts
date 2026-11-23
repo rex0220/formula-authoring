@@ -15,8 +15,8 @@ export {
   type GenericSource, type GenericSourceRow, type SourceDiff
 } from "./generic/source.ts";
 export {
-  GENERIC_MAX_APPS, GenericDefsError, checkSource, checkWithDefs, fetchGenericDefs, isAppIdText,
-  type FetchDefsOptions, type GenericAppDefs, type GenericCaller, type GenericCheckResult, type GenericClientFor, type GenericDefs, type GenericIssue
+  GENERIC_MAX_APPS, GENERIC_STATUS_LANGS, GenericDefsError, checkSource, checkWithDefs, fetchGenericDefs, fetchGenericStatus, isAppIdText,
+  type FetchDefsOptions, type GenericAppDefs, type GenericCaller, type GenericCheckResult, type GenericClientFor, type GenericDefs, type GenericIssue, type GenericStatusSet
 } from "./generic/check.ts";
 // アプリに保存されているプラグインの設定を読む（API ラボの GET。保存値をほどくだけで、読み方は zip の toSource が決める）
 export { GenericPullError, STORED_LIMITS, StoredConfigError, decodeStoredConfig, fetchStoredConfig, type FetchStoredOptions, type FetchStoredResult, type StoredConfigErrorCode, type StoredLimits } from "./generic/pull.ts";
