@@ -32,6 +32,11 @@ export interface GenericPlugin {
   apiEntry: string;
   /** 模擬（authoring API の simulate）がある製品。レコードを当てて確かめるツールを出す */
   simulate?: boolean;
+  /**
+   * 自アプリのプロセス管理の設定を読む製品（check.ts の fetchGenericStatus。動作テスト環境の GET）。
+   * 検査・模擬に渡す項目定義の `own.status` に入る。印の無い製品では読まない
+   */
+  status?: boolean;
 }
 
 const AGGREGATE: GenericPlugin = {
@@ -65,7 +70,27 @@ const FIELD_FORMAT: GenericPlugin = {
   simulate: true
 };
 
-export const GENERIC_PLUGINS: Readonly<Record<string, GenericPlugin>> = { aggregate: AGGREGATE, "field-format": FIELD_FORMAT };
+/**
+ * 確認ダイアログ（Ver.6〜）。対象イベントの「プロセスアクション」は、アプリのプロセス管理のアクション（名前・元・先）で選ぶので、
+ * 自アプリのプロセス管理を読む（status）。保存値の statusByLid（言語ごとの名前から既定の名称を引く表）も、そこから API が作る。
+ * ユーザー情報のライブラリは読み込まない（UINFO などは使えない）。模擬（simulate）あり = レコードと場面を当てて、出るダイアログを確かめる
+ */
+const CONFIRM_DIALOG: GenericPlugin = {
+  name: "confirm-dialog",
+  title: "確認ダイアログ",
+  toolPrefix: "cdlg",
+  kintonePluginId: "bplhmcmehabodgedecoefphhapglkcem",
+  configPluginId: "rex0220 Confirm dialog plugin",
+  minPluginVersion: 6,
+  contractVersions: [1],
+  zipEnv: "CONFIRM_DIALOG_PLUGIN_ZIP",
+  scripts: ["desktop_js/moment-timezone-with-data.min.js", "desktop_js/bignumber.min.js", "desktop_js/rex0220_decimal.min.js", "desktop_js/KintoneFormulaConfirmDialog.min.js"],
+  apiEntry: "config_js/confirm-dialog-authoring-api.js",
+  simulate: true,
+  status: true
+};
+
+export const GENERIC_PLUGINS: Readonly<Record<string, GenericPlugin>> = { aggregate: AGGREGATE, "field-format": FIELD_FORMAT, "confirm-dialog": CONFIRM_DIALOG };
 
 export class UnknownPluginError extends Error {}
 

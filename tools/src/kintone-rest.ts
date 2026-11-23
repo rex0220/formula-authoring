@@ -11,9 +11,10 @@ import { KintoneUrlError, normalizeKintoneBaseUrl } from "./kintone-url.ts";
 
 /**
  * 許可する API（/k/v1/ と /k/guest/<id>/v1/ の後ろ）。app/plugin/config と preview/app/plugin/config は pull が使う（API ラボの
- * 「アプリに追加されているプラグインの設定情報を取得する」。GET だけ。変更の PUT は呼ばない。Takashi 2026-10-05「tools のみで GET だけ」）
+ * 「アプリに追加されているプラグインの設定情報を取得する」。GET だけ。変更の PUT は呼ばない。Takashi 2026-10-05「tools のみで GET だけ」）。
+ * preview/app/status（プロセス管理の設定。0.9.0）は汎用の入口が、表に status の印のある製品（確認ダイアログ）のときだけ読む（generic/check.ts）
  */
-export const ALLOWED_APIS = ["app", "app/form/fields", "app/form/layout", "app/views", "record", "records", "preview/app/form/fields", "preview/app/form/layout", "preview/app/views", "app/plugin/config", "preview/app/plugin/config"] as const;
+export const ALLOWED_APIS = ["app", "app/form/fields", "app/form/layout", "app/views", "record", "records", "preview/app/form/fields", "preview/app/form/layout", "preview/app/views", "app/plugin/config", "preview/app/plugin/config", "preview/app/status"] as const;
 
 /**
  * 受け取る本文の上限（バイト。段階 0-2 の段 4。print-craft-authoring-mcp の docs/api-table.md 2 章）。CLI にも効くので、大きなアプリ
@@ -30,7 +31,8 @@ export const RECEIVE_LIMITS: Record<(typeof ALLOWED_APIS)[number], number> = {
   "app/views": 2 * 1024 * 1024,
   "preview/app/views": 2 * 1024 * 1024,
   "app/plugin/config": 2 * 1024 * 1024,
-  "preview/app/plugin/config": 2 * 1024 * 1024
+  "preview/app/plugin/config": 2 * 1024 * 1024,
+  "preview/app/status": 2 * 1024 * 1024
 };
 
 /**

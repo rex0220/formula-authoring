@@ -11,6 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as G from "../src/generic.ts";
 import { crc32, unzip } from "../src/plugin-zip.ts";
+import { ALLOWED_APIS, RECEIVE_LIMITS } from "../src/kintone-rest.ts";
 import { PLUGIN_ZIP } from "./helpers.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -432,7 +433,7 @@ const FF_SOURCE = {
 test("表: 項目書式がある（ツールの頭 ffmt、zip の場所 FIELD_FORMAT_PLUGIN_ZIP、版 16 から）", () => {
   const p = G.genericPlugin("field-format");
   assert.deepEqual([p.title, p.toolPrefix, p.zipEnv, p.minPluginVersion, p.apiEntry], ["項目書式", "ffmt", "FIELD_FORMAT_PLUGIN_ZIP", 16, "config_js/field-format-authoring-api.js"]);
-  assert.deepEqual(Object.keys(G.GENERIC_PLUGINS).sort(), ["aggregate", "field-format"]);
+  assert.deepEqual(Object.keys(G.GENERIC_PLUGINS).sort(), ["aggregate", "confirm-dialog", "field-format"]);
 });
 
 test("項目書式: zip の authoring API で検査する。本体は「共通の設定 + pluginInfos」（派生値・内部番号なし）。アプリ集計の zip は項目書式として読めない", { skip: skipFF }, async () => {
@@ -584,4 +585,135 @@ test("項目書式: 模擬は検査が先。設定に止まる誤りがあれば
   // 誤りが無ければ読む
   const ok = await G.simulateSource(() => client, ffCall, FF_SOURCE, { app: 12 }, { ids: [1] });
   assert.deepEqual([ok.from, ok.count, calls.filter((c) => c === "record").length], ["ids", 1, 1]);
+});
+
+// ---- 確認ダイアログ（3 つ目の製品。自アプリのプロセス管理を読む = 表の status） ----------------------------------------
+const CD_ZIP = path.resolve(HERE, "../../../confirm-dialog/dist/confirm-dialog-plugin6.zip");
+const skipCD = existsSync(CD_ZIP) ? false : `確認ダイアログの zip が無い: ${CD_ZIP}`;
+const cdCall = (method, args) => G.callGeneric({ plugin: "confirm-dialog", zip: CD_ZIP, method, args, context: { ownAppId: 30 } }, { timeoutSec: 60 });
+const CD_PROPS = {
+  txt_name: { type: "SINGLE_LINE_TEXT", code: "txt_name", label: "名前" },
+  num_amount: { type: "NUMBER", code: "num_amount", label: "金額" }
+};
+/** プロセス管理（言語ごとの名前つき。en だけ別の名前） */
+const cdStatus = (lang) => {
+  const en = lang === "en";
+  const n = (ja, e) => (en ? e : ja);
+  return {
+    enable: true,
+    states: { 未処理: { name: n("未処理", "Not started"), index: "0" }, 処理中: { name: n("処理中", "In progress"), index: "1" }, 完了: { name: n("完了", "Done"), index: "2" } },
+    actions: [{ name: n("開始", "Start"), from: n("未処理", "Not started"), to: n("処理中", "In progress") }, { name: n("承認", "Approve"), from: n("処理中", "In progress"), to: n("完了", "Done") }]
+  };
+};
+const cdStep = (o = {}) => ({ state: true, desc: "確認", cond: "1", dialog: true, icon: "info", title: '"確認"', body: '"金額: " & num_amount', notify: true, ok: '"保存しました"', cancel: '"やめました"', ...o });
+const CD_SOURCE = {
+  common: {},
+  rows: [
+    { key: "01", state: true, name: "保存の確認", event: "save", save: { create: true, update: true }, steps: [cdStep({ cond: "num_amount>=100" })] },
+    { key: "02", state: true, name: "承認の確認", event: "process", actions: [{ name: "承認", from: "処理中", to: "完了" }], steps: [cdStep({ body: '"承認します: " & txt_name', notify: false, ok: "", cancel: "" })] }
+  ]
+};
+/** 代役の接続（api と app と lang で引く。呼んだものを控える） */
+function cdClient(handlers) {
+  const calls = [];
+  const client = {
+    get: async (api, params, guestSpaceId) => {
+      calls.push([api, params.lang ?? "", guestSpaceId]);
+      const h = handlers[api];
+      if (h === undefined) throw new Error(`403 ${api}`);
+      return typeof h === "function" ? h(params) : h;
+    }
+  };
+  const clientFor = () => client;
+  clientFor.calls = calls;
+  return clientFor;
+}
+const CD_FIELDS = { app: { name: "申請" }, "preview/app/form/fields": { properties: CD_PROPS, revision: "1" }, "preview/app/form/layout": { layout: [], revision: "1" }, "preview/app/views": { views: {} } };
+
+test("表: 確認ダイアログがある（ツールの頭 cdlg、版 6 から、模擬あり、プロセス管理を読む）。ほかの製品に status の印は無い", () => {
+  const p = G.genericPlugin("confirm-dialog");
+  assert.deepEqual([p.title, p.toolPrefix, p.zipEnv, p.minPluginVersion, p.apiEntry, p.simulate, p.status], ["確認ダイアログ", "cdlg", "CONFIRM_DIALOG_PLUGIN_ZIP", 6, "config_js/confirm-dialog-authoring-api.js", true, true]);
+  assert.deepEqual(Object.values(G.GENERIC_PLUGINS).filter((x) => x.status).map((x) => x.name), ["confirm-dialog"]);
+  assert.ok(ALLOWED_APIS.includes("preview/app/status") && RECEIVE_LIMITS["preview/app/status"] > 0);
+  // 運用環境のプロセス管理・変更の API は許可していない
+  assert.ok(!ALLOWED_APIS.includes("app/status"));
+});
+
+test("プロセス管理: status の印のときだけ、動作テスト環境を 4 回（既定の名称・ja・en・zh）読んで own.status に入れる", { skip: skipCD }, async () => {
+  const d = await cdCall("describe", []);
+  assert.deepEqual([d.plugin, d.pluginVersion, d.contractVersion, d.hasSimulate, d.zip.signed], ["confirm-dialog", "6", 1, true, true]);
+  const client = cdClient({ ...CD_FIELDS, "preview/app/status": (p) => cdStatus(p.lang) });
+  const { defs, notes } = await G.fetchGenericDefs(client, cdCall, CD_SOURCE, { app: 30, status: true });
+  assert.deepEqual(notes, []);
+  assert.deepEqual(client.calls.filter((c) => c[0] === "preview/app/status").map((c) => c[1]), ["", "ja", "en", "zh"]);
+  // ゲストスペースのアプリは、4 回ともゲストスペースの番号を付けて読む。返すのは API の応答そのまま（作業者などを足さない・削らない。AI に返す形にするのは MCP の側）
+  const guest = cdClient({ ...CD_FIELDS, "preview/app/status": (p) => cdStatus(p.lang) });
+  const st = await G.fetchGenericStatus(guest(30), { app: 30, guestSpaceId: 7 });
+  assert.deepEqual(guest.calls.map((c) => [c[0], c[1], c[2]]), [["preview/app/status", "", 7], ["preview/app/status", "ja", 7], ["preview/app/status", "en", 7], ["preview/app/status", "zh", 7]]);
+  assert.deepEqual(Object.keys(st), ["default", "ja", "en", "zh"]);
+  // 最初（既定の名称）で読めなければ、言語ごとの読み取りに進まない
+  let n = 0;
+  const first = cdClient({ "preview/app/status": () => { n++; throw new Error("403"); } });
+  await assert.rejects(() => G.fetchGenericStatus(first(30), { app: 30 }), /403/);
+  assert.equal(n, 1);
+  assert.deepEqual(Object.keys(defs.own.status), ["default", "ja", "en", "zh"]);
+  assert.deepEqual([defs.own.status.default.actions[1].name, defs.own.status.en.actions[1].name], ["承認", "Approve"]);
+  // 検査: 保存値の statusByLid は、言語ごとの名前から既定の名称を引く表（en は "Approve" の側）
+  const r = await G.checkSource(client, cdCall, CD_SOURCE, { app: 30, status: true });
+  assert.deepEqual(r.issues, []);
+  assert.deepEqual(Object.keys(r.body.statusByLid).sort(), ["en", "ja", "zh"]);
+  assert.ok(Object.keys(r.body.statusByLid.en).some((k) => k.includes("Approve")), JSON.stringify(r.body.statusByLid.en));
+  // 印を渡さなければ読まない（ほかの製品の検査は、プロセス管理を読みに行かない）。確認ダイアログの API は「確かめていない」の warning を出す
+  const c2 = cdClient({ ...CD_FIELDS, "preview/app/status": (p) => cdStatus(p.lang) });
+  const r2 = await G.checkSource(c2, cdCall, CD_SOURCE, { app: 30 });
+  assert.deepEqual(c2.calls.filter((c) => c[0] === "preview/app/status"), []);
+  assert.deepEqual(r2.issues.map((x) => `${x.severity}:${x.code}`), ["warning:status.unavailable"]);
+  assert.equal(r2.body.statusByLid, undefined);
+});
+
+test("プロセス管理: 読めなければ注記に残して入れない（検査は warning で通る）。アプリに無いアクションは API が warning で伝える", { skip: skipCD }, async () => {
+  const client = cdClient(CD_FIELDS);
+  const r = await G.checkSource(client, cdCall, CD_SOURCE, { app: 30, status: true });
+  assert.ok(r.notes.some((n) => /アプリ 30 のプロセス管理を読めない/.test(n)), r.notes.join(" / "));
+  assert.deepEqual(r.issues.map((x) => `${x.severity}:${x.code}`), ["warning:status.unavailable"]);
+  assert.ok(r.body && r.body.pluginInfos.length === 2);
+  // 途中の言語で読めなくなっても、半端な組は渡さない
+  const half = cdClient({ ...CD_FIELDS, "preview/app/status": (p) => { if (p.lang === "en") throw new Error("503"); return cdStatus(p.lang); } });
+  const h = await G.fetchGenericDefs(half, cdCall, CD_SOURCE, { app: 30, status: true });
+  assert.equal(h.defs.own.status, undefined);
+  assert.equal(h.notes.length, 1);
+  // アプリに無いアクション
+  const ok = cdClient({ ...CD_FIELDS, "preview/app/status": (p) => cdStatus(p.lang) });
+  const bad = structuredClone(CD_SOURCE);
+  bad.rows[1].actions = [{ name: "差し戻し", from: "処理中", to: "未処理" }];
+  const b = await G.checkSource(ok, cdCall, bad, { app: 30, status: true });
+  assert.deepEqual(b.issues.map((x) => [x.severity, x.code, x.rowKey]), [["warning", "action.notFound", "02"]]);
+  // レコード画面では使われない（言語ごとの名前の表に入らない）
+  assert.deepEqual(b.body.statusByLid.ja, {});
+});
+
+test("確認ダイアログ: 模擬（simulate）を Worker 越しに呼べる。場面ごとに、出るダイアログと通知", { skip: skipCD }, async () => {
+  const client = cdClient({ ...CD_FIELDS, "preview/app/status": (p) => cdStatus(p.lang) });
+  const records = [
+    { $id: { type: "__ID__", value: "1" }, txt_name: { type: "SINGLE_LINE_TEXT", value: "A 社" }, num_amount: { type: "NUMBER", value: "150" } },
+    { $id: { type: "__ID__", value: "2" }, txt_name: { type: "SINGLE_LINE_TEXT", value: "B 社" }, num_amount: { type: "NUMBER", value: "50" } }
+  ];
+  const scenes = [{ event: "update" }, { event: "process", action: { name: "承認", from: "処理中", to: "完了" } }, { event: "process", action: { name: "承認", from: "処理中", to: "完了" }, lang: "en" }];
+  const s = await G.simulateSource(client, cdCall, CD_SOURCE, { app: 30, status: true }, { records }, { scenes });
+  assert.deepEqual([s.from, s.count, s.notes], ["records", 2, []]);
+  assert.deepEqual(s.result.issues, []);
+  const at = (rec, i) => s.result.results.filter((x) => x.record === rec)[i];
+  // 保存: 金額 100 以上のレコードだけダイアログが出る
+  assert.deepEqual(at("1", 0).dialogs.map((d) => [d.row, d.title, d.text]), [["01", "確認", "金額: 150"]]);
+  assert.deepEqual(at("2", 0).dialogs, []);
+  // アクション: 言語が en でも、同じ行が選ばれる（言語ごとの名前から既定の名称を引く）
+  assert.deepEqual(at("1", 1).dialogs.map((d) => [d.row, d.text]), [["02", "承認します: A 社"]]);
+  assert.deepEqual(at("1", 2).dialogs.map((d) => [d.row, d.text]), [["02", "承認します: A 社"]]);
+  // 設定に誤りがあれば、レコードを読まない（ids を渡しても record の GET が出ない）
+  const bad = structuredClone(CD_SOURCE);
+  bad.rows[0].steps[0].body = "no_such_field";
+  const c2 = cdClient({ ...CD_FIELDS, "preview/app/status": (p) => cdStatus(p.lang) });
+  const e = await G.simulateSource(c2, cdCall, bad, { app: 30, status: true }, { ids: [1] }, { scenes });
+  assert.equal(e.from, "none");
+  assert.ok(!c2.calls.some((c) => c[0] === "record" || c[0] === "records"));
 });

@@ -9,6 +9,10 @@
  * kintone へ送るのは GET だけ（kintone-rest.ts の許可表。アプリの一覧の API は使わない）。
  * **接続はアプリごとに作る**（API トークンはアプリごとに違う。`clientFor(アプリ番号)`）。そのアプリの接続を作れなければ（トークンが無い）、読めないアプリと同じ扱い。
  * 読めなかったアプリ（権限が無い、消えた）は飛ばして注記に残す。そのアプリを使う行は、API が「対象アプリが決まらない / 項目定義が無い」で止める。
+ *
+ * **プロセス管理の設定（0.9.0）**: 表に status の印のある製品（確認ダイアログ）だけ、自アプリの動作テスト環境のプロセス管理を読んで `own.status` に入れる
+ * （既定の名称と、言語ごとの名称 ja / en / zh の 4 回。設定画面と同じ読み方）。読めなければ注記に残して入れない（API は「確かめていない」の warning を出す）。
+ * 印の無い製品では読まない（要らないものを読まない）。
  */
 import { fetchFields } from "../commands/fields.ts";
 import type { RestClient } from "../kintone-rest.ts";
@@ -18,7 +22,9 @@ import type { GenericMethod } from "./host.ts";
 type Json = Record<string, unknown>;
 
 export interface GenericIssue { severity: "error" | "warning"; code: string; rowKey: string; section: string; label: string; message: string }
-export interface GenericAppDefs { properties: Json; layout: unknown[]; views?: Json }
+/** プロセス管理の設定（GET preview/app/status の応答）。default = 既定の名称、ja / en / zh = その言語の名称 */
+export interface GenericStatusSet { default: Json; ja: Json; en: Json; zh: Json }
+export interface GenericAppDefs { properties: Json; layout: unknown[]; views?: Json; status?: GenericStatusSet }
 export interface GenericDefs { own: GenericAppDefs; appNames: Record<string, string>; apps: Record<string, GenericAppDefs> }
 
 /** そのアプリを読む接続を返す（接続のファイルの profile の、そのアプリの認証で作る。作れなければ投げる） */
@@ -32,6 +38,8 @@ export interface FetchDefsOptions {
   app: number;
   guestSpaceId?: number;
   lang?: string;
+  /** 自アプリのプロセス管理を読む（製品の表の status。印の無い製品では渡さない） */
+  status?: boolean;
 }
 
 /** 1 回の検査で読むアプリの上限（自アプリを除く）。超えたら止める */
@@ -42,10 +50,28 @@ export class GenericDefsError extends Error {}
 /** アプリ番号として kintone に渡してよい文字列か（正の整数。プラグインの API が返した値も、設定に書かれた値も、ここを通す） */
 export const isAppIdText = (id: unknown): id is string => typeof id === "string" && /^[1-9]\d{0,9}$/.test(id) && Number.isSafeInteger(Number(id));
 
+/** プロセス管理を読む言語（設定画面と同じ。kintone の表示言語のうち、プラグインが見分ける 3 つ） */
+export const GENERIC_STATUS_LANGS = ["ja", "en", "zh"] as const;
+
+/** 自アプリのプロセス管理の設定を読む（動作テスト環境。GET を 4 回 = 既定の名称 + 3 言語）。読めなければ投げる */
+export async function fetchGenericStatus(client: RestClient, opt: { app: number; guestSpaceId?: number }): Promise<GenericStatusSet> {
+  const def = await client.get<Json>("preview/app/status", { app: opt.app }, opt.guestSpaceId);
+  const out: GenericStatusSet = { default: def, ja: def, en: def, zh: def };
+  for (const lang of GENERIC_STATUS_LANGS) out[lang] = await client.get<Json>("preview/app/status", { app: opt.app, lang }, opt.guestSpaceId);
+  return out;
+}
+
 export async function fetchGenericDefs(clientFor: GenericClientFor, call: GenericCaller, source: GenericSource, opt: FetchDefsOptions): Promise<{ defs: GenericDefs; notes: string[] }> {
   const notes: string[] = [];
   const own = await fetchFields(clientFor(opt.app), { app: opt.app, preview: true, lang: opt.lang, guestSpaceId: opt.guestSpaceId });
   const defs: GenericDefs = { own: { properties: own.properties as Json, layout: own.layout as unknown[], ...(own.views ? { views: own.views as unknown as Json } : {}) }, appNames: {}, apps: {} };
+  if (opt.status) {
+    try {
+      defs.own.status = await fetchGenericStatus(clientFor(opt.app), { app: opt.app, guestSpaceId: opt.guestSpaceId });
+    } catch (e) {
+      notes.push(`アプリ ${opt.app} のプロセス管理を読めない（${e instanceof Error ? e.message : String(e)}）`);
+    }
+  }
   const failed = new Set<string>();
   let targets: string[] = [];
   // 名前が出そろうまで（参照先を引くと新しいアプリが出ることは無いので、ふつう 2 回で終わる）
